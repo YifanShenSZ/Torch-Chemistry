@@ -1,0 +1,13 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "~/Software/Programming/libtorch-cuda10.1-1.7.1/include/**",
+                "include"
+            ],
+            "cppStandard": "c++14"
+        }
+    ],
+    "version": 4
+}
