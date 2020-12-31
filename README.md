@@ -17,15 +17,17 @@ Linear algebra:
 Utility:
 * Some general basic routine
 
-## Usage
-Include headers
-1. Add `include` to your include path
-2. `#include <tchem/tchem.hpp>`
+## Installation
+1. `mkdir build lib`
+2. `cd build`
+3. `cmake ..`
+4. `cmake --build .`
+5. `mv lib* ../lib`
+6. add `include` and `lib` to your path
 
-Compile with `CMake`
-1. In your app main directory, create a symbolic link to here
-2. `add_subdirectory(Torch-Chemistry)` in your `CMakeLists.txt`
-3. A static library named `tchem` will be built
+## Usage
+`#include <tchem/tchem.hpp>`
 
 ## Dependency
-libtorch
+1. libtorch
+2. My Cpp-Library

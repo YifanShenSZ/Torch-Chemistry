@@ -21,6 +21,7 @@ Warning:
 #include <torch/torch.h>
 
 #include <tchem/intcoord.hpp>
+#include <tchem/linalg.hpp>
 
 namespace tchem { namespace IC {
 
@@ -191,7 +192,7 @@ at::Tensor compute_IC(const at::Tensor & r, const size_t & ID) {
                 if (theta.item<double>() > 1.0) theta.fill_(0.0);
                 else if (theta.item<double>() < -1.0) theta.fill_(M_PI);
                 else theta = at::acos(theta);
-                if(CL::TS::LA::triple_product(n123, n234, r23) < 0.0) theta = -theta;
+                if(tchem::LA::triple_product(n123, n234, r23) < 0.0) theta = -theta;
                 if(theta.item<double>() < min) theta += 2.0 * M_PI;
                 else if(theta.item<double>() > min + 2.0 * M_PI) theta -= 2.0 * M_PI;
                 q[i] += coeff * theta;
@@ -278,7 +279,7 @@ std::tuple<at::Tensor, at::Tensor> compute_IC_J(const at::Tensor & r, const size
                 if (theta.item<double>() > 1.0) theta.fill_(0.0);
                 else if (theta.item<double>() < -1.0) theta.fill_(M_PI);
                 else theta = at::acos(theta);
-                if(CL::TS::LA::triple_product(n123, n234, runit23) < 0.0) theta = -theta;
+                if(tchem::LA::triple_product(n123, n234, runit23) < 0.0) theta = -theta;
                 if(theta.item<double>() < min) theta += 2.0 * M_PI;
                 else if(theta.item<double>() > min + 2.0 * M_PI) theta -= 2.0 * M_PI;
                 // Output
@@ -305,7 +306,7 @@ std::tuple<at::Tensor, at::Tensor> compute_IC_J(const at::Tensor & r, const size
                 at::Tensor cos324 = runit23.dot(runit24);
                 at::Tensor sin324sq = 1.0 - cos324*cos324;
                 at::Tensor sin324 = at::sqrt(sin324sq);
-                at::Tensor sintheta = CL::TS::LA::triple_product(runit23, runit24, runit21) / sin324;
+                at::Tensor sintheta = tchem::LA::triple_product(runit23, runit24, runit21) / sin324;
                 at::Tensor costheta = at::sqrt(1.0 - sintheta*sintheta);
                 at::Tensor tantheta = sintheta/costheta;
                 at::Tensor J0 = (runit23.cross(runit24) / costheta / sin324 - tantheta * runit21) / r21;
