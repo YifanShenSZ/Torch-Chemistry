@@ -4,6 +4,7 @@
             "name": "Linux",
             "includePath": [
                 "~/Software/Programming/libtorch-cuda10.1-1.7.1/include/**",
+                "~/Library/Cpp-Library/include",
                 "include"
             ],
             "cppStandard": "c++14"
