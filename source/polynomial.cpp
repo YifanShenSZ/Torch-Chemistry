@@ -55,6 +55,7 @@ void PolynomialSet::create_orders() {
         }
         orders_.back().push_back(& polynomial);
     }
+    assert(("polynomial set should not contain higher order term than the defined order", orders_.size() == order_ + 1));
 }
 
 // Given a set of coordiantes constituting a polynomial,
@@ -181,6 +182,19 @@ at::Tensor PolynomialSet::operator()(const at::Tensor & r) const {
     at::Tensor value = r.new_empty(polynomials_.size());
     for (size_t i = 0; i < polynomials_.size(); i++) value[i] = polynomials_[i](r);
     return value;
+}
+
+// Given `x`, the value of each term in {P(r)} as a vector
+// Return views to `x` grouped by order
+std::vector<at::Tensor> PolynomialSet::views(const at::Tensor & x) const {
+    std::vector<at::Tensor> views(order_ + 1);
+    size_t start = 0;
+    for (size_t i = 0; i < order_ + 1; i++) {
+        size_t stop = start + orders_[i].size();
+        views[i] = x.slice(0, start, stop);
+        start = stop;
+    }
+    return views;
 }
 
 // Consider coordinate rotation q = U^T . r

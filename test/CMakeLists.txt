@@ -18,13 +18,10 @@ include_directories(~/Library/Torch-Chemistry/include)
 link_directories(~/Library/Torch-Chemistry/lib)
 
 add_executable(test.exe
-    test.cpp
+    linalg.cpp
+    polynomial.cpp
+    gaussian.cpp
+    main.cpp
 )
-
-if (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -qopenmp -static-intel -parallel -ipo")
-else ()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -fopenmp")
-endif ()
 
 target_link_libraries(test.exe tchem CL "${TORCH_LIBRARIES}")

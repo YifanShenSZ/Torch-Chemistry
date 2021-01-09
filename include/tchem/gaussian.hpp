@@ -1,6 +1,8 @@
 #ifndef tchem_gaussian_hpp
 #define tchem_gaussian_hpp
 
+#include <random>
+
 #include <torch/torch.h>
 
 #include <tchem/polynomial.hpp>
@@ -13,6 +15,11 @@ class Gaussian {
     private:
         // mean, variance
         at::Tensor miu_, var_;
+
+        // Eigenvalues and eigenvectors of variance
+        at::Tensor eigvals_, eigvecs_;
+        // Independent 1-dimensional gaussian distributions
+        std::vector<std::normal_distribution<double>> independent_1Dgaussians_;
     public:
         Gaussian();
         Gaussian(const at::Tensor & _miu, const at::Tensor & _var);
@@ -20,6 +27,9 @@ class Gaussian {
 
         inline at::Tensor miu() const {return miu_;}
         inline at::Tensor var() const {return var_;}
+        inline at::Tensor eigvals() const {return eigvals_;}
+        inline at::Tensor eigvecs() const {return eigvecs_;}
+        inline std::vector<std::normal_distribution<double>> independent_1Dgaussians() const {return independent_1Dgaussians_;}
 
         // g(r; miu, var) = (2pi)^(-dim/2) |var|^(-1/2) exp[-1/2 (r-miu)^T.var^-1.(r-miu)]
         at::Tensor operator()(const at::Tensor & r) const;
@@ -38,6 +48,11 @@ class Gaussian {
         at::Tensor integral(const polynomial::PolynomialSet & set, const polynomial::PolynomialSet & normal_set) const;
         // Assuming terms are the same under transformation
         at::Tensor integral(const polynomial::PolynomialSet & set) const;
+
+        // Initialize gaussian random tensor generation
+        void rand_init();
+        // Return a gaussian random tensor
+        at::Tensor rand(std::default_random_engine & generator);
 };
 
 } // namespace gaussian

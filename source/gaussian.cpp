@@ -1,10 +1,3 @@
-/*
-This library adopts gaussian functions in form of multivariate normal distribution
-g(r; miu, var) = (2pi)^(-dim/2) |var|^(-1/2) exp[-1/2 (r-miu)^T.var^-1.(r-miu)]
-where `r` is the variable, `dim` is the dimension of `r`
-`miu` is the mean, `var` is the variance
-*/
-
 #include <torch/torch.h>
 
 #include <CppLibrary/math.hpp>
@@ -25,12 +18,12 @@ Gaussian::~Gaussian() {}
 // g(r; miu, var) = (2pi)^(-dim/2) |var|^(-1/2) exp[-1/2 (r-miu)^T.var^-1.(r-miu)]
 at::Tensor Gaussian::operator()(const at::Tensor & r) const {
     assert(("r and miu must have same dimension", r.size(0) == miu_.size(0)));
-    at::Tensor var_inv = at::inverse(var_);
+    at::Tensor var_cholesky = var_.cholesky(true);
+    at::Tensor var_inv = at::cholesky_inverse(var_cholesky, true);
+    at::Tensor var_sqrtdet = var_cholesky.diag().prod();
     at::Tensor r_disp = r - miu_;
-    at::Tensor exponent = r_disp.dot(var_inv.mv(r_disp));
-    at::Tensor value = pow(6.283185307179586, -r.size(0) / 2.0)
-                     / at::sqrt(at::det(var_))
-                     * at::exp(-0.5 * exponent);
+    at::Tensor value = pow(6.283185307179586, -r.size(0) / 2.0) / var_sqrtdet
+                     * at::exp(-0.5 * r_disp.dot(var_inv.mv(r_disp)));
     return value;
 }
 // g1(r; miu1, var1) * g2(r; miu2, var2) = c * g3(r; miu3, var3)
@@ -65,8 +58,8 @@ std::tuple<at::Tensor, Gaussian> Gaussian::operator*(const Gaussian & g2) const 
 // The necessary integrals in normal coordinate are specified in `normal_set`
 at::Tensor Gaussian::integral(const polynomial::PolynomialSet & set, const polynomial::PolynomialSet & normal_set) const {
     // Diagonalize `var`
-    at::Tensor eigval, UT;
-    std::tie(eigval, UT) = var_.symeig(true);
+    at::Tensor eigvals, UT;
+    std::tie(eigvals, UT) = var_.symeig(true);
     // Evaluate the integrals in the normal coordinate
     at::Tensor normal_integrals = miu_.new_empty(normal_set.polynomials().size());
     size_t start = 0;
@@ -91,7 +84,7 @@ at::Tensor Gaussian::integral(const polynomial::PolynomialSet & set, const polyn
                     normal_integrals[start] = 1.0;
                     for (size_t i = 0; i < uniques.size(); i++)
                     normal_integrals[start] *= CL::math::dFactorial2(repeats[i] - 1)
-                                             * at::pow(eigval[uniques[i]], (double)repeats[i]/2);
+                                             * at::pow(eigvals[uniques[i]], (double)repeats[i]/2);
                 }
                 start++;
             }
@@ -109,6 +102,25 @@ at::Tensor Gaussian::integral(const polynomial::PolynomialSet & set, const polyn
 }
 // Assuming terms are the same under transformation
 at::Tensor Gaussian::integral(const polynomial::PolynomialSet & set) const {return integral(set, set);}
+
+// Initialize gaussian random tensor generation
+void Gaussian::rand_init() {
+    std::tie(eigvals_, eigvecs_) = var_.symeig(true);
+    independent_1Dgaussians_.resize(miu_.size(0));
+    for (size_t i = 0; i < miu_.size(0); i++)
+    independent_1Dgaussians_[i] = std::normal_distribution<double>(0.0, sqrt(eigvals_[i].item<double>()));
+}
+// Return a gaussian random tensor
+at::Tensor Gaussian::rand(std::default_random_engine & generator) {
+    assert(("Must initialize before generate random tensor", eigvals_.defined() && eigvecs_.defined()));
+    at::Tensor rand = miu_.new_empty(miu_.sizes());
+    // Generate a random vector in the miu-centred && `var`-diagonalized (normal) coordinate
+    for (size_t i = 0; i < rand.size(0); i++)
+    rand[i] = independent_1Dgaussians_[i](generator);
+    // Transform back to original coordinate
+    rand = miu_ + eigvecs_.transpose(0, 1).mv(rand);
+    return rand;
+}
 
 } // namespace gaussian
 } // namespace tchem

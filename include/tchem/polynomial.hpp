@@ -31,7 +31,7 @@ class PolynomialSet {
     private:
         // Dimension of the coordinate constituting the polynomial set
         size_t dimension_;
-        // Highest order of among the polynomials
+        // Highest order among the polynomials
         size_t order_;
 
         // Polynomials constituting the set, requirements:
@@ -63,8 +63,12 @@ class PolynomialSet {
         inline std::vector<Polynomial> polynomials() const {return polynomials_;}
         inline std::vector<std::vector<Polynomial *>> orders() const {return orders_;}
 
-        // Return the value of each term in {{P(r)}} as a vector
+        // Return the value of each term in {P(r)} as a vector
         at::Tensor operator()(const at::Tensor & r) const;
+
+        // Given `x`, the value of each term in {P(r)} as a vector
+        // Return views to `x` grouped by order
+        std::vector<at::Tensor> views(const at::Tensor & x) const;
 
         // Consider coordinate rotation q = U^T . r
         // so the polynomial set transforms as {P(r)} = T . {P(q)}
