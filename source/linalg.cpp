@@ -35,7 +35,9 @@ namespace {
 namespace tchem { namespace LA {
 
 double triple_product(const at::Tensor & a, const at::Tensor & b, const at::Tensor & c) {
-    return (c[0]*(a[1]*b[2]-a[2]*b[1])-c[1]*(a[0]*b[2]-a[2]*b[0])+c[2]*(a[0]*b[1]-a[1]*b[0])).item<double>();
+    return ( c[0] * (a[1] * b[2] - a[2] * b[1])
+           - c[1] * (a[0] * b[2] - a[2] * b[0])
+           + c[2] * (a[0] * b[1] - a[1] * b[0])).item<double>();
 }
 
 // a.outer(b) only works for vectors a & b
@@ -46,15 +48,20 @@ at::Tensor outer_product(const at::Tensor & a, const at::Tensor & b) {
     for (size_t i = 0; i < a.sizes().size(); i++) dims[i] = a.size(i);
     for (size_t i = 0; i < b.sizes().size(); i++) dims[i + a.sizes().size()] = b.size(i);
     at::Tensor a_view = a.view(a.numel()),
-               b_view = a.view(b.numel());
+               b_view = b.view(b.numel());
     c10::IntArrayRef sizes(dims.data(), dims.size());
     at::Tensor result = a_view.outer(b_view);
     return result.view(sizes);
 }
 
-// Convert a vector `x` to a symmetric tensor
+// Convert a vector `x` to an `order`-th order symmetric tensor
+// Here a symmetric tensor `A` is defined to satisfy
+// A[i1][i2]...[in] = A[i2][i1]...[in] = ... = A[i2]...[in][i1] = ...
+// i.e. the permutation of indices all give a same element
 // only the "upper triangle" (i1 <= i2 <= ... <= in) of the output tensor is filled
-at::Tensor vec2sytensor(const at::Tensor & x, const c10::IntArrayRef & sizes) {
+at::Tensor vec2sytensor(const at::Tensor & x, const size_t & order, const size_t & dimension) {
+    std::vector<int64_t> sizes_vector(order, dimension);
+    c10::IntArrayRef sizes(sizes_vector.data(), order);
     at::Tensor result = x.new_empty(sizes);
     size_t xstart = 0, Astart = 0;
     vec2sytensor_support(x, result, xstart, Astart);
@@ -80,6 +87,7 @@ void ge3matdotmul(const at::Tensor & A, const at::Tensor & B, at::Tensor & resul
     result[i][j] += A[i][k].dot(B[k][j]);
 }
 // For symmetric A and B
+// Here a symmetric 3rd-order tensor `A` means A[:][i][j] = A[:][j][i]
 at::Tensor sy3matdotmul(const at::Tensor & A, const at::Tensor & B) {
     at::Tensor result = A.new_zeros({A.size(0), B.size(1)});
     for (int i = 0; i < result.size(0); i++) {
@@ -113,6 +121,7 @@ void sy3matdotmul(const at::Tensor & A, const at::Tensor & B, at::Tensor & resul
 }
 
 // Unitary transformation for symmetric 3rd-order tensor A
+// Here a symmetric 3rd-order tensor `A` means A[:][i][j] = A[:][j][i]
 // result_ijm = U^T_ia * A_abm * U_bj
 at::Tensor UT_A3_U(const at::Tensor & A, const at::Tensor & UT) {
     int N = UT.size(0);

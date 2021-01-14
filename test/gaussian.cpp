@@ -17,9 +17,18 @@ void test_gaussian() {
     std::cerr << "\nValue of gaussian after multiplication: "
               << (c * g(r)).item<double>() - 2.015016218884655e-9 << '\n';
 
-    tchem::polynomial::PolynomialSet set(2, 3);
+    tchem::polynomial::PolynomialSet set(2, 4);
     at::Tensor integrals = g.integral(set);
     at::Tensor miu = g.miu(), var = g.var();
+    // 4th order terms
+    integrals[10] -= 3.0 * integrals[3] * integrals[3] - 2.0 * miu[0] * miu[0] * miu[0] * miu[0];
+    integrals[11] -= 3.0 * integrals[3] * integrals[4] - 2.0 * miu[0] * miu[0] * miu[0] * miu[1];
+    integrals[12] -= var[0][0] * var[1][1] + 2.0 * var[0][1] * var[0][1]
+                   + 2.0 * integrals[7] * miu[1] + 2.0 * integrals[8] * miu[0]
+                   - integrals[3] * miu[1] * miu[1] - 4.0 * integrals[4] * miu[0] * miu[1] - integrals[5] * miu[0] * miu[0]
+                   + 3.0 * miu[0] * miu[0] * miu[1] * miu[1];
+    integrals[13] -= 3.0 * integrals[5] * integrals[4] - 2.0 * miu[0] * miu[1] * miu[1] * miu[1];
+    integrals[14] -= 3.0 * integrals[5] * integrals[5] - 2.0 * miu[1] * miu[1] * miu[1] * miu[1];
     // 3rd order terms
     integrals[6] -= 3.0 * integrals[3] * miu[0] - 2.0 * miu[0] * miu[0] * miu[0];
     integrals[7] -= 2.0 * miu[0] * integrals[4] + miu[1] * integrals[3] - 2.0 * miu[1] * miu[0] * miu[0];

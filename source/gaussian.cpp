@@ -7,23 +7,27 @@
 namespace tchem { namespace gaussian {
 
 Gaussian::Gaussian() {}
-Gaussian::Gaussian(const at::Tensor & _miu, const at::Tensor & _var) : miu_(_miu), var_(_var) {
+Gaussian::Gaussian(const at::Tensor & _miu, const at::Tensor & _var) {
     assert(("miu must be a vector", _miu.sizes().size() == 1));
     assert(("var must be a matrix", _var.sizes().size() == 2));
     assert(("var must be a square matrix", _var.size(0) == _var.size(1)));
     assert(("miu and var must have same dimension", _miu.size(0) == _var.size(0)));
+    miu_ = _miu.new_empty(_miu.sizes());
+    miu_.copy_(_miu);
+    var_ = _var.new_empty(_var.sizes());
+    var_.copy_(_var);
 }
 Gaussian::~Gaussian() {}
 
 // g(r; miu, var) = (2pi)^(-dim/2) |var|^(-1/2) exp[-1/2 (r-miu)^T.var^-1.(r-miu)]
 at::Tensor Gaussian::operator()(const at::Tensor & r) const {
     assert(("r and miu must have same dimension", r.size(0) == miu_.size(0)));
-    at::Tensor var_cholesky = var_.cholesky(true);
-    at::Tensor var_inv = at::cholesky_inverse(var_cholesky, true);
-    at::Tensor var_sqrtdet = var_cholesky.diag().prod();
+    at::Tensor cholesky_var = var_.cholesky(true);
+    at::Tensor inv_var = at::cholesky_inverse(cholesky_var, true);
+    at::Tensor sqrtdet_var = cholesky_var.diag().prod();
     at::Tensor r_disp = r - miu_;
-    at::Tensor value = pow(6.283185307179586, -r.size(0) / 2.0) / var_sqrtdet
-                     * at::exp(-0.5 * r_disp.dot(var_inv.mv(r_disp)));
+    at::Tensor value = pow(6.283185307179586, -r.size(0) / 2.0) / sqrtdet_var
+                     * at::exp(-0.5 * r_disp.dot(inv_var.mv(r_disp)));
     return value;
 }
 // g1(r; miu1, var1) * g2(r; miu2, var2) = c * g3(r; miu3, var3)
@@ -32,17 +36,23 @@ std::tuple<at::Tensor, Gaussian> Gaussian::operator*(const Gaussian & g2) const 
     // Prepare
     at::Tensor miu1 =    miu(), var1 =    var(),
                miu2 = g2.miu(), var2 = g2.var();
-    at::Tensor det_var1 = at::det    (var1), det_var2 = at::det    (var2),
-               inv_var1 = at::inverse(var1), inv_var2 = at::inverse(var2);
+    at::Tensor cholesky_var1 = var1.cholesky(true),
+               cholesky_var2 = var2.cholesky(true);
+    at::Tensor sqrtdet_var1 = cholesky_var1.diag().prod(),
+               sqrtdet_var2 = cholesky_var2.diag().prod(),
+               inv_var1 = at::cholesky_inverse(cholesky_var1, true),
+               inv_var2 = at::cholesky_inverse(cholesky_var2, true);
     // var3
     at::Tensor inv_var3 = inv_var1 + inv_var2;
-    at::Tensor var3 = at::inverse(inv_var3);
+    at::Tensor cholesky_inv_var3 = inv_var3.cholesky(true);
+    at::Tensor sqrtdet_inv_var3 = cholesky_inv_var3.diag().prod(),
+               var3 = at::cholesky_inverse(cholesky_inv_var3, true);
     // miu3
     at::Tensor temp = inv_var1.mv(miu1) + inv_var2.mv(miu2);
     at::Tensor miu3 = var3.mv(temp);
     // c
     at::Tensor det_var3 = at::det(var3);
-    at::Tensor c = pow(6.283185307179586, -miu1.size(0)/2) * at::sqrt(det_var3 / det_var1 / det_var2)
+    at::Tensor c = pow(6.283185307179586, -miu1.size(0)/2) / sqrtdet_var1 / sqrtdet_var2 / sqrtdet_inv_var3
                  * at::exp(-0.5 * (miu1.dot(inv_var1.mv(miu1)) + miu2.dot(inv_var2.mv(miu2)) - temp.dot(miu3)));
     Gaussian g3(miu3, var3);
     return std::make_tuple(c, g3);

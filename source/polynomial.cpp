@@ -6,6 +6,9 @@
 
 namespace tchem { namespace polynomial {
 
+/*
+Polynomial P(r) = r[coords_[0]] * r[coords_[1]] * ... * r[coords_.back()]
+*/
 Polynomial::Polynomial() {}
 Polynomial::Polynomial(const std::vector<size_t> & _coords, const bool & sorted)
 : coords_(_coords) {
@@ -42,6 +45,60 @@ std::tuple<std::vector<size_t>, std::vector<size_t>> Polynomial::uniques_orders(
 }
 
 
+/*
+Polynomial set {P(r)}
+*/
+PolynomialSet::PolynomialSet() {}
+// Generate all possible terms up to `order`-th order constituting of all `dimension` coordinates
+PolynomialSet::PolynomialSet(const size_t & _dimension, const size_t & _order)
+: dimension_(_dimension), order_(_order) {
+    // 0th order term only
+    if (dimension_ == 0) {
+        polynomials_.resize(1);
+        std::vector<size_t> coords;
+        polynomials_[0] = Polynomial(coords);
+        return;
+    }
+    // Count number of terms
+    size_t count = 0;
+    for (size_t i = 0; i <= order_; i++) count += CL::math::iCombination(dimension_ + i - 1, i);
+    polynomials_.resize(count);
+    // Generate 0th order term
+    std::vector<size_t> coords;
+    polynomials_[0] = Polynomial(coords);
+    // Generate 1st and higher orders
+    count = 1;
+    for (size_t iorder = 1; iorder <=order_; iorder++) {
+        // The 1st term: r0^iorder
+        coords.resize(iorder);
+        fill(coords.begin(), coords.end(), 0);
+        polynomials_[count] = Polynomial(coords, true);
+        count++;
+        // The other terms: as a dimension-nary counter
+        // with former digit >= latter digit to avoid double counting
+        if (dimension_ > 1) while (true) {
+            coords[0] += 1;
+            // Carry to latter digits
+            for (size_t i = 0; i < iorder - 1; i++)
+            if (coords[i] >= dimension_) {
+                coords[i] = 0;
+                coords[i + 1] += 1;
+            }
+            // Guarantee former digit >= latter digit
+            for (int i = iorder - 2; i > -1; i--)
+            if (coords[i] < coords[i + 1]) {
+                coords[i] = coords[i + 1];
+            }
+            polynomials_[count] = Polynomial(coords, true);
+            count++;
+            if (coords.back() >= dimension_ - 1) break;
+        }
+    }
+    // Sanity check
+    if (count != polynomials_.size()) std::cerr << "Error in PolynomialSet construction";
+    this->create_orders();
+}
+PolynomialSet::~PolynomialSet() {}
 
 // Construct `orders_` after `polynomials_` has been constructed
 void PolynomialSet::create_orders() {
@@ -123,58 +180,6 @@ int PolynomialSet::index_polynomial(const std::vector<size_t> coords) const {
     bisect(coords, lower, upper, index);
     return index;
 }
-
-PolynomialSet::PolynomialSet() {}
-// Generate all possible terms up to `order`-th order constituting of all `dimension` coordinates
-PolynomialSet::PolynomialSet(const size_t & _dimension, const size_t & _order)
-: dimension_(_dimension), order_(_order) {
-    // 0th order term only
-    if (dimension_ == 0) {
-        polynomials_.resize(1);
-        std::vector<size_t> coords;
-        polynomials_[0] = Polynomial(coords);
-        return;
-    }
-    // Count number of terms
-    size_t count = 0;
-    for (size_t i = 0; i <= order_; i++) count += CL::math::iCombination(dimension_ + i - 1, i);
-    polynomials_.resize(count);
-    // Generate 0th order term
-    std::vector<size_t> coords;
-    polynomials_[0] = Polynomial(coords);
-    // Generate 1st and higher orders
-    count = 1;
-    for (size_t iorder = 1; iorder <=order_; iorder++) {
-        // The 1st term: r0^iorder
-        coords.resize(iorder);
-        fill(coords.begin(), coords.end(), 0);
-        polynomials_[count] = Polynomial(coords, true);
-        count++;
-        // The other terms: as a dimension-nary counter
-        // with former digit >= latter digit to avoid double counting
-        if (dimension_ > 1) while (true) {
-            coords[0] += 1;
-            // Carry to latter digits
-            for (size_t i = 0; i < iorder - 1; i++)
-            if (coords[i] >= dimension_) {
-                coords[i] = 0;
-                coords[i + 1] += 1;
-            }
-            // Guarantee former digit >= latter digit
-            for (int i = iorder - 2; i > -1; i--)
-            if (coords[i] < coords[i + 1]) {
-                coords[i] = coords[i + 1];
-            }
-            polynomials_[count] = Polynomial(coords, true);
-            count++;
-            if (coords.back() >= dimension_ - 1) break;
-        }
-    }
-    // Sanity check
-    if (count != polynomials_.size()) std::cerr << "Error in PolynomialSet construction";
-    this->create_orders();
-}
-PolynomialSet::~PolynomialSet() {}
 
 // Return the value of each term in {{P(r)}} as a vector
 at::Tensor PolynomialSet::operator()(const at::Tensor & r) const {

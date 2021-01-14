@@ -1,9 +1,13 @@
 #include <tchem/polynomial.hpp>
 
 void test_polynomial() {
-    at::Tensor answer = at::tensor({1.0, 2.0, 7.0, 4.0, 14.0, 49.0, 8.0, 28.0, 98.0, 343.0});
+    at::Tensor answer = at::tensor({1.0,
+                                    2.0, 7.0,
+                                    4.0, 14.0, 49.0,
+                                    8.0, 28.0, 98.0, 343.0,
+                                    16.0, 56.0, 196.0, 686.0, 2401.0});
 
-    tchem::polynomial::PolynomialSet set(2, 3);
+    tchem::polynomial::PolynomialSet set(2, 4);
     at::Tensor r = at::tensor({2.0, 7.0});
     std::cerr << "\nValue of polynomial set: "
               << at::norm(set(r) - answer).item<double>() << '\n';
