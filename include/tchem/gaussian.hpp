@@ -22,6 +22,7 @@ class Gaussian {
         std::vector<std::normal_distribution<double>> independent_1Dgaussians_;
     public:
         Gaussian();
+        // miu_ & var_ are deep copies of _miu & _var
         Gaussian(const at::Tensor & _miu, const at::Tensor & _var);
         ~Gaussian();
 
@@ -36,6 +37,8 @@ class Gaussian {
         // g1(r; miu1, var1) * g2(r; miu2, var2) = c * g3(r; miu3, var3)
         // Return c and g3
         std::tuple<at::Tensor, Gaussian> operator*(const Gaussian & g2) const;
+
+        Gaussian clone() const;
 
         // Intgerate[g(r; miu, var) * {P(r)}, {r, -Infinity, Infinity}]
         // {P(r)} is specified by `set`

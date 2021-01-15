@@ -7,15 +7,14 @@
 namespace tchem { namespace gaussian {
 
 Gaussian::Gaussian() {}
+// miu_ & var_ are deep copies of _miu & _var
 Gaussian::Gaussian(const at::Tensor & _miu, const at::Tensor & _var) {
     assert(("miu must be a vector", _miu.sizes().size() == 1));
     assert(("var must be a matrix", _var.sizes().size() == 2));
     assert(("var must be a square matrix", _var.size(0) == _var.size(1)));
     assert(("miu and var must have same dimension", _miu.size(0) == _var.size(0)));
-    miu_ = _miu.new_empty(_miu.sizes());
-    miu_.copy_(_miu);
-    var_ = _var.new_empty(_var.sizes());
-    var_.copy_(_var);
+    miu_ = _miu.clone();
+    var_ = _var.clone();
 }
 Gaussian::~Gaussian() {}
 
@@ -51,12 +50,13 @@ std::tuple<at::Tensor, Gaussian> Gaussian::operator*(const Gaussian & g2) const 
     at::Tensor temp = inv_var1.mv(miu1) + inv_var2.mv(miu2);
     at::Tensor miu3 = var3.mv(temp);
     // c
-    at::Tensor det_var3 = at::det(var3);
     at::Tensor c = pow(6.283185307179586, -miu1.size(0)/2) / sqrtdet_var1 / sqrtdet_var2 / sqrtdet_inv_var3
                  * at::exp(-0.5 * (miu1.dot(inv_var1.mv(miu1)) + miu2.dot(inv_var2.mv(miu2)) - temp.dot(miu3)));
     Gaussian g3(miu3, var3);
     return std::make_tuple(c, g3);
 }
+
+Gaussian Gaussian::clone() const {return Gaussian(miu_, var_);}
 
 // Intgerate[g(r; miu, var) * {P(r)}, {r, -Infinity, Infinity}]
 // {P(r)} is specified by `set`
