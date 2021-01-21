@@ -2,7 +2,19 @@
 
 #include <torch/torch.h>
 
-namespace tchem {
+#include <CppLibrary/utility.hpp>
+
+namespace tchem { namespace utility {
+
+// Read a vector from file
+at::Tensor read_vector(const std::string & file) {
+    std::vector<double> data = CL::utility::read_vector(file);
+    at::Tensor vector = at::from_blob(data.data(), data.size(), at::TensorOptions().dtype(torch::kFloat64));
+    // Q: Why clone?
+    // A: Because of from_blob, `vector` shares memory with `data`,
+    //    who goes out of scope after this function call
+    return vector.clone();
+}
 
 // Number of trainable network parameters
 size_t NParameters(const std::vector<at::Tensor> & parameters) {
@@ -18,4 +30,5 @@ double NetGradNorm(const std::vector<at::Tensor> & parameters) {
     return std::sqrt(norm);
 }
 
+} // namespace utility
 } // namespace tchem

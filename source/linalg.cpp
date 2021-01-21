@@ -34,10 +34,10 @@ namespace {
 
 namespace tchem { namespace LA {
 
-double triple_product(const at::Tensor & a, const at::Tensor & b, const at::Tensor & c) {
+at::Tensor triple_product(const at::Tensor & a, const at::Tensor & b, const at::Tensor & c) {
     return ( c[0] * (a[1] * b[2] - a[2] * b[1])
            - c[1] * (a[0] * b[2] - a[2] * b[0])
-           + c[2] * (a[0] * b[1] - a[1] * b[0])).item<double>();
+           + c[2] * (a[0] * b[1] - a[1] * b[0]));
 }
 
 // a.outer(b) only works for vectors a & b

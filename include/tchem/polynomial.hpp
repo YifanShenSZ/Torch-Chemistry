@@ -1,5 +1,3 @@
-// A polynomial operation library
-
 #ifndef tchem_polynomial_hpp
 #define tchem_polynomial_hpp
 
@@ -13,9 +11,9 @@ class Polynomial {
         // Coordinates constituting the polynomial, sorted descendingly
         std::vector<size_t> coords_;
     public:
-        Polynomial();
+        inline Polynomial() {}
         Polynomial(const std::vector<size_t> & coords, const bool & sorted = false);
-        ~Polynomial();
+        inline ~Polynomial() {}
 
         inline std::vector<size_t> coords() const {return coords_;}
 
@@ -53,10 +51,10 @@ class PolynomialSet {
         // If not found, return -1
         int index_polynomial(const std::vector<size_t> coords) const;
     public:
-        PolynomialSet();
+        inline PolynomialSet() {}
         // Generate all possible terms up to `order`-th order constituting of all `dimension` coordinates
         PolynomialSet(const size_t & _dimension, const size_t & _order);
-        ~PolynomialSet();
+        inline ~PolynomialSet() {}
 
         inline size_t dimension() const {return dimension_;}
         inline size_t order() const {return order_;}

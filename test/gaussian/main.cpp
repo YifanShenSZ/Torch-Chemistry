@@ -1,6 +1,9 @@
 #include <tchem/gaussian.hpp>
 
-void test_gaussian() {
+int main() {
+    std::cerr << "This is a test program on Torch-Chemistry module 'gaussian'\n"
+              << "Correct routines should print close to 0\n";
+
     at::Tensor miu1 = at::tensor({1.0, 2.0}),
                miu2 = at::tensor({3.0, 5.0});
     at::Tensor var1 = at::tensor({0.25, 0.08,

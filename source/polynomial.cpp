@@ -6,10 +6,6 @@
 
 namespace tchem { namespace polynomial {
 
-/*
-Polynomial P(r) = r[coords_[0]] * r[coords_[1]] * ... * r[coords_.back()]
-*/
-Polynomial::Polynomial() {}
 Polynomial::Polynomial(const std::vector<size_t> & _coords, const bool & sorted)
 : coords_(_coords) {
     if (! sorted) {
@@ -18,10 +14,10 @@ Polynomial::Polynomial(const std::vector<size_t> & _coords, const bool & sorted)
         for (size_t & coord : coords_) coord = -coord;
     }
 }
-Polynomial::~Polynomial() {}
 
 // Return the polynomial value P(r)
 at::Tensor Polynomial::operator()(const at::Tensor & r) const {
+    assert(("r must be a vector", r.sizes().size() == 1));
     at::Tensor value = r.new_empty(1);
     value[0] = 1.0;
     for (auto & coord : coords_) value *= r[coord];
@@ -45,10 +41,7 @@ std::tuple<std::vector<size_t>, std::vector<size_t>> Polynomial::uniques_orders(
 }
 
 
-/*
-Polynomial set {P(r)}
-*/
-PolynomialSet::PolynomialSet() {}
+
 // Generate all possible terms up to `order`-th order constituting of all `dimension` coordinates
 PolynomialSet::PolynomialSet(const size_t & _dimension, const size_t & _order)
 : dimension_(_dimension), order_(_order) {
@@ -98,7 +91,6 @@ PolynomialSet::PolynomialSet(const size_t & _dimension, const size_t & _order)
     if (count != polynomials_.size()) std::cerr << "Error in PolynomialSet construction";
     this->create_orders();
 }
-PolynomialSet::~PolynomialSet() {}
 
 // Construct `orders_` after `polynomials_` has been constructed
 void PolynomialSet::create_orders() {
@@ -183,6 +175,7 @@ int PolynomialSet::index_polynomial(const std::vector<size_t> coords) const {
 
 // Return the value of each term in {{P(r)}} as a vector
 at::Tensor PolynomialSet::operator()(const at::Tensor & r) const {
+    assert(("r must be a vector", r.sizes().size() == 1));
     assert(("r must have a same dimension as the coordinates", r.size(0) == dimension_));
     at::Tensor value = r.new_empty(polynomials_.size());
     for (size_t i = 0; i < polynomials_.size(); i++) value[i] = polynomials_[i](r);

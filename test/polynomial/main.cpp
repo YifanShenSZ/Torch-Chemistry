@@ -1,6 +1,9 @@
 #include <tchem/polynomial.hpp>
 
-void test_polynomial() {
+int main() {
+    std::cerr << "This is a test program on Torch-Chemistry module 'polynomial'\n"
+              << "Correct routines should print close to 0\n";
+    
     at::Tensor answer = at::tensor({1.0,
                                     2.0, 7.0,
                                     4.0, 14.0, 49.0,

@@ -17,11 +17,6 @@ link_directories(~/Library/Cpp-Library/lib)
 include_directories(~/Library/Torch-Chemistry/include)
 link_directories(~/Library/Torch-Chemistry/lib)
 
-add_executable(test.exe
-    linalg.cpp
-    polynomial.cpp
-    gaussian.cpp
-    main.cpp
-)
+add_executable(test.exe main.cpp)
 
 target_link_libraries(test.exe tchem CL "${TORCH_LIBRARIES}")

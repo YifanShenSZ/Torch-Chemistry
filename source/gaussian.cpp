@@ -6,7 +6,6 @@
 
 namespace tchem { namespace gaussian {
 
-Gaussian::Gaussian() {}
 // miu_ & var_ are deep copies of _miu & _var
 Gaussian::Gaussian(const at::Tensor & _miu, const at::Tensor & _var) {
     assert(("miu must be a vector", _miu.sizes().size() == 1));
@@ -16,10 +15,10 @@ Gaussian::Gaussian(const at::Tensor & _miu, const at::Tensor & _var) {
     miu_ = _miu.clone();
     var_ = _var.clone();
 }
-Gaussian::~Gaussian() {}
 
 // g(r; miu, var) = (2pi)^(-dim/2) |var|^(-1/2) exp[-1/2 (r-miu)^T.var^-1.(r-miu)]
 at::Tensor Gaussian::operator()(const at::Tensor & r) const {
+    assert(("r must be a vector", r.sizes().size() == 1));
     assert(("r and miu must have same dimension", r.size(0) == miu_.size(0)));
     at::Tensor cholesky_var = var_.cholesky(true);
     at::Tensor inv_var = at::cholesky_inverse(cholesky_var, true);
@@ -119,10 +118,11 @@ void Gaussian::rand_init() {
     independent_1Dgaussians_.resize(miu_.size(0));
     for (size_t i = 0; i < miu_.size(0); i++)
     independent_1Dgaussians_[i] = std::normal_distribution<double>(0.0, sqrt(eigvals_[i].item<double>()));
+    random_ready_ = true;
 }
 // Return a gaussian random tensor
 at::Tensor Gaussian::rand(std::default_random_engine & generator) {
-    assert(("Must initialize before generate random tensor", eigvals_.defined() && eigvecs_.defined()));
+    assert(("Must initialize before generating random tensor", random_ready_));
     at::Tensor rand = miu_.new_empty(miu_.sizes());
     // Generate a random vector in the miu-centred && `var`-diagonalized (normal) coordinate
     for (size_t i = 0; i < rand.size(0); i++)

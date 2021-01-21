@@ -1,6 +1,9 @@
 #include <tchem/linalg.hpp>
 
-void test_linalg() {
+int main() {
+    std::cerr << "This is a test program on Torch-Chemistry module 'linalg'\n"
+              << "Correct routines should print close to 0\n";
+
     at::Tensor answer, result;
 
     at::Tensor A = at::tensor({1.0, 2.0, 3.0, 4.0}),

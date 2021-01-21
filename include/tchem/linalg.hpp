@@ -19,7 +19,7 @@ Symmetric high order tensor definition:
 
 namespace tchem { namespace LA {
 
-double triple_product(const at::Tensor & a, const at::Tensor & b, const at::Tensor & c);
+at::Tensor triple_product(const at::Tensor & a, const at::Tensor & b, const at::Tensor & c);
 
 // a.outer(b) only works for vectors a & b
 // This function is meant for general a & b with
