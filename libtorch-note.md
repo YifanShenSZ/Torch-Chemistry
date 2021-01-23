@@ -15,7 +15,7 @@ Memory management is always a pain in the ass in using c++, so does libtorch
 * But if that pointer is `std::vector<>.data()`, then it will be released when the `std::vector<>` goes out of scope
 
 ## In place operation
-The most common bug in using libtorch is probably backwarding an in place operation. Here are some in place operations I encountered:
-* The most classic ones are the member functions ending with '_', as documented officialy
-* Also in official documentation are `+=`, `-=`, `*=`, `/=`
-* Say I have a tensor `x`, `x[i] = at::erf(x[i])` is in place! But why others, e.g. `x[i] = at::exp(x[i])` and `x[i] = y`, are OK?
+The most common bug in using libtorch is probably backwarding an in place operation. The most classic ones are the member functions ending with '_', as documented officialy. Also in official documentation are `+=`, `-=`, `*=`, `/=`
+
+Problem:
+* Say I have a tensor `x`, `x[i] = at::erf(x[i])` is in place so `a[i] = at::erf(x[i])` is the correct way of coding. However, in module `SAS` the similar pieces exist but why gradient works fine?
