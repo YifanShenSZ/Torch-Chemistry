@@ -2,6 +2,9 @@
 Chemical routines based on libtorch
 
 ## Featured utilities
+Symmetry adaptation and scale (SAS) for internal coordinate:
+* For more details see `SAS.md`
+
 Gaussian:
 * Merge of gaussian functions
 * Gaussian integrals
@@ -9,6 +12,7 @@ Gaussian:
 Internal coordinate:
 * Cartesian -> internal coordinate
 * Jacobian of internal coordinate over Cartesian coordinate
+* For more details see `intcoord.md`
 
 Chemistry:
 * Alternative representation near electronic degeneracy
@@ -39,6 +43,7 @@ Linear algebra:
 Source code level from bottom to top:
 1. utility, polynomial, linalg
 2. gaussian, intcoord, chemistry
+3. SAS
 
 ## Dependency
 1. libtorch

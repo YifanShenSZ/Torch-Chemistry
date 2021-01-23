@@ -3,8 +3,9 @@
 
 #include <CppLibrary/linalg.hpp>
 
-#include <tchem/intcoord.hpp>
 #include <tchem/linalg.hpp>
+
+#include <tchem/intcoord.hpp>
 
 namespace tchem { namespace IC {
 
@@ -60,6 +61,9 @@ at::Tensor InvDisp::operator()(const at::Tensor & r) const {
         // A: asin is problematic only at +-pi/2
         //    exactly where you should avoid out of plane
         return at::asin(n234.dot(r21));
+    }
+    else {
+        throw "Unsupported internal coordinate type: " + type_;
     }
 }
 // Return the displacement and its gradient over r given r
@@ -168,14 +172,19 @@ std::tuple<at::Tensor, at::Tensor> InvDisp::compute_IC_J(const at::Tensor & r) c
         J.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3) = (- J0 - J2 - J3);
         return std::make_tuple(q, J);
     }
+    else {
+        throw "Unsupported internal coordinate type: " + type_;
+    }
 }
 
 
 
+// Append a linear combination coefficient - invariant displacement pair
 void IntCoord::append(const double & coeff, const InvDisp & invdisp) {
     coeffs_.push_back(coeff);
     invdisps_.push_back(invdisp);
 }
+// Normalize linear combination coefficients
 void IntCoord::normalize() {
     double norm2 = CL::LA::norm2(coeffs_);
     for (double & coeff : coeffs_) coeff /= norm2;
@@ -208,7 +217,6 @@ std::tuple<at::Tensor, at::Tensor> IntCoord::compute_IC_J(const at::Tensor & r) 
 
 // file format (Columbus7, default), internal coordinate definition file
 IntCoordSet::IntCoordSet(const std::string & format, const std::string & file) {
-    size_t intdim = 0;
     if (format == "Columbus7") {
         // First line is always "TEXAS"
         // New internal coordinate line starts with 'K'
@@ -218,10 +226,7 @@ IntCoordSet::IntCoordSet(const std::string & format, const std::string & file) {
         while (true) {
             std::getline(ifs, line);
             if (! ifs.good()) break;
-            if (line[0] == 'K') {
-                intdim++;
-                intcoords_.push_back(IntCoord());
-            }
+            if (line[0] == 'K') intcoords_.push_back(IntCoord());
             double coeff = 1.0;
             if (line.substr(10, 10) != "          ") coeff = std::stod(line.substr(10, 10));
             std::string type;
@@ -252,21 +257,14 @@ IntCoordSet::IntCoordSet(const std::string & format, const std::string & file) {
                         std::stoul(line.substr(45, 9)) - 1};
             }
             else break;
-            intcoords_[intdim - 1].append(coeff, InvDisp(type, atom));
+            intcoords_.back().append(coeff, InvDisp(type, atom));
         }
         ifs.close();
     }
     else {
         // First 6 spaces of a line are reserved to indicate the start of new internal coordinate
-        // Example:
-        //  coor |   coeff   |    type     |      atom
-        // --------------------------------------------------
-        //      1    1.000000    stretching     1     2          # Comment
-        //           1.000000    stretching     1     3
-        //      2    1.000000    stretching     1     2
-        //          -1.000000    stretching     1     3
-        //      3    1.000000       bending     2     1     3
         // For a line defining torsion, an additional number at the end of the line defines min
+        // At the end of each line, anything after # is considered as comment
         std::ifstream ifs; ifs.open(file);
         if (! ifs.good()) {ifs.close(); ifs.open("IntCoordDef");}
         while (true) {
@@ -276,7 +274,6 @@ IntCoordSet::IntCoordSet(const std::string & format, const std::string & file) {
             std::istringstream iss(line);
             std::forward_list<std::string> strs(std::istream_iterator<std::string>{iss}, std::istream_iterator<std::string>());
             if (line.substr(0, 6) != "      ") {
-                intdim++;
                 intcoords_.push_back(IntCoord());
                 strs.pop_front();
             }
@@ -308,9 +305,12 @@ IntCoordSet::IntCoordSet(const std::string & format, const std::string & file) {
                 atom[2] = std::stoul(strs.front()) - 1; strs.pop_front();
                 atom[3] = std::stoul(strs.front()) - 1; strs.pop_front();
             }
+            else {
+                throw "Error during reading internal coordinate definition: unsupported internal coordinate type: " + type;
+            }
             double min = -M_PI;
             if (! strs.empty()) if (std::regex_match(strs.front(), std::regex("-?\\d+\\.?\\d*"))) min = std::stod(strs.front());
-            intcoords_[intdim - 1].append(coeff, InvDisp(type, atom, min));
+            intcoords_.back().append(coeff, InvDisp(type, atom, min));
         }
         ifs.close();
     }

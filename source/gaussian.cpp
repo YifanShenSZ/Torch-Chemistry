@@ -2,6 +2,8 @@
 
 #include <CppLibrary/math.hpp>
 
+#include <tchem/polynomial.hpp>
+
 #include <tchem/gaussian.hpp>
 
 namespace tchem { namespace gaussian {

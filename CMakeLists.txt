@@ -21,6 +21,7 @@ add_library(tchem STATIC
     source/gaussian.cpp
     source/intcoord.cpp
     source/chemistry.cpp
+    source/SAS.cpp
 )
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")

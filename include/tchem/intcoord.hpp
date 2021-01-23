@@ -44,6 +44,7 @@ class InvDisp {
         // for torsion only, deafult = -pi
         // if (the dihedral angle < min)       angle += 2pi
         // if (the dihedral angle > min + 2pi) angle -= 2pi
+        // The dihedral angle is discontinuous at min and min + 2pi
         double min_ = -M_PI;
     public:
         inline InvDisp() {}
@@ -75,7 +76,9 @@ class IntCoord {
         inline std::vector<double> coeffs() const {return coeffs_;}
         inline std::vector<InvDisp> invdisps() const {return invdisps_;}
 
+        // Append a linear combination coefficient - invariant displacement pair
         void append(const double & coeff, const InvDisp & invdisp);
+        // Normalize linear combination coefficients
         void normalize();
 
         // Return the internal coordinate given r

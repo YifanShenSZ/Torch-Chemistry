@@ -1,0 +1,78 @@
+Internal coordinate origin file:
+    min-B1.xyz
+Internal coordinates who are scaled by others: (self, scalor, alpha)
+    22    13    1.000000
+    23    14    1.000000
+    33    13    1.000000
+    34    14    1.000000
+Internal coordinates who are scaled by themselves:
+    13
+    14
+Coordinates of irreducible 1: (number, coefficient, index of internal coordinate)
+     1    1.000000     1
+          1.000000     2
+     2    1.000000     3
+          1.000000     4
+     3    1.000000     5
+          1.000000     6
+     4    1.000000     7
+     5    1.000000     8
+          1.000000     9
+     6    1.000000    10
+          1.000000    11
+     7    1.000000    12
+     8    1.000000    13
+          1.000000    14
+     9    1.000000    15
+    10    1.000000    16
+          1.000000    17
+    11    1.000000    18
+          1.000000    19
+    12    1.000000    20
+          1.000000    21
+    13    1.000000    22
+          1.000000    23
+Coordinates of irreducible 2: (number, coefficient, index of internal coordinate)
+     1    1.000000    24
+         -1.000000    25
+     2    1.000000    26
+     3    1.000000    27
+         -1.000000    28
+     4    1.000000    29
+         -1.000000    30
+     5    1.000000    31
+     6    1.000000    32
+     7    1.000000    33
+         -1.000000    34
+Coordinates of irreducible 3: (number, coefficient, index of internal coordinate)
+     1    1.000000     1
+         -1.000000     2
+     2    1.000000     3
+         -1.000000     4
+     3    1.000000     5
+         -1.000000     6
+     4    1.000000     8
+         -1.000000     9
+     5    1.000000    10
+         -1.000000    11
+     6    1.000000    13
+         -1.000000    14
+     7    1.000000    16
+         -1.000000    17
+     8    1.000000    35
+     9    1.000000    18
+         -1.000000    19
+    10    1.000000    20
+         -1.000000    21
+    11    1.000000    36
+    12    1.000000    22
+         -1.000000    23
+Coordinates of irreducible 4: (number, coefficient, index of internal coordinate)
+     1    1.000000    24
+          1.000000    25
+     2    1.000000    27
+          1.000000    28
+     3    1.000000    29
+          1.000000    30
+     4    1.000000    33
+          1.000000    34
