@@ -61,5 +61,6 @@ int main() {
     average_rr /= (double)NSamples;
     std::cerr << "\nMonte Carlo integration from gaussian random vector: "
               << (average_r - miu).norm().item<double>()
-               + (average_rr - average_r.outer(average_r) - var).norm().item<double>() << '\n';
+               + (average_rr - average_r.outer(average_r) - var).norm().item<double>() << '\n'
+              << "100,000 averages so can only converge to around 0.00316\n";
 }

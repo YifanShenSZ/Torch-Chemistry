@@ -1,17 +1,3 @@
-/*
-Additional linear algebra for libtorch tensor
-
-Nomenclature (following LAPACK):
-    ge  = general
-    sy  = real symmetric
-    asy = anti symmetric
-    po  = real symmetric positive definite
-Only use upper triangle of sy & po, strictly upper triangle of asy, otherwise specified
-
-Symmetric high order tensor definition:
-    3rd-order tensor: A_ijk = A_jik
-*/
-
 #include <torch/torch.h>
 
 namespace {
@@ -35,6 +21,9 @@ namespace {
 namespace tchem { namespace LA {
 
 at::Tensor triple_product(const at::Tensor & a, const at::Tensor & b, const at::Tensor & c) {
+    assert(("a must be a 3D vector", a.sizes().size() == 1 && a.size(0) == 3));
+    assert(("b must be a 3D vector", b.sizes().size() == 1 && b.size(0) == 3));
+    assert(("c must be a 3D vector", c.sizes().size() == 1 && c.size(0) == 3));
     return ( c[0] * (a[1] * b[2] - a[2] * b[1])
            - c[1] * (a[0] * b[2] - a[2] * b[0])
            + c[2] * (a[0] * b[1] - a[1] * b[0]));
@@ -60,6 +49,7 @@ at::Tensor outer_product(const at::Tensor & a, const at::Tensor & b) {
 // i.e. the permutation of indices all give a same element
 // only the "upper triangle" (i1 <= i2 <= ... <= in) of the output tensor is filled
 at::Tensor vec2sytensor(const at::Tensor & x, const size_t & order, const size_t & dimension) {
+    assert(("x must be a vector", x.sizes().size() == 1));
     std::vector<int64_t> sizes_vector(order, dimension);
     c10::IntArrayRef sizes(sizes_vector.data(), order);
     at::Tensor result = x.new_empty(sizes);
@@ -69,93 +59,89 @@ at::Tensor vec2sytensor(const at::Tensor & x, const size_t & order, const size_t
 }
 
 // Matrix dot multiplication for 3rd-order tensor A and B
-// A.size(2) == B.size(2), A.size(1) == B.size(0)
 // result_ij = A_ikm * B_kjm
 at::Tensor ge3matdotmul(const at::Tensor & A, const at::Tensor & B) {
+    assert(("A must be a 3rd-order tensor", A.sizes().size() == 3));
+    assert(("B must be a 3rd-order tensor", B.sizes().size() == 3));
+    assert(("A & B must share a same vector dimension", A.size(2) == B.size(2)));
+    assert(("A & B must be matrix mutiplicable", A.size(1) == B.size(0)));
     at::Tensor result = A.new_zeros({A.size(0), B.size(1)});
-    for (int i = 0; i < result.size(0); i++)
-    for (int j = 0; j < result.size(1); j++)
-    for (int k = 0; k < B.size(0); k++)
+    for (size_t i = 0; i < result.size(0); i++)
+    for (size_t j = 0; j < result.size(1); j++)
+    for (size_t k = 0; k < B.size(0); k++)
     result[i][j] += A[i][k].dot(B[k][j]);
     return result;
-}
-void ge3matdotmul(const at::Tensor & A, const at::Tensor & B, at::Tensor & result) {
-    result.fill_(0.0);
-    for (int i = 0; i < result.size(0); i++)
-    for (int j = 0; j < result.size(1); j++)
-    for (int k = 0; k < B.size(0); k++)
-    result[i][j] += A[i][k].dot(B[k][j]);
 }
 // For symmetric A and B
-// Here a symmetric 3rd-order tensor `A` means A[:][i][j] = A[:][j][i]
+// Here a symmetric 3rd-order tensor `A` means A[i][j][:] = A[j][i][:]
+// only the "upper triangle" (i <= j) of the output tensor is filled
 at::Tensor sy3matdotmul(const at::Tensor & A, const at::Tensor & B) {
+    assert(("A must be a 3rd-order tensor", A.sizes().size() == 3));
+    assert(("The matrix part of A must be square", A.size(0) == A.size(1)));
+    assert(("B must be a 3rd-order tensor", B.sizes().size() == 3));
+    assert(("The matrix part of B must be square", B.size(0) == B.size(1)));
+    assert(("A & B must share a same vector dimension", A.size(2) == B.size(2)));
+    assert(("A & B must be matrix mutiplicable", A.size(1) == B.size(0)));
     at::Tensor result = A.new_zeros({A.size(0), B.size(1)});
-    for (int i = 0; i < result.size(0); i++) {
-        for (int j = 0; j < i; j++) {
-            for (int k = 0; k < j; k++) result[i][j] += A[k][i].dot(B[k][j]);
-            for (int k = j; k < i; k++) result[i][j] += A[k][i].dot(B[j][k]);
-            for (int k = i; k < B.size(0); k++) result[i][j] += A[i][k].dot(B[j][k]);
+    for (size_t i = 0; i < result.size(0); i++) {
+        for (size_t j = 0; j < i; j++) {
+            for (size_t k = 0; k < j; k++) result[i][j] += A[k][i].dot(B[k][j]);
+            for (size_t k = j; k < i; k++) result[i][j] += A[k][i].dot(B[j][k]);
+            for (size_t k = i; k < B.size(0); k++) result[i][j] += A[i][k].dot(B[j][k]);
         }
-        for (int j = i; j < result.size(1); j++) {
-            for (int k = 0; k < i; k++) result[i][j] += A[k][i].dot(B[k][j]);
-            for (int k = i; k < j; k++) result[i][j] += A[i][k].dot(B[k][j]);
-            for (int k = j; k < B.size(0); k++) result[i][j] += A[i][k].dot(B[j][k]);
+        for (size_t j = i; j < result.size(1); j++) {
+            for (size_t k = 0; k < i; k++) result[i][j] += A[k][i].dot(B[k][j]);
+            for (size_t k = i; k < j; k++) result[i][j] += A[i][k].dot(B[k][j]);
+            for (size_t k = j; k < B.size(0); k++) result[i][j] += A[i][k].dot(B[j][k]);
         }
     }
     return result;
-}
-void sy3matdotmul(const at::Tensor & A, const at::Tensor & B, at::Tensor & result) {
-    result.fill_(0.0);
-    for (int i = 0; i < result.size(0); i++) {
-        for (int j = 0; j < i; j++) {
-            for (int k = 0; k < j; k++) result[i][j] += A[k][i].dot(B[k][j]);
-            for (int k = j; k < i; k++) result[i][j] += A[k][i].dot(B[j][k]);
-            for (int k = i; k < B.size(0); k++) result[i][j] += A[i][k].dot(B[j][k]);
-        }
-        for (int j = i; j < result.size(1); j++) {
-            for (int k = 0; k < i; k++) result[i][j] += A[k][i].dot(B[k][j]);
-            for (int k = i; k < j; k++) result[i][j] += A[i][k].dot(B[k][j]);
-            for (int k = j; k < B.size(0); k++) result[i][j] += A[i][k].dot(B[j][k]);
-        }
-    }
 }
 
 // Unitary transformation for symmetric 3rd-order tensor A
-// Here a symmetric 3rd-order tensor `A` means A[:][i][j] = A[:][j][i]
-// result_ijm = U^T_ia * A_abm * U_bj
-at::Tensor UT_A3_U(const at::Tensor & A, const at::Tensor & UT) {
-    int N = UT.size(0);
-    // work_ibm = U^T_ia * A_abm
+// Here a symmetric 3rd-order tensor `A` means A[i][j][:] = A[j][i][:]
+// result_ij: = U^T_ia * A_ab: * U_bj
+at::Tensor UT_A3_U(const at::Tensor & A, const at::Tensor & U) {
+    assert(("A must be a 3rd-order tensor", A.sizes().size() == 3));
+    assert(("The matrix part of A must be square", A.size(0) == A.size(1)));
+    assert(("U must be a matrix", U.sizes().size() == 2));
+    assert(("U must be a square matrix", U.size(0) == U.size(1)));
+    size_t N = U.size(0);
+    // work_ib: = U^T_ia * A_ab: = U_ai * A_ab:
     at::Tensor work = A.new_zeros(A.sizes());
-    for (int i = 0; i < N; i++)
-    for (int b = 0; b < N; b++) {
-        for (int a = 0; a < b; a++) work[i][b] += UT[i][a] * A[a][b];
-        for (int a = b; a < N; a++) work[i][b] += UT[i][a] * A[b][a];
+    for (size_t i = 0; i < N; i++)
+    for (size_t b = 0; b < N; b++) {
+        for (size_t a = 0; a < b; a++) work[i][b] = work[i][b] + U[a][i] * A[a][b];
+        for (size_t a = b; a < N; a++) work[i][b] = work[i][b] + U[a][i] * A[b][a];
     }
-    // result_ijm = work_ibm * U_bj = work_ibm * U^T_jb
+    // result_ij: = work_ib: * U_bj
     at::Tensor result = A.new_zeros(A.sizes());
-    for (int i = 0; i < N; i++)
-    for (int j = i; j < N; j++)
-    for (int b = 0; b < N; b++)
-    result[i][j] += work[i][b] * UT[j][b];
+    for (size_t i = 0; i < N; i++)
+    for (size_t j = i; j < N; j++)
+    for (size_t b = 0; b < N; b++)
+    result[i][j] = result[i][j] + work[i][b] * U[b][j];
     return result;
 }
 // On exit A harvests the result
-void UT_A3_U_(at::Tensor & A, const at::Tensor & UT) {
-    int N = UT.size(0);
-    // work_ibm = U^T_ia * A_abm
+void UT_A3_U_(at::Tensor & A, const at::Tensor & U) {
+    assert(("A must be a 3rd-order tensor", A.sizes().size() == 3));
+    assert(("The matrix part of A must be square", A.size(0) == A.size(1)));
+    assert(("U must be a matrix", U.sizes().size() == 2));
+    assert(("U must be a square matrix", U.size(0) == U.size(1)));
+    size_t N = U.size(0);
+    // work_ibm = U^T_ia * A_abm = U_ai * A_abm
     at::Tensor work = A.new_zeros(A.sizes());
-    for (int i = 0; i < N; i++)
-    for (int b = 0; b < N; b++) {
-        for (int a = 0; a < b; a++) work[i][b] += UT[i][a] * A[a][b];
-        for (int a = b; a < N; a++) work[i][b] += UT[i][a] * A[b][a];
+    for (size_t i = 0; i < N; i++)
+    for (size_t b = 0; b < N; b++) {
+        for (size_t a = 0; a < b; a++) work[i][b] += U[a][i] * A[a][b];
+        for (size_t a = b; a < N; a++) work[i][b] += U[a][i] * A[b][a];
     }
-    // result_ijm = work_ibm * U_bj = work_ibm * U^T_jb
+    // result_ijm = work_ibm * U_bj
     A.fill_(0.0);
-    for (int i = 0; i < N; i++)
-    for (int j = i; j < N; j++)
-    for (int b = 0; b < N; b++)
-    A[i][j] += work[i][b] * UT[j][b];
+    for (size_t i = 0; i < N; i++)
+    for (size_t j = i; j < N; j++)
+    for (size_t b = 0; b < N; b++)
+    A[i][j] += work[i][b] * U[b][j];
 }
 
 } // namespace LA

@@ -185,13 +185,15 @@ at::Tensor PolynomialSet::operator()(const at::Tensor & r) const {
 // Given `x`, the value of each term in {P(r)} as a vector
 // Return views to `x` grouped by order
 std::vector<at::Tensor> PolynomialSet::views(const at::Tensor & x) const {
+    assert(("x must be a vector", x.sizes().size() == 1));
     std::vector<at::Tensor> views(order_ + 1);
-    size_t start = 0;
+    size_t start = 0, stop;
     for (size_t i = 0; i < order_ + 1; i++) {
-        size_t stop = start + orders_[i].size();
+        stop = start + orders_[i].size();
         views[i] = x.slice(0, start, stop);
         start = stop;
     }
+    assert(("The length of x must equal to the number of polynomial terms", x.size(0) == stop));
     return views;
 }
 
@@ -296,6 +298,7 @@ at::Tensor PolynomialSet::rotation(const at::Tensor & U) const {return rotation(
 at::Tensor PolynomialSet::translation(const at::Tensor & a, const PolynomialSet & q_set) const {
     assert(("a must be a vector", a.sizes().size() == 1));
     assert(("a must have a same dimension as the coordinates", a.size(0) == dimension_));
+    assert(("The 2 polynomial sets must share same order", order_ == q_set.order_));
     // Allocate memory
     at::Tensor T = a.new_zeros({(int)polynomials_.size(), (int)q_set.polynomials_.size()});
     // 0th order term does not shift

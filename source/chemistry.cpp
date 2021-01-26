@@ -2,12 +2,16 @@
 
 #include <tchem/linalg.hpp>
 
-namespace tchem { namespace chemistry {
+#include <tchem/chemistry.hpp>
 
-bool check_degeneracy(const double & threshold, const at::Tensor & energy) {
+namespace tchem { namespace chem {
+
+// Check if two energy levels are closer than the threshold
+bool check_degeneracy(const at::Tensor & energy, const double & thresh) {
+    assert(("energy must be a vector", energy.sizes().size() == 1));
     bool deg = false;
-    for (size_t i = 0; i < energy.numel() - 1; i++) {
-        if (energy[i+1].item<double>() - energy[i].item<double>() < threshold) {
+    for (size_t i = 0; i < energy.size(0) - 1; i++) {
+        if (energy[i + 1].item<double>() - energy[i].item<double>() < thresh) {
             deg = true;
             break;
         }
@@ -15,259 +19,186 @@ bool check_degeneracy(const double & threshold, const at::Tensor & energy) {
     return deg;
 }
 
-// Transform adiabatic energy (H) and gradient (dH) to composite representation
-void composite_representation(at::Tensor & H, at::Tensor & dH) {
-    at::Tensor dHdH = LA::sy3matdotmul(dH, dH);
+// Transform Hamiltonian (or energy) and gradient to composite representation
+// Return composite Hamiltonian and gradient
+std::tuple<at::Tensor, at::Tensor> composite_representation(const at::Tensor & H, const at::Tensor & dH) {
+    assert(("Hamiltonian must be a matrix or an energy vector", H.sizes().size() == 2 || H.sizes().size() == 1));
+    assert(("gradient must be a 3rd-order tensor", dH.sizes().size() == 3));
+    assert(("The matrix part of gradient must be square", dH.size(0) == dH.size(1)));
+    at::Tensor dHdH = tchem::LA::sy3matdotmul(dH, dH);
     at::Tensor eigval, eigvec;
-    std::tie(eigval, eigvec) = dHdH.symeig(true, true);
-    dHdH = eigvec.transpose(0, 1);
-    H = eigvec.transpose(0, 1).mm(H.diag().mm(eigvec));
-    LA::UT_A3_U_(dH, eigvec);
+    std::tie(eigval, eigvec) = dHdH.symeig(true);
+    at::Tensor H_c;
+    if (H.sizes().size() == 2) H_c = eigvec.transpose(0, 1).mm(H       .mm(eigvec));
+    else                       H_c = eigvec.transpose(0, 1).mm(H.diag().mm(eigvec));
+    at::Tensor dH_c = tchem::LA::UT_A3_U(dH, eigvec);
+    return std::make_tuple(H_c, dH_c);
+}
+void composite_representation_(at::Tensor & H, at::Tensor & dH) {
+    assert(("Hamiltonian must be a matrix or an energy vector", H.sizes().size() == 2 || H.sizes().size() == 1));
+    assert(("gradient must be a 3rd-order tensor", dH.sizes().size() == 3));
+    assert(("The matrix part of gradient must be square", dH.size(0) == dH.size(1)));
+    at::Tensor dHdH = tchem::LA::sy3matdotmul(dH, dH);
+    at::Tensor eigval, eigvec;
+    std::tie(eigval, eigvec) = dHdH.symeig(true);
+    if (H.sizes().size() == 2) H = eigvec.transpose(0, 1).mm(H       .mm(eigvec));
+    else                       H = eigvec.transpose(0, 1).mm(H.diag().mm(eigvec));
+    tchem::LA::UT_A3_U_(dH, eigvec);
 }    
 
-/*
-Matrix off-diagonal elements do not have determinate phase, because
-the eigenvectors defining a representation have indeterminate phase difference
-*/
 
-// For a certain number of electronic states (NStates),
-// there are 2^(NStates-1) possibilities in total
-// The user input matrix indicates the base case and is excluded from trying,
-// so possible_phases[NStates-2].size() = 2^(NStates-1) - 1
-// possible_phases[NStates-2][i] contains one of the phases of NStates electronic states
-// where true means -, false means +,
-// the phase of the last state is always arbitrarily assigned to +,
-// so possible_phases[NStates-2][i].size() == NStates-1
-std::vector<std::vector<std::vector<bool>>> possible_phases;
 
-// Prepare possible_phases for up to NStates electronic states
-void initialize_phase_fixing(const size_t & NStates) {
-    possible_phases.resize(NStates-1);
-    for (size_t N = 0; N < NStates-1; N++) {
-        // Unchanged case is exculded
-        possible_phases[N].resize(1 << (N+1) - 1);
-        for (auto & phase : possible_phases[N]) phase.resize(N+1);
-        possible_phases[N][0][0] = true;
-        for (size_t j = 1; j < N+1; j++) possible_phases[N][0][j] = false;
-        for (size_t i = 1; i < possible_phases[N].size(); i++) {
-            for (size_t j = 0; j < N+1; j++) possible_phases[N][i][j] = possible_phases[N][i-1][j];
-            size_t count = 0;
-            while(possible_phases[N][i][count]) {
-                possible_phases[N][i][count] = false;
-                count++;
-            }
-            possible_phases[N][i][count] = true;
+Phaser::Phaser(const size_t & _NStates) : NStates_(_NStates) {
+    possible_phases_.resize((1 << (NStates_ - 1)) - 1);
+    for (std::vector<bool> & phase : possible_phases_) phase.resize(NStates_ - 1);
+    std::vector<bool> & phase = possible_phases_[0];
+    phase[0] = true;
+    for (size_t j = 1; j < phase.size(); j++) phase[j] = false;
+    for (size_t i = 1; i < possible_phases_.size(); i++) {
+        std::vector<bool> & phase = possible_phases_[i];
+        // Q: Why not std::memcpy?
+        // A: bool is a special type who does not really have a pointer
+        for (size_t j = 0; j < phase.size(); j++) phase[j] = possible_phases_[i - 1][j];
+        size_t index = 0;
+        while(phase[index]) {
+            phase[index] = false;
+            index++;
+        }
+        phase[index] = true;
+    }
+}
+
+// Alter the phase of M to the index-th possible phase
+at::Tensor Phaser::alter(const at::Tensor & M, const size_t & index) const {
+    if (index >= possible_phases_.size()) return M;
+    at::Tensor result = M.new_empty(M.sizes());
+    const std::vector<bool> & phase = possible_phases_[index];
+    for (size_t i = 0; i < NStates_; i++) {
+        result[i][i] = M[i][i];
+        // From i,i+1 to i,NStates-2: phase = phase[i] ^ phase[j]
+        for (size_t j = i + 1; j < NStates_ - 1; j++)
+        if (phase[i] ^ phase[j]) result[i][j] = -M[i][j];
+        else                     result[i][j] =  M[i][j];
+        // i,NStates-1, phase = phase[i], since phase[NStates_ - 1] = false
+        size_t j = NStates_ - 1;
+        if (phase[i]) result[i][j] = -M[i][j];
+        else          result[i][j] =  M[i][j];
+    }
+    return result;
+}
+void Phaser::alter_(at::Tensor & M, const size_t & index) const {
+    if (index >= possible_phases_.size()) return;
+    const std::vector<bool> & phase = possible_phases_[index];
+    for (size_t i = 0; i < NStates_ - 1; i++) {
+        // From i,i+1 to i,NStates-2: phase = phase[i] ^ phase[j]
+        for (size_t j = i + 1; j < NStates_ - 1; j++)
+        if (phase[i] ^ phase[j])
+        M[i][j] = -M[i][j];
+        // i,NStates-1, phase = phase[i], since phase[NStates_ - 1] = false
+        size_t j = NStates_ - 1;
+        if (phase[i])
+        M[i][j] = -M[i][j];
+    }
+}
+
+// Return the index of the possible phase who minimizes || M - ref ||_F^2
+// Return -1 if no need to change phase
+size_t Phaser::iphase_min(const at::Tensor & M, const at::Tensor & ref) const {
+    assert(("M must be a matrix or higher order tensor", M.sizes().size() >= 2));
+    assert(("The matrix part of M must be square", M.size(0) == M.size(1)));
+    assert(("The matrix dimension must be the number of electronic states", M.size(0) == NStates_));
+    // Calculate the initial difference of each matrix element
+    std::vector<int64_t> dim_vec(M.sizes().size() - 2);
+    for (size_t i = 0; i < dim_vec.size(); i++) dim_vec[i] = i + 2;
+    c10::IntArrayRef sum_dim(dim_vec.data(), dim_vec.size());
+    at::Tensor diff_mat = (M - ref).pow_(2).sum(sum_dim);
+    // Try out phase possibilities
+    double change_min = 0.0;
+    size_t iphase_min = -1;
+    for (size_t iphase = 0; iphase < possible_phases_.size(); iphase++) {
+        const std::vector<bool> & phase = possible_phases_[iphase];
+        at::Tensor change = M.new_zeros({});
+        for (size_t i = 0; i < NStates_ - 1; i++) {
+            // From i,i+1 to i,NStates-2: phase = phase[i] ^ phase[j]
+            for (size_t j = i + 1; j < NStates_ - 1; j++)
+            if (phase[i] ^ phase[j])
+            change += (-M[i][j] - ref[i][j]).pow_(2).sum() - diff_mat[i][j];
+            // i,NStates-1, phase = phase[i], since phase[NStates_ - 1] = false
+            size_t j = NStates_ - 1;
+            if (phase[i])
+            change += (-M[i][j] - ref[i][j]).pow_(2).sum() - diff_mat[i][j];
+        }
+        if (change.item<double>() < change_min) {
+            change_min = change.item<double>();
+            iphase_min = iphase;
         }
     }
+    return iphase_min;
+}
+// Return the index of the possible phase who minimizes weight * || M1 - ref1 ||_F^2 + || M2 - ref2 ||_F^2
+// Return -1 if no need to change phase
+size_t Phaser::iphase_min(const at::Tensor & M1, const at::Tensor & M2, const at::Tensor & ref1, const at::Tensor & ref2, const double & weight) const {
+    assert(("M1 must be a matrix or higher order tensor", M1.sizes().size() >= 2));
+    assert(("The matrix part of M1 must be square", M1.size(0) == M1.size(1)));
+    assert(("M2 must be a matrix or higher order tensor", M2.sizes().size() >= 2));
+    assert(("The matrix part of M2 must be square", M2.size(0) == M2.size(1)));
+    assert(("M1 and M2 must share a same matrix dimension", M1.size(0) == M2.size(0)));
+    assert(("The matrix dimension must be the number of electronic states", M1.size(0) == NStates_));
+    // Calculate the initial difference of each matrix element
+    std::vector<int64_t> dim_vec1(M1.sizes().size() - 2);
+    for (size_t i = 0; i < dim_vec1.size(); i++) dim_vec1[i] = i + 2;
+    c10::IntArrayRef sum_dim1(dim_vec1.data(), dim_vec1.size());
+    std::vector<int64_t> dim_vec2(M2.sizes().size() - 2);
+    for (size_t i = 0; i < dim_vec2.size(); i++) dim_vec2[i] = i + 2;
+    c10::IntArrayRef sum_dim2(dim_vec2.data(), dim_vec2.size());
+    at::Tensor diff_mat = weight * (M1 - ref1).pow_(2).sum(sum_dim1) + (M2 - ref2).pow_(2).sum(sum_dim2);
+    // Try out phase possibilities
+    double change_min = 0.0;
+    size_t iphase_min = -1;
+    for (size_t iphase = 0; iphase < possible_phases_.size(); iphase++) {
+        const std::vector<bool> & phase = possible_phases_[iphase];
+        at::Tensor change = M1.new_zeros({});
+        for (size_t i = 0; i < NStates_ - 1; i++) {
+            // From i,i+1 to i,NStates-2: phase = phase[i] ^ phase[j]
+            for (size_t j = i + 1; j < NStates_ - 1; j++)
+            if (phase[i] ^ phase[j])
+            change += weight * (-M1[i][j] - ref1[i][j]).pow_(2).sum()
+                    + (-M2[i][j] - ref2[i][j]).pow_(2).sum()
+                    - diff_mat[i][j];
+            // i,NStates-1, phase = phase[i], since phase[NStates_ - 1] = false
+            size_t j = NStates_ - 1;
+            if (phase[i])
+            change += weight * (-M1[i][j] - ref1[i][j]).pow_(2).sum()
+                    + (-M2[i][j] - ref2[i][j]).pow_(2).sum()
+                    - diff_mat[i][j];
+        }
+        if (change.item<double>() < change_min) {
+            change_min = change.item<double>();
+            iphase_min = iphase;
+        }
+    }
+    return iphase_min;
 }
 
 // Fix M by minimizing || M - ref ||_F^2
-void fix(at::Tensor & M, const at::Tensor & ref) {
-    size_t NStates = M.size(0);
-    const auto & possibilities = possible_phases[NStates - 2];
-    double change_min = 0.0;
-    int     phase_min = -1;
-    if (M.sizes().size() > 2) {
-        std::vector<int64_t> dim_vec(M.sizes().size()-2);
-        for (size_t i = 0; i < dim_vec.size(); i++) dim_vec[i] = i+2;
-        c10::IntArrayRef sum_dim(dim_vec.data(), dim_vec.size());
-        at::Tensor diff = (M - ref).pow_(2).sum(sum_dim);
-        if (sum_dim.size() < 3) sum_dim = {};
-        else {
-            dim_vec.resize(M.sizes().size()-4);
-            for (size_t i = 0; i < dim_vec.size(); i++) dim_vec[i] = i;
-            sum_dim = c10::IntArrayRef(dim_vec.data(), dim_vec.size());
-        }
-        // Try out phase possibilities
-        for (int phase = 0; phase < possibilities.size(); phase++) {
-            at::Tensor change = M.new_zeros({});
-            for (size_t i = 0; i < NStates; i++) {
-                for (size_t j = i+1; j < NStates-1; j++)
-                if (possibilities[phase][i] != possibilities[phase][j])
-                change += (-M[i][j] - ref[i][j]).pow_(2).sum(sum_dim) - diff[i][j];
-                if (possibilities[phase][i])
-                change += (-M[i][NStates-1] - ref[i][NStates-1]).pow_(2).sum(sum_dim) - diff[i][NStates-1];
-            }
-            if (change.item<double>() < change_min) {
-                change_min = change.item<double>();
-                phase_min  = phase;
-            }
-        }
-    }
-    else {
-        at::Tensor diff = (M - ref).pow_(2);
-        // Try out phase possibilities
-        for (int phase = 0; phase < possibilities.size(); phase++) {
-            at::Tensor change = M.new_zeros({});
-            for (size_t i = 0; i < NStates; i++) {
-                for (size_t j = i+1; j < NStates-1; j++)
-                if (possibilities[phase][i] != possibilities[phase][j])
-                change += (-M[i][j] - ref[i][j]).pow_(2) - diff[i][j];
-                if (possibilities[phase][i])
-                change += (-M[i][NStates-1] - ref[i][NStates-1]).pow_(2) - diff[i][NStates-1];
-            }
-            if (change.item<double>() < change_min) {
-                change_min = change.item<double>();
-                phase_min  = phase;
-            }
-        }
-    }
-    // Modify M if the best phase is different from the input
-    if (phase_min > -1) {
-        for (size_t i = 0; i < NStates; i++) {
-            for (size_t j = i+1; j < NStates-1; j++)
-            if (possibilities[phase_min][i] != possibilities[phase_min][j])
-            M[i][j] = -M[i][j];
-            if (possibilities[phase_min][i])
-            M[i][NStates-1] = -M[i][NStates-1];
-        }
-    }
+at::Tensor Phaser::fix(const at::Tensor & M, const at::Tensor & ref) const {
+    size_t iphase = iphase_min(M, ref);
+    return alter(M, iphase);
+}
+void Phaser::fix_(at::Tensor & M, const at::Tensor & ref) const {
+    size_t iphase = iphase_min(M, ref);
+    alter_(M, iphase);
 }
 // Fix M1 and M2 by minimizing weight * || M1 - ref1 ||_F^2 + || M2 - ref2 ||_F^2
-void fix(at::Tensor & M1, at::Tensor & M2, const at::Tensor & ref1, const at::Tensor & ref2, const double & weight) {
-    size_t NStates = M1.size(0);
-    const auto & possibilities = possible_phases[NStates - 2];
-    double change_min = 0.0;
-    int     phase_min = -1;
-    if (M1.sizes().size() > 2 && M2.sizes().size() > 2) {
-        std::vector<int64_t> dim_vec1(M1.sizes().size()-2);
-        for (size_t i = 0; i < dim_vec1.size(); i++) dim_vec1[i] = i+2;
-        c10::IntArrayRef sum_dim1(dim_vec1.data(), dim_vec1.size());
-        std::vector<int64_t> dim_vec2(M2.sizes().size()-2);
-        for (size_t i = 0; i < dim_vec2.size(); i++) dim_vec2[i] = i+2;
-        c10::IntArrayRef sum_dim2(dim_vec2.data(), dim_vec2.size());
-        at::Tensor diff = weight * (M1 - ref1).pow_(2).sum(sum_dim1) + (M2 - ref2).pow_(2).sum(sum_dim2);
-        if (sum_dim1.size() < 3) sum_dim1 = {};
-        else {
-            dim_vec1.resize(M1.sizes().size()-4);
-            for (size_t i = 0; i < dim_vec1.size(); i++) dim_vec1[i] = i;
-            sum_dim1 = c10::IntArrayRef(dim_vec1.data(), dim_vec1.size());
-        }
-        if (sum_dim2.size() < 3) sum_dim2 = {};
-        else {
-            dim_vec2.resize(M2.sizes().size()-4);
-            for (size_t i = 0; i < dim_vec2.size(); i++) dim_vec2[i] = i;
-            sum_dim2 = c10::IntArrayRef(dim_vec2.data(), dim_vec2.size());
-        }
-        // Try out phase possibilities
-        for (int phase = 0; phase < possibilities.size(); phase++) {
-            at::Tensor change = M1.new_zeros({});
-            for (size_t i = 0; i < NStates; i++) {
-                for (size_t j = i+1; j < NStates-1; j++)
-                if (possibilities[phase][i] != possibilities[phase][j])
-                change += weight * (-M1[i][j] - ref1[i][j]).pow_(2).sum(sum_dim1)
-                          + (-M2[i][j] - ref2[i][j]).pow_(2).sum(sum_dim2)
-                          - diff[i][j];
-                if (possibilities[phase][i])
-                change += weight * (-M1[i][NStates-1] - ref1[i][NStates-1]).pow_(2).sum(sum_dim1)
-                          + (-M2[i][NStates-1] - ref2[i][NStates-1]).pow_(2).sum(sum_dim2)
-                          - diff[i][NStates-1];
-            }
-            if (change.item<double>() < change_min) {
-                change_min = change.item<double>();
-                phase_min  = phase;
-            }
-        }
-    }
-    else if (M1.sizes().size() > 2) {
-        std::vector<int64_t> dim_vec1(M1.sizes().size()-2);
-        for (size_t i = 0; i < dim_vec1.size(); i++) dim_vec1[i] = i+2;
-        c10::IntArrayRef sum_dim1(dim_vec1.data(), dim_vec1.size());
-        at::Tensor diff = weight * (M1 - ref1).pow_(2).sum(sum_dim1) + (M2 - ref2).pow_(2);
-        if (sum_dim1.size() < 3) sum_dim1 = {};
-        else {
-            dim_vec1.resize(M1.sizes().size()-4);
-            for (size_t i = 0; i < dim_vec1.size(); i++) dim_vec1[i] = i;
-            sum_dim1 = c10::IntArrayRef(dim_vec1.data(), dim_vec1.size());
-        }
-        // Try out phase possibilities
-        for (int phase = 0; phase < possibilities.size(); phase++) {
-            at::Tensor change = M1.new_zeros({});
-            for (size_t i = 0; i < NStates; i++) {
-                for (size_t j = i+1; j < NStates-1; j++)
-                if (possibilities[phase][i] != possibilities[phase][j])
-                change += weight * (-M1[i][j] - ref1[i][j]).pow_(2).sum(sum_dim1)
-                          + (-M2[i][j] - ref2[i][j]).pow_(2)
-                          - diff[i][j];
-                if (possibilities[phase][i])
-                change += weight * (-M1[i][NStates-1] - ref1[i][NStates-1]).pow_(2).sum(sum_dim1)
-                          + (-M2[i][NStates-1] - ref2[i][NStates-1]).pow_(2)
-                          - diff[i][NStates-1];
-            }
-            if (change.item<double>() < change_min) {
-                change_min = change.item<double>();
-                phase_min  = phase;
-            }
-        }
-    }
-    else if (M2.sizes().size() > 2) {
-        std::vector<int64_t> dim_vec2(M2.sizes().size()-2);
-        for (size_t i = 0; i < dim_vec2.size(); i++) dim_vec2[i] = i+2;
-        c10::IntArrayRef sum_dim2(dim_vec2.data(), dim_vec2.size());
-        at::Tensor diff = weight * (M1 - ref1).pow_(2) + (M2 - ref2).pow_(2).sum(sum_dim2);
-        if (sum_dim2.size() < 3) sum_dim2 = {};
-        else {
-            dim_vec2.resize(M2.sizes().size()-4);
-            for (size_t i = 0; i < dim_vec2.size(); i++) dim_vec2[i] = i;
-            sum_dim2 = c10::IntArrayRef(dim_vec2.data(), dim_vec2.size());
-        }
-        // Try out phase possibilities
-        for (int phase = 0; phase < possibilities.size(); phase++) {
-            at::Tensor change = M1.new_zeros({});
-            for (size_t i = 0; i < NStates; i++) {
-                for (size_t j = i+1; j < NStates-1; j++)
-                if (possibilities[phase][i] != possibilities[phase][j])
-                change += weight * (-M1[i][j] - ref1[i][j]).pow_(2)
-                          + (-M2[i][j] - ref2[i][j]).pow_(2).sum(sum_dim2)
-                          - diff[i][j];
-                if (possibilities[phase][i])
-                change += weight * (-M1[i][NStates-1] - ref1[i][NStates-1]).pow_(2)
-                          + (-M2[i][NStates-1] - ref2[i][NStates-1]).pow_(2).sum(sum_dim2)
-                          - diff[i][NStates-1];
-            }
-            if (change.item<double>() < change_min) {
-                change_min = change.item<double>();
-                phase_min  = phase;
-            }
-        }
-    }
-    else {
-        at::Tensor diff = weight * (M1 - ref1).pow_(2) + (M2 - ref2).pow_(2);
-        // Try out phase possibilities
-        for (int phase = 0; phase < possibilities.size(); phase++) {
-            at::Tensor change = M1.new_zeros({});
-            for (size_t i = 0; i < NStates; i++) {
-                for (size_t j = i+1; j < NStates-1; j++)
-                if (possibilities[phase][i] != possibilities[phase][j])
-                change += weight * (-M1[i][j] - ref1[i][j]).pow_(2)
-                          + (-M2[i][j] - ref2[i][j]).pow_(2)
-                          - diff[i][j];
-                if (possibilities[phase][i])
-                change += weight * (-M1[i][NStates-1] - ref1[i][NStates-1]).pow_(2)
-                          + (-M2[i][NStates-1] - ref2[i][NStates-1]).pow_(2)
-                          - diff[i][NStates-1];
-            }
-            if (change.item<double>() < change_min) {
-                change_min = change.item<double>();
-                phase_min  = phase;
-            }
-        }
-    }
-    // Modify M1 and M2 if the best phase is different from the input
-    if (phase_min > -1) {
-        for (size_t i = 0; i < NStates; i++) {
-            for (size_t j = i+1; j < NStates-1; j++)
-            if (possibilities[phase_min][i] != possibilities[phase_min][j]) {
-                M1[i][j] = -M1[i][j];
-                M2[i][j] = -M2[i][j];
-            }
-            if (possibilities[phase_min][i]) {
-                M1[i][NStates-1] = -M1[i][NStates-1];
-                M2[i][NStates-1] = -M2[i][NStates-1];
-            }
-        }
-    }
+std::tuple<at::Tensor, at::Tensor> Phaser::fix(const at::Tensor & M1, const at::Tensor & M2, const at::Tensor & ref1, const at::Tensor & ref2, const double & weight) const {
+    size_t iphase = iphase_min(M1, M2, ref1, ref2, weight);
+    return std::make_tuple(alter(M1, iphase), alter(M2, iphase));
+}
+void Phaser::fix_(at::Tensor & M1, at::Tensor & M2, const at::Tensor & ref1, const at::Tensor & ref2, const double & weight) const {
+    size_t iphase = iphase_min(M1, M2, ref1, ref2, weight);
+    alter_(M1, iphase);
+    alter_(M2, iphase);
 }
 
-} // namespace chemistry
-} // namespace TS
+} // namespace chem
+} // namespace tchem

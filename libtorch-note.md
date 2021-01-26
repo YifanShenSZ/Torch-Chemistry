@@ -1,6 +1,9 @@
 # My note during using libtorch
 This note records my experience on libtorch
 
+## Some surprising things
+`at::Tensor.symeig` returns eigenvectors in each column of a matrix, as mathematically required. I thought that would be in rows since it might call LAPACK, whose memory layout introduces a transpose to c++ frontend
+
 ## Memory
 Memory management is always a pain in the ass in using c++, so does libtorch
 
@@ -18,4 +21,4 @@ Memory management is always a pain in the ass in using c++, so does libtorch
 The most common bug in using libtorch is probably backwarding an in place operation. The most classic ones are the member functions ending with '_', as documented officialy. Also in official documentation are `+=`, `-=`, `*=`, `/=`
 
 Problem:
-* Say I have a tensor `x`, `x[i] = at::erf(x[i])` is in place so `a[i] = at::erf(x[i])` is the correct way of coding. However, in module `SAS` the similar pieces exist but why gradient works fine?
+* Say I have a tensor `x`, `x[i] = at::erf(x[i])` is in place so `a[i] = at::erf(x[i])` is the correct way of coding. However, in module `SAS` the similar pieces exist but why gradient works fine? I guess it might be my compiler (ifort 2019.4) who breaks the "problematic" pieces
