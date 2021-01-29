@@ -22,7 +22,7 @@ void fix() {
     std::tie(energies_c, states_c) = H_c.symeig(true);
     tchem::LA::UT_A3_U_(dH_c, states_c);
     phaser.fix_(dH_c, dH_a);
-    std::cerr << "\nFixing phase of an observable: "
+    std::cout << "\nFixing phase of an observable: "
               << (energies - energies_c).norm().item<double>()
                + (dH_a - dH_c).norm().item<double>() << '\n';
 }
@@ -49,13 +49,13 @@ void fix2() {
     phaser.alter_( H, index);
     phaser.alter_(dH, index);
     phaser.fix_(H_c, dH_c, H, dH, 1.0);
-    std::cerr << "\nFixing phase of 2 observables: "
+    std::cout << "\nFixing phase of 2 observables: "
               << ( H_c -  H).norm().item<double>()
                + (dH_c - dH).norm().item<double>() << '\n';
 }
 
 int main() {
-    std::cerr << "This is a test program on Torch-Chemistry module 'chemistry'\n"
+    std::cout << "This is a test program on Torch-Chemistry module 'chemistry'\n"
               << "Correct routines should print close to 0\n";
 
     fix();

@@ -30,22 +30,33 @@ at::Tensor outer_product(const at::Tensor & a, const at::Tensor & b);
 // only the "upper triangle" (i1 <= i2 <= ... <= in) of the output tensor is filled
 at::Tensor vec2sytensor(const at::Tensor & x, const size_t & order, const size_t & dimension);
 
-// Matrix dot multiplication for 3rd-order tensor A and B
+// Matrix dot multiplication for 3rd-order tensors A and B
 // A.size(2) == B.size(2), A.size(1) == B.size(0)
 // result_ij = A_ikm * B_kjm
 at::Tensor ge3matdotmul(const at::Tensor & A, const at::Tensor & B);
-void ge3matdotmul(const at::Tensor & A, const at::Tensor & B, at::Tensor & result);
 // For symmetric A and B
-// Here a symmetric 3rd-order tensor `A` means A[:][i][j] = A[:][j][i]
+// Here a symmetric 3rd-order tensor `A` means A[i][j] = A[j][i]
 // only the "upper triangle" (i <= j) of the output tensor is filled
 at::Tensor sy3matdotmul(const at::Tensor & A, const at::Tensor & B);
-void sy3matdotmul(const at::Tensor & A, const at::Tensor & B, at::Tensor & result);
 
-// Unitary transformation for symmetric 3rd-order tensor A
-// Here a symmetric 3rd-order tensor `A` means A[:][i][j] = A[:][j][i]
-// result_ijm = U^T_ia * A_abm * U_bj
-at::Tensor UT_A3_U(const at::Tensor & A, const at::Tensor & UT);
-void UT_A3_U_(at::Tensor & A, const at::Tensor & UT);
+// Matrix outer multiplication for matrices or higher order tensors A and B
+// A.size(2) == B.size(2), A.size(1) == B.size(0)
+// result_ij = outer_product(A_ik, B_kj)
+at::Tensor gematoutermul(const at::Tensor & A, const at::Tensor & B);
+// For symmetric A and B
+// Here a symmetric 3rd-order tensor `A` means A[i][j] = A[j][i]
+// only the "upper triangle" (i <= j) of the output tensor is filled
+at::Tensor symatoutermul(const at::Tensor & A, const at::Tensor & B);
+
+// Unitary transformation for matrix or higher order tensor A
+// result_ij = U^T_ia * A_ab * U_bj
+at::Tensor UT_ge_U(const at::Tensor & A, const at::Tensor & U);
+void UT_ge_U_(at::Tensor & A, const at::Tensor & U);
+// For symmetric A
+// Here a symmetric higher order tensor `A` means A[i][j] = A[j][i]
+// only the "upper triangle" (i <= j) of the output tensor is filled
+at::Tensor UT_sy_U(const at::Tensor & A, const at::Tensor & U);
+void UT_sy_U_(at::Tensor & A, const at::Tensor & U);
 
 } // namespace LA
 } // namespace tchem

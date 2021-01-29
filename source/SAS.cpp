@@ -19,6 +19,8 @@ OthScalRul::OthScalRul(const std::vector<std::string> & input_strs) {
 
 
 
+
+
 // Append a linear combination coefficient - index of scaled internal coordinate pair
 void SASIC::append(const double & coeff, const size_t & index) {
     coeffs_.push_back(coeff);
@@ -37,6 +39,8 @@ at::Tensor SASIC::operator()(const at::Tensor & SIC) const {
     for (size_t i = 1; i < coeffs_.size(); i++) sasic = sasic + coeffs_[i] * SIC[indices_[i]];
     return sasic;
 }
+
+
 
 
 

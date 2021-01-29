@@ -4,7 +4,7 @@ void triple_product() {
     at::Tensor a = at::rand(3), b = at::rand(3), c = at::rand(3);
     at::Tensor result = tchem::LA::triple_product(a, b, c),
                answer = a.cross(b).dot(c);
-    std::cerr << "\nTriple product: "
+    std::cout << "\nTriple product: "
               << (result - answer).norm().item<double>() << '\n';
 }
 
@@ -20,7 +20,7 @@ void outer_product() {
     for (size_t l = 0; l < 2; l++)
     answer[i][j][k][l] = A[i][j] * B[k][l];
     at::Tensor result = tchem::LA::outer_product(A, B);
-    std::cerr << "\nOuter product for general tensor: "
+    std::cout << "\nOuter product for general tensor: "
               << (result - answer).norm().item<double>() << '\n';
 }
 
@@ -45,7 +45,7 @@ void vec2sytensor() {
              + abs((result[0][0][1][1] - answer[0][0][1][1]).item<double>())
              + abs((result[0][1][1][1] - answer[0][1][1][1]).item<double>())
              + abs((result[1][1][1][1] - answer[1][1][1][1]).item<double>());
-    std::cerr << "\nConvert a vector to a symmetric tensor: "
+    std::cout << "\nConvert a vector to a symmetric tensor: "
               << residue << '\n';
 }
 
@@ -56,12 +56,25 @@ void matdotmul() {
         A[j][i].copy_(A[i][j]);
         B[j][i].copy_(B[i][j]);
     }
-    std::cerr << "\nMatrix dot multiplication: "
+    std::cout << "\nMatrix dot multiplication: "
               << (tchem::LA::ge3matdotmul(A, B) - tchem::LA::sy3matdotmul(A, B)).norm().item<double>() << '\n';
 }
 
-void UT_A3_U() {
-    at::Tensor H = at::rand({3, 3}), dH = at::rand({3, 3, 5});
+void matoutermul() {
+    at::Tensor A = at::rand({3, 3}), B = at::rand({3, 3, 5});
+    for (size_t i = 0; i < 3; i++)
+    for (size_t j = i + 1; j < 3; j++) {
+        A[j][i].copy_(A[i][j]);
+        B[j][i].copy_(B[i][j]);
+    }
+    std::cout << "\nMatrix outer multiplication: "
+              << (tchem::LA::gematoutermul(A, B) - tchem::LA::symatoutermul(A, B)).norm().item<double>() << '\n';
+}
+
+void UT_A_U() {
+    c10::TensorOptions top = at::TensorOptions().dtype(torch::kFloat64);
+    at::Tensor  H = at::rand({3, 3}, top),
+               dH = at::rand({3, 3, 5}, top);
     for (size_t i = 0; i < 3; i++)
     for (size_t j = i + 1; j < 3; j++) {
          H[j][i].copy_( H[i][j]);
@@ -70,25 +83,34 @@ void UT_A3_U() {
     // Adiabatic representation
     at::Tensor energies, states;
     std::tie(energies, states) = H.symeig(true);
-    at::Tensor dH_a = tchem::LA::UT_A3_U(dH, states);
+    at::Tensor dH_a = tchem::LA::UT_ge_U(dH, states);
     // Composite representation
     at::Tensor dHdH = tchem::LA::sy3matdotmul(dH, dH);
     at::Tensor eigvals, eigvecs;
     std::tie(eigvals, eigvecs) = dHdH.symeig(true);
     at::Tensor  H_c = eigvecs.transpose(0, 1).mm(H.mm(eigvecs));
-    at::Tensor dH_c = tchem::LA::UT_A3_U(dH, eigvecs);
+    at::Tensor dH_c = tchem::LA::UT_sy_U(dH, eigvecs);
     // Composite representation -> adiabatic representation
     at::Tensor energies_c, states_c;
     std::tie(energies_c, states_c) = H_c.symeig(true);
-    tchem::LA::UT_A3_U_(dH_c, states_c);
+    at::Tensor dH_a_1 = dH_c.clone();
+    for (size_t i = 0; i < 3; i++)
+    for (size_t j = i + 1; j < 3; j++)
+    dH_a_1[j][i].copy_(dH_a_1[i][j]);
+    tchem::LA::UT_ge_U_(dH_a_1, states_c);
+    at::Tensor dH_a_2 = dH_c.clone();
+    tchem::LA::UT_sy_U_(dH_a_2, states_c);
     double difference = (energies - energies_c).norm().item<double>();
-    for (size_t i = 0; i < dH.size(0); i++) difference += (dH_a[i][i] - dH_c[i][i]).norm().item<double>();
-    std::cerr << "\nUnitary transformation for symmetric 3rd-order tensor: "
+    for (size_t i = 0; i < dH.size(0); i++) {
+        difference += (dH_a[i][i] - dH_a_1[i][i]).norm().item<double>();
+        difference += (dH_a[i][i] - dH_a_2[i][i]).norm().item<double>();
+    }
+    std::cout << "\nUnitary transformation: "
               << difference << '\n';
 }
 
 int main() {
-    std::cerr << "This is a test program on Torch-Chemistry module 'linalg'\n"
+    std::cout << "This is a test program on Torch-Chemistry module 'linalg'\n"
               << "Correct routines should print close to 0\n";
 
     triple_product();
@@ -99,5 +121,7 @@ int main() {
 
     matdotmul();
 
-    UT_A3_U();
+    matoutermul();
+
+    UT_A_U();
 }

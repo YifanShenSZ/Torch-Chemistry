@@ -1,7 +1,7 @@
 #include <tchem/polynomial.hpp>
 
 int main() {
-    std::cerr << "This is a test program on Torch-Chemistry module 'polynomial'\n"
+    std::cout << "This is a test program on Torch-Chemistry module 'polynomial'\n"
               << "Correct routines should print close to 0\n";
     
     at::Tensor answer = at::tensor({1.0,
@@ -12,7 +12,7 @@ int main() {
 
     tchem::polynomial::PolynomialSet set(2, 4);
     at::Tensor r = at::tensor({2.0, 7.0});
-    std::cerr << "\nValue of polynomial set: "
+    std::cout << "\nValue of polynomial set: "
               << at::norm(set(r) - answer).item<double>() << '\n';
 
     at::Tensor U = at::tensor({1.0,  1.0,
@@ -21,12 +21,12 @@ int main() {
     U /= sqrt(2.0);
     at::Tensor T = set.rotation(U);
     at::Tensor q = U.transpose(0, 1).mv(r);
-    std::cerr << "\nValue of polynomial set after rotation: "
+    std::cout << "\nValue of polynomial set after rotation: "
               << at::norm(T.mv(set(q)) - answer).item<double>() << '\n';
 
     at::Tensor a = at::tensor({3.0, 5.0});
     at::Tensor S = set.translation(a);
     at::Tensor p = r - a;
-    std::cerr << "\nValue of polynomial set after translation: "
+    std::cout << "\nValue of polynomial set after translation: "
               << at::norm(S.mv(set(p)) - answer).item<double>() << '\n';
 }

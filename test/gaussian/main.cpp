@@ -1,7 +1,7 @@
 #include <tchem/gaussian.hpp>
 
 int main() {
-    std::cerr << "This is a test program on Torch-Chemistry module 'gaussian'\n"
+    std::cout << "This is a test program on Torch-Chemistry module 'gaussian'\n"
               << "Correct routines should print close to 0\n";
 
     at::Tensor miu1 = at::tensor({1.0, 2.0}),
@@ -17,7 +17,7 @@ int main() {
     tchem::gaussian::Gaussian g;
     std::tie(c, g) = g1 * g2;
     at::Tensor r = at::tensor({1.4, 1.7});
-    std::cerr << "\nValue of gaussian after multiplication: "
+    std::cout << "\nValue of gaussian after multiplication: "
               << (c * g(r)).item<double>() - 2.015016218884655e-9 << '\n';
 
     tchem::polynomial::PolynomialSet set(2, 4);
@@ -43,7 +43,7 @@ int main() {
     integrals[3] -= var[0][0] + miu[0] * miu[0];
     integrals[4] -= var[1][0] + miu[0] * miu[1];
     integrals[5] -= var[1][1] + miu[1] * miu[1];
-    std::cerr << "\nValue of gaussian integrals: "
+    std::cout << "\nValue of gaussian integrals: "
               << integrals.norm().item<double>() << '\n';
 
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
@@ -59,7 +59,7 @@ int main() {
     }
     average_r  /= (double)NSamples;
     average_rr /= (double)NSamples;
-    std::cerr << "\nMonte Carlo integration from gaussian random vector: "
+    std::cout << "\nMonte Carlo integration from gaussian random vector: "
               << (average_r - miu).norm().item<double>()
                + (average_rr - average_r.outer(average_r) - var).norm().item<double>() << '\n'
               << "100,000 averages so can only converge to around 0.00316\n";

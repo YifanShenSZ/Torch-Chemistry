@@ -179,6 +179,8 @@ std::tuple<at::Tensor, at::Tensor> InvDisp::compute_IC_J(const at::Tensor & r) c
 
 
 
+
+
 // Append a linear combination coefficient - invariant displacement pair
 void IntCoord::append(const double & coeff, const InvDisp & invdisp) {
     coeffs_.push_back(coeff);
@@ -212,6 +214,8 @@ std::tuple<at::Tensor, at::Tensor> IntCoord::compute_IC_J(const at::Tensor & r) 
     }
     return std::make_tuple(q, J);
 }
+
+
 
 
 

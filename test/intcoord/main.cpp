@@ -4,7 +4,7 @@
 #include <tchem/intcoord.hpp>
 
 int main() {
-    std::cerr << "This is a test program on Torch-Chemistry module 'intcoord'\n"
+    std::cout << "This is a test program on Torch-Chemistry module 'intcoord'\n"
               << "Correct routines should print close to 0\n";
 
     c10::TensorOptions top = at::TensorOptions().dtype(torch::kFloat64);
@@ -20,13 +20,13 @@ int main() {
 
     tchem::IC::IntCoordSet set_col("Columbus7", "whatever");
     at::Tensor q0_col = set_col(r_col);
-    std::cerr << "\nColumbus7 format internal coordinate: "
+    std::cout << "\nColumbus7 format internal coordinate: "
               << ((q0_col - intgeom) / intgeom).norm().item<double>() << '\n';
 
     r_col.set_requires_grad(true);
     at::Tensor q_col, J_col;
     std::tie(q_col, J_col) = set_col.compute_IC_J(r_col);
-    std::cerr << "\nInternal coordinate calculated with Jacobian: "
+    std::cout << "\nInternal coordinate calculated with Jacobian: "
               << (q0_col - q_col).norm().item<double>() << '\n';
 
     at::Tensor J_col_back = J_col.new_empty(J_col.sizes());
@@ -38,7 +38,7 @@ int main() {
         q_col[i].backward({}, true);
         J_col_back[i].copy_(r_col.grad());
     }
-    std::cerr << "\nDirect Jacobian vs backward propagation: "
+    std::cout << "\nDirect Jacobian vs backward propagation: "
               << (J_col - J_col_back).norm().item<double>() << '\n';
 
     CL::chem::xyz<double> geom_def("slow-1.5.xyz", true);
@@ -48,7 +48,7 @@ int main() {
     tchem::IC::IntCoordSet set_def("whatever", "whatever");
     at::Tensor q_def, J_def;
     std::tie(q_def, J_def) = set_def.compute_IC_J(r_def);
-    std::cerr << "\nDefault internal coordinate and Jacobian: "
+    std::cout << "\nDefault internal coordinate and Jacobian: "
               << (q_col - q_def).norm().item<double>()
                + (J_col - J_def).norm().item<double>() << '\n';
 }

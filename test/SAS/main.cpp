@@ -3,7 +3,7 @@
 #include <tchem/SAS.hpp>
 
 int main() {
-    std::cerr << "This is a test program on Torch-Chemistry module 'SAS'\n"
+    std::cout << "This is a test program on Torch-Chemistry module 'SAS'\n"
               << "Correct routines should print close to 0\n";
 
     c10::TensorOptions top = at::TensorOptions().dtype(torch::kFloat64);
@@ -15,7 +15,7 @@ int main() {
     at::Tensor r_c2v = at::from_blob(coords_c2v.data(), coords_c2v.size(), top);
     at::Tensor q_c2v = set.IntCoordSet::operator()(r_c2v);
     std::vector<at::Tensor> SASgeom_c2v = set(q_c2v);
-    std::cerr << "\nC2v: "
+    std::cout << "\nC2v: "
               << SASgeom_c2v[1].norm().item<double>() << ' '
               << SASgeom_c2v[2].norm().item<double>() << ' '
               << SASgeom_c2v[3].norm().item<double>() << '\n';
@@ -25,7 +25,7 @@ int main() {
     at::Tensor r_csoop = at::from_blob(coords_csoop.data(), coords_csoop.size(), top);
     at::Tensor q_csoop = set.IntCoordSet::operator()(r_csoop);
     std::vector<at::Tensor> SASgeom_csoop = set(q_csoop);
-    std::cerr << "\nCs out of plane: "
+    std::cout << "\nCs out of plane: "
               << SASgeom_csoop[2].norm().item<double>() << ' '
               << SASgeom_csoop[3].norm().item<double>() << '\n';
 
@@ -34,7 +34,7 @@ int main() {
     at::Tensor r_csplanar = at::from_blob(coords_csplanar.data(), coords_csplanar.size(), top);
     at::Tensor q_csplanar = set.IntCoordSet::operator()(r_csplanar);
     std::vector<at::Tensor> SASgeom_csplanar = set(q_csplanar);
-    std::cerr << "\nCs planar: "
+    std::cout << "\nCs planar: "
               << SASgeom_csplanar[1].norm().item<double>() << ' '
               << SASgeom_csplanar[3].norm().item<double>() << '\n';
 
@@ -75,5 +75,5 @@ int main() {
     }
     double difference = 0.0;
     for (size_t irred = 0; irred < SASq.size(); irred++) difference += (SASJ[irred] - SASJ_N[irred]).norm().item<double>();
-    std::cerr << "\nBackward propagation vs numerical Jacobian: " << difference << '\n';
+    std::cout << "\nBackward propagation vs numerical Jacobian: " << difference << '\n';
 }

@@ -31,7 +31,7 @@ std::tuple<at::Tensor, at::Tensor> composite_representation(const at::Tensor & H
     at::Tensor H_c;
     if (H.sizes().size() == 2) H_c = eigvec.transpose(0, 1).mm(H       .mm(eigvec));
     else                       H_c = eigvec.transpose(0, 1).mm(H.diag().mm(eigvec));
-    at::Tensor dH_c = tchem::LA::UT_A3_U(dH, eigvec);
+    at::Tensor dH_c = tchem::LA::UT_sy_U(dH, eigvec);
     return std::make_tuple(H_c, dH_c);
 }
 void composite_representation_(at::Tensor & H, at::Tensor & dH) {
@@ -43,8 +43,10 @@ void composite_representation_(at::Tensor & H, at::Tensor & dH) {
     std::tie(eigval, eigvec) = dHdH.symeig(true);
     if (H.sizes().size() == 2) H = eigvec.transpose(0, 1).mm(H       .mm(eigvec));
     else                       H = eigvec.transpose(0, 1).mm(H.diag().mm(eigvec));
-    tchem::LA::UT_A3_U_(dH, eigvec);
+    tchem::LA::UT_sy_U_(dH, eigvec);
 }    
+
+
 
 
 
