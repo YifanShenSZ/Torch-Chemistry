@@ -112,16 +112,10 @@ void UT_A_U() {
 int main() {
     std::cout << "This is a test program on Torch-Chemistry module 'linalg'\n"
               << "Correct routines should print close to 0\n";
-
     triple_product();
-
     outer_product();
-
     vec2sytensor();
-
     matdotmul();
-
     matoutermul();
-
     UT_A_U();
 }

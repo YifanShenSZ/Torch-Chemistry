@@ -33,14 +33,21 @@ at::Tensor triple_product(const at::Tensor & a, const at::Tensor & b, const at::
 // This function is meant for general a & b with
 // result_i1,i2,...,im,j1,j2,...,jn = a_i1,i2,...,im b_j1,j2,...,jn
 at::Tensor outer_product(const at::Tensor & a, const at::Tensor & b) {
-    std::vector<int64_t> dims(a.sizes().size() + b.sizes().size());
-    for (size_t i = 0; i < a.sizes().size(); i++) dims[i] = a.size(i);
-    for (size_t i = 0; i < b.sizes().size(); i++) dims[i + a.sizes().size()] = b.size(i);
-    at::Tensor a_view = a.view(a.numel()),
-               b_view = b.view(b.numel());
-    c10::IntArrayRef sizes(dims.data(), dims.size());
-    at::Tensor result = a_view.outer(b_view);
-    return result.view(sizes);
+    // Normal vector outer product
+    if (a.sizes().size() == 1 && b.sizes().size() == 1) {
+        return a.outer(b);
+    }
+    // View as vector then outer product
+    else {
+        std::vector<int64_t> dims(a.sizes().size() + b.sizes().size());
+        for (size_t i = 0; i < a.sizes().size(); i++) dims[i] = a.size(i);
+        for (size_t i = 0; i < b.sizes().size(); i++) dims[i + a.sizes().size()] = b.size(i);
+        at::Tensor a_view = a.view(a.numel()),
+                   b_view = b.view(b.numel());
+        c10::IntArrayRef sizes(dims.data(), dims.size());
+        at::Tensor result = a_view.outer(b_view);
+        return result.view(sizes);
+    }
 }
 
 // Convert a vector `x` to an `order`-th order symmetric tensor
@@ -60,7 +67,7 @@ at::Tensor vec2sytensor(const at::Tensor & x, const size_t & order, const size_t
 
 // Matrix dot multiplication for 3rd-order tensors A and B
 // A.size(2) == B.size(2), A.size(1) == B.size(0)
-// result_ij = A_ikm * B_kjm
+// result_ij = A_ik . B_kj
 at::Tensor ge3matdotmul(const at::Tensor & A, const at::Tensor & B) {
     assert(("A must be a 3rd-order tensor", A.sizes().size() == 3));
     assert(("B must be a 3rd-order tensor", B.sizes().size() == 3));
@@ -158,20 +165,22 @@ at::Tensor UT_ge_U(const at::Tensor & A, const at::Tensor & U) {
     assert(("U must be a matrix", U.sizes().size() == 2));
     assert(("U must be a square matrix", U.size(0) == U.size(1)));
     assert(("U & A must be matrix mutiplicable", U.size(0) == A.size(0)));
-    size_t N = U.size(0);
-    // work_ib = U^T_ia * A_ab = U_ai * A_ab:
-    at::Tensor work = A.new_zeros(A.sizes());
-    for (size_t i = 0; i < N; i++)
-    for (size_t b = 0; b < N; b++)
-    for (size_t a = 0; a < N; a++)
-    work[i][b] = work[i][b] + U[a][i] * A[a][b];
-    // result_ij = work_ib * U_bj
-    at::Tensor result = A.new_zeros(A.sizes());
-    for (size_t i = 0; i < N; i++)
-    for (size_t j = 0; j < N; j++)
-    for (size_t b = 0; b < N; b++)
-    result[i][j] = result[i][j] + work[i][b] * U[b][j];
-    return result;
+    // Normal matrix multiplication
+    if (A.sizes().size() == 2) {
+        return U.transpose(0, 1).mm(A.mm(U));
+    }
+    // Batched matmul with special reindexing
+    else if (A.sizes().size() == 3) {
+        at::Tensor A_batch = A.transpose(1, 2).transpose(0, 1);
+        at::Tensor result_batch = torch::matmul(U.transpose(0, 1), torch::matmul(A_batch, U));
+        return result_batch.transpose(0, 1).transpose(1, 2);
+    }
+    // Batched matmul with reindexing
+    else {
+        at::Tensor A_batch = A.transpose(0, -2).transpose(1, -1);
+        at::Tensor result_batch = torch::matmul(U.transpose(0, 1), torch::matmul(A_batch, U));
+        return result_batch.transpose(0, -2).transpose(1, -1);
+    }
 }
 void UT_ge_U_(at::Tensor & A, const at::Tensor & U) {
     assert(("A must be a matrix or higher order tensor", A.sizes().size() >= 2));
@@ -179,23 +188,29 @@ void UT_ge_U_(at::Tensor & A, const at::Tensor & U) {
     assert(("U must be a matrix", U.sizes().size() == 2));
     assert(("U must be a square matrix", U.size(0) == U.size(1)));
     assert(("U & A must be matrix mutiplicable", U.size(0) == A.size(0)));
-    size_t N = U.size(0);
-    // work_ibm = U^T_ia * A_abm = U_ai * A_abm
-    at::Tensor work = A.new_zeros(A.sizes());
-    for (size_t i = 0; i < N; i++)
-    for (size_t b = 0; b < N; b++)
-    for (size_t a = 0; a < N; a++)
-    work[i][b] += U[a][i] * A[a][b];
-    // result_ijm = work_ibm * U_bj
-    A.fill_(0.0);
-    for (size_t i = 0; i < N; i++)
-    for (size_t j = 0; j < N; j++)
-    for (size_t b = 0; b < N; b++)
-    A[i][j] += work[i][b] * U[b][j];
+    // Normal matrix multiplication
+    if (A.sizes().size() == 2) {
+        A = U.transpose(0, 1).mm(A.mm(U));
+    }
+    // Batched matmul with special reindexing
+    else if (A.sizes().size() == 3) {
+        A.transpose_(1, 2).transpose_(0, 1);
+        A = torch::matmul(U.transpose(0, 1), torch::matmul(A, U));
+        A.transpose_(0, 1).transpose_(1, 2);
+    }
+    // Batched matmul with reindexing
+    else {
+        A.transpose_(0, -2).transpose_(1, -1);
+        A = torch::matmul(U.transpose(0, 1), torch::matmul(A, U));
+        A.transpose_(0, -2).transpose_(1, -1);
+    }
 }
 // For symmetric A
 // Here a symmetric higher order tensor `A` means A[i][j] = A[j][i]
 // only the "upper triangle" (i <= j) of the output tensor is filled
+// Warning: this routine is known to deteriorate backward propagation
+//          Probably because it explicitly loops over the matrix elements
+//          Will fix it some day if pytorch introduces "symm" like BLAS
 at::Tensor UT_sy_U(const at::Tensor & A, const at::Tensor & U) {
     assert(("A must be a matrix or higher order tensor", A.sizes().size() >= 2));
     assert(("The matrix part of A must be square", A.size(0) == A.size(1)));

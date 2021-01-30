@@ -57,8 +57,6 @@ void fix2() {
 int main() {
     std::cout << "This is a test program on Torch-Chemistry module 'chemistry'\n"
               << "Correct routines should print close to 0\n";
-
     fix();
-
     fix2();
 }

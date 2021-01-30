@@ -24,5 +24,4 @@ Problem:
 * Say I have a tensor `x`, `x[i] = at::erf(x[i])` is in place so `a[i] = at::erf(x[i])` is the correct way of coding. However, in module `SAS` the similar pieces exist but why gradient works fine? I guess it might be my compiler (ifort 2019.4) who breaks the "problematic" pieces
 
 ## Numerical instability
-Backward propagation through a unitary transformation is not so stable, e.g.
-* The gradient of Hamiltonian matrix element in adiabatic representation (where the analytical expression of Hamiltonian matrix element in diabatic representation is known), in which case the backward propagation gives non-zero off-diagonal
+Explicitly looping over matrix elements deteriorates backward propagation. An example is `tchem::LA::UT_sy_U`
