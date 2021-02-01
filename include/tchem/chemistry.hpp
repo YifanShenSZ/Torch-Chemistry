@@ -10,7 +10,10 @@ bool check_degeneracy(const at::Tensor & energy, const double & thresh);
 
 // Transform Hamiltonian (or energy) and gradient to composite representation
 // Return composite Hamiltonian and gradient
+// Only read the "upper triangle" (i <= j) of H and dH
+// Only write the "upper triangle" (i <= j) of the output tensor
 std::tuple<at::Tensor, at::Tensor> composite_representation(const at::Tensor & H, const at::Tensor & dH);
+// Only read/write the "upper triangle" (i <= j) of H and dH
 void composite_representation_(at::Tensor & H, at::Tensor & dH);
 
 // Observable matrix off-diagonal elements do not have determinate phase

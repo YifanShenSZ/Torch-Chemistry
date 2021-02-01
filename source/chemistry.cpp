@@ -21,6 +21,8 @@ bool check_degeneracy(const at::Tensor & energy, const double & thresh) {
 
 // Transform Hamiltonian (or energy) and gradient to composite representation
 // Return composite Hamiltonian and gradient
+// Only read the "upper triangle" (i <= j) of H and dH
+// Only write the "upper triangle" (i <= j) of the output tensor
 std::tuple<at::Tensor, at::Tensor> composite_representation(const at::Tensor & H, const at::Tensor & dH) {
     assert(("Hamiltonian must be a matrix or an energy vector", H.sizes().size() == 2 || H.sizes().size() == 1));
     assert(("gradient must be a 3rd-order tensor", dH.sizes().size() == 3));
@@ -29,11 +31,12 @@ std::tuple<at::Tensor, at::Tensor> composite_representation(const at::Tensor & H
     at::Tensor eigval, eigvec;
     std::tie(eigval, eigvec) = dHdH.symeig(true);
     at::Tensor H_c;
-    if (H.sizes().size() == 2) H_c = eigvec.transpose(0, 1).mm(H       .mm(eigvec));
-    else                       H_c = eigvec.transpose(0, 1).mm(H.diag().mm(eigvec));
+    if (H.sizes().size() == 2) H_c = tchem::LA::UT_sy_U(H       , eigvec);
+    else                       H_c = tchem::LA::UT_sy_U(H.diag(), eigvec);
     at::Tensor dH_c = tchem::LA::UT_sy_U(dH, eigvec);
     return std::make_tuple(H_c, dH_c);
 }
+// Only read/write the "upper triangle" (i <= j) of H and dH
 void composite_representation_(at::Tensor & H, at::Tensor & dH) {
     assert(("Hamiltonian must be a matrix or an energy vector", H.sizes().size() == 2 || H.sizes().size() == 1));
     assert(("gradient must be a 3rd-order tensor", dH.sizes().size() == 3));
@@ -41,8 +44,8 @@ void composite_representation_(at::Tensor & H, at::Tensor & dH) {
     at::Tensor dHdH = tchem::LA::sy3matdotmul(dH, dH);
     at::Tensor eigval, eigvec;
     std::tie(eigval, eigvec) = dHdH.symeig(true);
-    if (H.sizes().size() == 2) H = eigvec.transpose(0, 1).mm(H       .mm(eigvec));
-    else                       H = eigvec.transpose(0, 1).mm(H.diag().mm(eigvec));
+    if (H.sizes().size() == 2) tchem::LA::UT_sy_U_(H, eigvec);
+    else                       H = tchem::LA::UT_sy_U(H.diag(), eigvec);
     tchem::LA::UT_sy_U_(dH, eigvec);
 }    
 
@@ -94,12 +97,10 @@ void Phaser::alter_(at::Tensor & M, const size_t & index) const {
     for (size_t i = 0; i < NStates_ - 1; i++) {
         // From i,i+1 to i,NStates-2: phase = phase[i] ^ phase[j]
         for (size_t j = i + 1; j < NStates_ - 1; j++)
-        if (phase[i] ^ phase[j])
-        M[i][j] = -M[i][j];
+        if (phase[i] ^ phase[j]) M[i][j].neg_();
         // i,NStates-1, phase = phase[i], since phase[NStates_ - 1] = false
         size_t j = NStates_ - 1;
-        if (phase[i])
-        M[i][j] = -M[i][j];
+        if (phase[i]) M[i][j].neg_();
     }
 }
 
@@ -109,11 +110,17 @@ size_t Phaser::iphase_min(const at::Tensor & M, const at::Tensor & ref) const {
     assert(("M must be a matrix or higher order tensor", M.sizes().size() >= 2));
     assert(("The matrix part of M must be square", M.size(0) == M.size(1)));
     assert(("The matrix dimension must be the number of electronic states", M.size(0) == NStates_));
+    assert(("M and ref must share a same shape", at::tensor(M.sizes()).equal(at::tensor(ref.sizes()))));
     // Calculate the initial difference of each matrix element
-    std::vector<int64_t> dim_vec(M.sizes().size() - 2);
-    for (size_t i = 0; i < dim_vec.size(); i++) dim_vec[i] = i + 2;
-    c10::IntArrayRef sum_dim(dim_vec.data(), dim_vec.size());
-    at::Tensor diff_mat = (M - ref).pow_(2).sum(sum_dim);
+    at::Tensor diff_mat = (M - ref).pow_(2);
+    if (M.sizes().size() == 3) {
+        diff_mat.transpose_(1, 2).transpose_(0, 1);
+        diff_mat = diff_mat.sum_to_size({(int64_t)NStates_, (int64_t)NStates_});
+    }
+    else if (M.sizes().size() > 3) {
+        diff_mat.transpose_(0, -2).transpose_(1, -1);
+        diff_mat = diff_mat.sum_to_size({(int64_t)NStates_, (int64_t)NStates_});
+    }
     // Try out phase possibilities
     double change_min = 0.0;
     size_t iphase_min = -1;
@@ -146,14 +153,28 @@ size_t Phaser::iphase_min(const at::Tensor & M1, const at::Tensor & M2, const at
     assert(("The matrix part of M2 must be square", M2.size(0) == M2.size(1)));
     assert(("M1 and M2 must share a same matrix dimension", M1.size(0) == M2.size(0)));
     assert(("The matrix dimension must be the number of electronic states", M1.size(0) == NStates_));
+    assert(("M1 and ref1 must share a same shape", at::tensor(M1.sizes()).equal(at::tensor(ref1.sizes()))));
+    assert(("M2 and ref2 must share a same shape", at::tensor(M2.sizes()).equal(at::tensor(ref2.sizes()))));
     // Calculate the initial difference of each matrix element
-    std::vector<int64_t> dim_vec1(M1.sizes().size() - 2);
-    for (size_t i = 0; i < dim_vec1.size(); i++) dim_vec1[i] = i + 2;
-    c10::IntArrayRef sum_dim1(dim_vec1.data(), dim_vec1.size());
-    std::vector<int64_t> dim_vec2(M2.sizes().size() - 2);
-    for (size_t i = 0; i < dim_vec2.size(); i++) dim_vec2[i] = i + 2;
-    c10::IntArrayRef sum_dim2(dim_vec2.data(), dim_vec2.size());
-    at::Tensor diff_mat = weight * (M1 - ref1).pow_(2).sum(sum_dim1) + (M2 - ref2).pow_(2).sum(sum_dim2);
+    at::Tensor diff_mat1 = (M1 - ref1).pow_(2);
+    if (M1.sizes().size() == 3) {
+        diff_mat1.transpose_(1, 2).transpose_(0, 1);
+        diff_mat1 = diff_mat1.sum_to_size({(int64_t)NStates_, (int64_t)NStates_});
+    }
+    else if (M1.sizes().size() > 3) {
+        diff_mat1.transpose_(0, -2).transpose_(1, -1);
+        diff_mat1 = diff_mat1.sum_to_size({(int64_t)NStates_, (int64_t)NStates_});
+    }
+    at::Tensor diff_mat2 = (M2 - ref2).pow_(2);
+    if (M2.sizes().size() == 3) {
+        diff_mat2.transpose_(1, 2).transpose_(0, 1);
+        diff_mat2 = diff_mat2.sum_to_size({(int64_t)NStates_, (int64_t)NStates_});
+    }
+    else if (M2.sizes().size() > 3) {
+        diff_mat2.transpose_(0, -2).transpose_(1, -1);
+        diff_mat2 = diff_mat2.sum_to_size({(int64_t)NStates_, (int64_t)NStates_});
+    }
+    at::Tensor diff_mat = weight * diff_mat1 + diff_mat2;
     // Try out phase possibilities
     double change_min = 0.0;
     size_t iphase_min = -1;

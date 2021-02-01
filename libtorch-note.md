@@ -1,8 +1,11 @@
 # My note during using libtorch
 This note records my experience on libtorch
 
-## Some surprising things
+## Surprising but making sense
 `at::Tensor.symeig` returns eigenvectors in each column of a matrix, as mathematically required. I thought that would be in rows since it might call LAPACK, whose memory layout is a transpose to c++ frontend, but pytorch strides it back
+
+## Shocking
+`A += A.transpose(0, 1)` does not give you `A = A + A.transpose(0, 1)`. The latter results in correct `A + A^T`, but the former one messes up by in-place adding and transposing at a same time, e.g. for 2 x 2 case it will perform `A[0][1] += A[1][0]; A[1][0] += A[0][1]`, which is wrong since the resulting `A[1][0]` is `A[0][1] + 2.0 * A[1][0]` rather than the desirable `A[0][1] + A[1][0]`
 
 ## Memory
 Memory management is always a pain in the ass in using c++, so does libtorch
@@ -18,10 +21,10 @@ Memory management is always a pain in the ass in using c++, so does libtorch
 * But if that pointer is `std::vector<>.data()`, then it will be released when the `std::vector<>` goes out of scope
 
 ## In place operation
-The most common bug in using libtorch is probably backwarding an in place operation. The most classic ones are the member functions ending with '_', as documented officialy. Also in official documentation are `+=`, `-=`, `*=`, `/=`
+The most common bug in using libtorch is probably backwarding through an in place operation. The most classic ones are the member functions ending with '_', as documented officialy. Also in official documentation are `+=`, `-=`, `*=`, `/=`
 
 Problem:
-* Say I have a tensor `x`, `x[i] = at::erf(x[i])` is in place so `a[i] = at::erf(x[i])` is the correct way of coding. However, in module `SAS` the similar pieces exist but why gradient works fine? I guess it might be my compiler (ifort 2019.4) who breaks the "problematic" pieces
+* Say I have a tensor `x`, `x[i] = at::erf(x[i])` turns out to be in-place so `a[i] = at::erf(x[i])` is the correct way of coding. However, in module `SAS` the similar pieces exist but why gradient works fine? I guess it might be my compiler (ifort 2019.4) who breaks the "problematic" in-place pieces
 
 ## Numerical instability
 Explicitly looping over matrix elements deteriorates backward propagation. An example is `tchem::LA::UT_sy_U`

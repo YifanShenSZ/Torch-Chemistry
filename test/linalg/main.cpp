@@ -1,7 +1,10 @@
 #include <tchem/linalg.hpp>
 
 void triple_product() {
-    at::Tensor a = at::rand(3), b = at::rand(3), c = at::rand(3);
+    c10::TensorOptions top = at::TensorOptions().dtype(torch::kFloat64);
+    at::Tensor a = at::rand(3, top),
+               b = at::rand(3, top),
+               c = at::rand(3, top);
     at::Tensor result = tchem::LA::triple_product(a, b, c),
                answer = a.cross(b).dot(c);
     std::cout << "\nTriple product: "
@@ -51,62 +54,95 @@ void vec2sytensor() {
 
 void matdotmul() {
     at::Tensor A = at::rand({3, 3, 5}), B = at::rand({3, 3, 5});
+    at::Tensor sy = tchem::LA::sy3matdotmul(A, B);
     for (size_t i = 0; i < 3; i++)
     for (size_t j = i + 1; j < 3; j++) {
         A[j][i].copy_(A[i][j]);
         B[j][i].copy_(B[i][j]);
     }
+    at::Tensor ge = tchem::LA::ge3matdotmul(A, B);
     std::cout << "\nMatrix dot multiplication: "
-              << (tchem::LA::ge3matdotmul(A, B) - tchem::LA::sy3matdotmul(A, B)).norm().item<double>() << '\n';
+              << (sy - ge).norm().item<double>() << '\n';
+}
+
+void matmvmul() {
+    at::Tensor A = at::rand({3, 3, 4, 5}), B = at::rand({3, 3, 5});
+    at::Tensor sy = tchem::LA::sy4matmvmulsy3(A, B);
+    for (size_t i = 0; i < 3; i++)
+    for (size_t j = i + 1; j < 3; j++) {
+        A[j][i].copy_(A[i][j]);
+        B[j][i].copy_(B[i][j]);
+    }
+    at::Tensor ge = tchem::LA::ge4matmvmulge3(A, B);
+    std::cout << "\nMatrix matrix-vector multiplication: "
+              << (sy - ge).norm().item<double>() << '\n';
 }
 
 void matoutermul() {
     at::Tensor A = at::rand({3, 3}), B = at::rand({3, 3, 5});
+    at::Tensor sy = tchem::LA::symatoutermul(A, B);
     for (size_t i = 0; i < 3; i++)
     for (size_t j = i + 1; j < 3; j++) {
         A[j][i].copy_(A[i][j]);
         B[j][i].copy_(B[i][j]);
     }
+    at::Tensor ge = tchem::LA::gematoutermul(A, B);
     std::cout << "\nMatrix outer multiplication: "
-              << (tchem::LA::gematoutermul(A, B) - tchem::LA::symatoutermul(A, B)).norm().item<double>() << '\n';
+              << (sy - ge).norm().item<double>() << '\n';
 }
 
 void UT_A_U() {
     c10::TensorOptions top = at::TensorOptions().dtype(torch::kFloat64);
-    at::Tensor  H = at::rand({3, 3}, top),
-               dH = at::rand({3, 3, 5}, top);
-    for (size_t i = 0; i < 3; i++)
-    for (size_t j = i + 1; j < 3; j++) {
-         H[j][i].copy_( H[i][j]);
-        dH[j][i].copy_(dH[i][j]);
-    }
-    // Adiabatic representation
+    at::Tensor   H = at::rand({3, 3      }, top),
+                dH = at::rand({3, 3, 5   }, top),
+               ddH = at::rand({3, 3, 5, 5}, top);
     at::Tensor energies, states;
     std::tie(energies, states) = H.symeig(true);
-    at::Tensor dH_a = tchem::LA::UT_ge_U(dH, states);
-    // Composite representation
-    at::Tensor dHdH = tchem::LA::sy3matdotmul(dH, dH);
-    at::Tensor eigvals, eigvecs;
-    std::tie(eigvals, eigvecs) = dHdH.symeig(true);
-    at::Tensor  H_c = eigvecs.transpose(0, 1).mm(H.mm(eigvecs));
-    at::Tensor dH_c = tchem::LA::UT_sy_U(dH, eigvecs);
-    // Composite representation -> adiabatic representation
-    at::Tensor energies_c, states_c;
-    std::tie(energies_c, states_c) = H_c.symeig(true);
-    at::Tensor dH_a_1 = dH_c.clone();
-    for (size_t i = 0; i < 3; i++)
-    for (size_t j = i + 1; j < 3; j++)
-    dH_a_1[j][i].copy_(dH_a_1[i][j]);
-    tchem::LA::UT_ge_U_(dH_a_1, states_c);
-    at::Tensor dH_a_2 = dH_c.clone();
-    tchem::LA::UT_sy_U_(dH_a_2, states_c);
-    double difference = (energies - energies_c).norm().item<double>();
-    for (size_t i = 0; i < dH.size(0); i++) {
-        difference += (dH_a[i][i] - dH_a_1[i][i]).norm().item<double>();
-        difference += (dH_a[i][i] - dH_a_2[i][i]).norm().item<double>();
+    // sy
+    at::Tensor sy2 = tchem::LA::UT_sy_U(H, states);
+    at::Tensor sy2_ = H.clone();
+    tchem::LA::UT_sy_U_(sy2_, states);
+    at::Tensor sy3 = tchem::LA::UT_sy_U(dH, states);
+    at::Tensor sy3_ = dH.clone();
+    tchem::LA::UT_sy_U_(sy3_, states);
+    at::Tensor sy4 = tchem::LA::UT_sy_U(ddH, states);
+    at::Tensor sy4_ = ddH.clone();
+    tchem::LA::UT_sy_U_(sy4_, states);
+    // ge
+    for (size_t i = 0; i < H.size(0); i++)
+    for (size_t j = i + 1; j < H.size(1); j++) {
+          H[j][i].copy_(  H[i][j]);
+         dH[j][i].copy_( dH[i][j]);
+        ddH[j][i].copy_(ddH[i][j]);
+    }
+    at::Tensor ge2 = tchem::LA::UT_ge_U(H, states);
+    at::Tensor ge2_ = H.clone();
+    tchem::LA::UT_ge_U_(ge2_, states);
+    at::Tensor ge3 = tchem::LA::UT_ge_U(dH, states);
+    at::Tensor ge3_ = dH.clone();
+    tchem::LA::UT_ge_U_(ge3_, states);
+    at::Tensor ge4 = tchem::LA::UT_ge_U(ddH, states);
+    at::Tensor ge4_ = ddH.clone();
+    tchem::LA::UT_ge_U_(ge4_, states);
+    for (size_t i = 0; i < H.size(0); i++)
+    for (size_t j = i + 1; j < H.size(1); j++) {
+        ge2 [j][i].zero_();
+        ge2_[j][i].zero_();
+        ge3 [j][i].zero_();
+        ge3_[j][i].zero_();
+        ge4 [j][i].zero_();
+        ge4_[j][i].zero_();
     }
     std::cout << "\nUnitary transformation: "
-              << difference << '\n';
+              << (sy2 - ge2 ).norm().item<double>() << ' '
+              << (sy2 - sy2_).norm().item<double>() << ' '
+              << (ge2 - ge2_).norm().item<double>() << ' '
+              << (sy3 - ge3 ).norm().item<double>() << ' '
+              << (sy3 - sy3_).norm().item<double>() << ' '
+              << (ge3 - ge3_).norm().item<double>() << ' '
+              << (sy4 - ge4 ).norm().item<double>() << ' '
+              << (sy4 - sy4_).norm().item<double>() << ' '
+              << (ge4 - ge4_).norm().item<double>() << '\n';
 }
 
 int main() {
@@ -116,6 +152,7 @@ int main() {
     outer_product();
     vec2sytensor();
     matdotmul();
+    matmvmul();
     matoutermul();
     UT_A_U();
 }

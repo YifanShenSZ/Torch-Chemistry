@@ -54,7 +54,7 @@ at::Tensor outer_product(const at::Tensor & a, const at::Tensor & b) {
 // Here a symmetric tensor `A` is defined to satisfy
 // A[i1][i2]...[in] = A[i2][i1]...[in] = ... = A[i2]...[in][i1] = ...
 // i.e. the permutation of indices all give a same element
-// only the "upper triangle" (i1 <= i2 <= ... <= in) of the output tensor is filled
+// Only write the "upper triangle" (i1 <= i2 <= ... <= in) of the output tensor
 at::Tensor vec2sytensor(const at::Tensor & x, const size_t & order, const size_t & dimension) {
     assert(("x must be a vector", x.sizes().size() == 1));
     std::vector<int64_t> sizes_vector(order, dimension);
@@ -66,12 +66,12 @@ at::Tensor vec2sytensor(const at::Tensor & x, const size_t & order, const size_t
 }
 
 // Matrix dot multiplication for 3rd-order tensors A and B
-// A.size(2) == B.size(2), A.size(1) == B.size(0)
+// A.size(-1) == B.size(-1), A.size(1) == B.size(0)
 // result_ij = A_ik . B_kj
 at::Tensor ge3matdotmul(const at::Tensor & A, const at::Tensor & B) {
     assert(("A must be a 3rd-order tensor", A.sizes().size() == 3));
     assert(("B must be a 3rd-order tensor", B.sizes().size() == 3));
-    assert(("A & B must share a same vector dimension", A.size(2) == B.size(2)));
+    assert(("A & B must share a same vector dimension", A.size(-1) == B.size(-1)));
     assert(("A & B must be matrix mutiplicable", A.size(1) == B.size(0)));
     at::Tensor result = A.new_zeros({A.size(0), B.size(1)});
     for (size_t i = 0; i < result.size(0); i++)
@@ -82,13 +82,13 @@ at::Tensor ge3matdotmul(const at::Tensor & A, const at::Tensor & B) {
 }
 // For symmetric A and B
 // Here a symmetric 3rd-order tensor `A` means A[i][j] = A[j][i]
-// only the "upper triangle" (i <= j) of the output tensor is filled
+// Only read the "upper triangle" (i <= j) of A and B
 at::Tensor sy3matdotmul(const at::Tensor & A, const at::Tensor & B) {
     assert(("A must be a 3rd-order tensor", A.sizes().size() == 3));
     assert(("The matrix part of A must be square", A.size(0) == A.size(1)));
     assert(("B must be a 3rd-order tensor", B.sizes().size() == 3));
     assert(("The matrix part of B must be square", B.size(0) == B.size(1)));
-    assert(("A & B must share a same vector dimension", A.size(2) == B.size(2)));
+    assert(("A & B must share a same vector dimension", A.size(-1) == B.size(-1)));
     assert(("A & B must be matrix mutiplicable", A.size(1) == B.size(0)));
     at::Tensor result = A.new_zeros({A.size(0), B.size(1)});
     for (size_t i = 0; i < result.size(0); i++) {
@@ -101,6 +101,47 @@ at::Tensor sy3matdotmul(const at::Tensor & A, const at::Tensor & B) {
             for (size_t k = 0; k < i; k++)         result[i][j] += A[k][i].dot(B[k][j]);
             for (size_t k = i; k < j; k++)         result[i][j] += A[i][k].dot(B[k][j]);
             for (size_t k = j; k < B.size(0); k++) result[i][j] += A[i][k].dot(B[j][k]);
+        }
+    }
+    return result;
+}
+
+// Matrix dot multiplication for 4rh-order tensor A and 3rd-order tensor B
+// A.size(-1) == B.size(-1), A.size(1) == B.size(0)
+// result_ij = A_ik . B_kj
+at::Tensor ge4matmvmulge3(const at::Tensor & A, const at::Tensor & B) {
+    assert(("A must be a 4th-order tensor", A.sizes().size() == 4));
+    assert(("B must be a 3rd-order tensor", B.sizes().size() == 3));
+    assert(("The matrix-vector part of A & B must be matrix-vector mutiplicable", A.size(-1) == B.size(-1)));
+    assert(("A & B must be matrix mutiplicable", A.size(1) == B.size(0)));
+    at::Tensor result = A.new_zeros({A.size(0), B.size(1), A.size(-2)});
+    for (size_t i = 0; i < result.size(0); i++)
+    for (size_t j = 0; j < result.size(1); j++)
+    for (size_t k = 0; k < B.size(0); k++)
+    result[i][j] += A[i][k].mv(B[k][j]);
+    return result;
+}
+// For symmetric A and B
+// Here a symmetric 3rd or 4th order tensor `A` means A[i][j] = A[j][i]
+// Only read the "upper triangle" (i <= j) of A and B
+at::Tensor sy4matmvmulsy3(const at::Tensor & A, const at::Tensor & B) {
+    assert(("A must be a 4th-order tensor", A.sizes().size() == 4));
+    assert(("The matrix part of A must be square", A.size(0) == A.size(1)));
+    assert(("B must be a 3rd-order tensor", B.sizes().size() == 3));
+    assert(("The matrix part of B must be square", B.size(0) == B.size(1)));
+    assert(("The matrix-vector part of A & B must be matrix-vector mutiplicable", A.size(-1) == B.size(-1)));
+    assert(("A & B must be matrix mutiplicable", A.size(1) == B.size(0)));
+    at::Tensor result = A.new_zeros({A.size(0), B.size(1), A.size(-2)});
+    for (size_t i = 0; i < result.size(0); i++) {
+        for (size_t j = 0; j < i; j++) {
+            for (size_t k = 0; k < j; k++)         result[i][j] += A[k][i].mv(B[k][j]);
+            for (size_t k = j; k < i; k++)         result[i][j] += A[k][i].mv(B[j][k]);
+            for (size_t k = i; k < B.size(0); k++) result[i][j] += A[i][k].mv(B[j][k]);
+        }
+        for (size_t j = i; j < result.size(1); j++) {
+            for (size_t k = 0; k < i; k++)         result[i][j] += A[k][i].mv(B[k][j]);
+            for (size_t k = i; k < j; k++)         result[i][j] += A[i][k].mv(B[k][j]);
+            for (size_t k = j; k < B.size(0); k++) result[i][j] += A[i][k].mv(B[j][k]);
         }
     }
     return result;
@@ -128,7 +169,7 @@ at::Tensor gematoutermul(const at::Tensor & A, const at::Tensor & B) {
 }
 // For symmetric A and B
 // Here a symmetric 3rd-order tensor `A` means A[i][j] = A[j][i]
-// only the "upper triangle" (i <= j) of the output tensor is filled
+// Only read the "upper triangle" (i <= j) of A and B
 at::Tensor symatoutermul(const at::Tensor & A, const at::Tensor & B) {
     assert(("A must be a matrix or higher order tensor", A.sizes().size() >= 2));
     assert(("B must be a matrix or higher order tensor", B.sizes().size() >= 2));
@@ -207,7 +248,8 @@ void UT_ge_U_(at::Tensor & A, const at::Tensor & U) {
 }
 // For symmetric A
 // Here a symmetric higher order tensor `A` means A[i][j] = A[j][i]
-// only the "upper triangle" (i <= j) of the output tensor is filled
+// Only read the "upper triangle" (i <= j) of A
+// Only write the "upper triangle" (i <= j) of the output tensor
 // Warning: this routine is known to deteriorate backward propagation
 //          Probably because it explicitly loops over the matrix elements
 //          Will fix it some day if pytorch introduces "symm" like BLAS

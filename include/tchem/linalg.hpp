@@ -27,7 +27,7 @@ at::Tensor outer_product(const at::Tensor & a, const at::Tensor & b);
 // Here a symmetric tensor `A` is defined to satisfy
 // A[i1][i2]...[in] = A[i2][i1]...[in] = ... = A[i2]...[in][i1] = ...
 // i.e. the permutation of indices all give a same element
-// only the "upper triangle" (i1 <= i2 <= ... <= in) of the output tensor is filled
+// Only write the "upper triangle" (i1 <= i2 <= ... <= in) of the output tensor
 at::Tensor vec2sytensor(const at::Tensor & x, const size_t & order, const size_t & dimension);
 
 // Matrix dot multiplication for 3rd-order tensors A and B
@@ -36,8 +36,17 @@ at::Tensor vec2sytensor(const at::Tensor & x, const size_t & order, const size_t
 at::Tensor ge3matdotmul(const at::Tensor & A, const at::Tensor & B);
 // For symmetric A and B
 // Here a symmetric 3rd-order tensor `A` means A[i][j] = A[j][i]
-// only the "upper triangle" (i <= j) of the output tensor is filled
+// Only read the "upper triangle" (i <= j) of A and B
 at::Tensor sy3matdotmul(const at::Tensor & A, const at::Tensor & B);
+
+// Matrix dot multiplication for 4rh-order tensor A and 3rd-order tensor B
+// A.size(-1) == B.size(-1), A.size(1) == B.size(0)
+// result_ij = A_ik . B_kj
+at::Tensor ge4matmvmulge3(const at::Tensor & A, const at::Tensor & B);
+// For symmetric A and B
+// Here a symmetric 3rd or 4th order tensor `A` means A[i][j] = A[j][i]
+// Only read the "upper triangle" (i <= j) of A and B
+at::Tensor sy4matmvmulsy3(const at::Tensor & A, const at::Tensor & B);
 
 // Matrix outer multiplication for matrices or higher order tensors A and B
 // A.size(2) == B.size(2), A.size(1) == B.size(0)
@@ -45,7 +54,7 @@ at::Tensor sy3matdotmul(const at::Tensor & A, const at::Tensor & B);
 at::Tensor gematoutermul(const at::Tensor & A, const at::Tensor & B);
 // For symmetric A and B
 // Here a symmetric 3rd-order tensor `A` means A[i][j] = A[j][i]
-// only the "upper triangle" (i <= j) of the output tensor is filled
+// Only read the "upper triangle" (i <= j) of A and B
 at::Tensor symatoutermul(const at::Tensor & A, const at::Tensor & B);
 
 // Unitary transformation for matrix or higher order tensor A
@@ -54,7 +63,8 @@ at::Tensor UT_ge_U(const at::Tensor & A, const at::Tensor & U);
 void UT_ge_U_(at::Tensor & A, const at::Tensor & U);
 // For symmetric A
 // Here a symmetric higher order tensor `A` means A[i][j] = A[j][i]
-// only the "upper triangle" (i <= j) of the output tensor is filled
+// Only read the "upper triangle" (i <= j) of A
+// Only write the "upper triangle" (i <= j) of the output tensor
 at::Tensor UT_sy_U(const at::Tensor & A, const at::Tensor & U);
 void UT_sy_U_(at::Tensor & A, const at::Tensor & U);
 
