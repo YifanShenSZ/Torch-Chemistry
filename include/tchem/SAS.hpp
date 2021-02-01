@@ -8,7 +8,7 @@ The procedure to get symmetry adapted and scaled internal coordinate (SASIC) is:
        if no scaler      : SDIC = DIC
        elif scaler = self: SDIC = pi * erf(DIC)
        else              : SDIC = DIC * exp(-alpha * scaler DIC)
-    4. Symmetry adapted linear combinate the SDIC to get SSAIC
+    4. Symmetry adapted linear combinate the SDIC to get SASIC
 */
 
 #ifndef tchem_SAS_hpp
@@ -26,9 +26,9 @@ struct OthScalRul {
     size_t self, scaler;
     double alpha;
 
-    inline OthScalRul() {}
+    OthScalRul();
     OthScalRul(const std::vector<std::string> & input_strs);
-    inline ~OthScalRul() {}
+    ~OthScalRul();
 };
 
 // A symmetry adapted and scaled internal coordinate
@@ -37,11 +37,11 @@ class SASIC {
         std::vector<double> coeffs_;
         std::vector<size_t> indices_;
     public:
-        inline SASIC() {}
-        inline ~SASIC() {}
+        SASIC();
+        ~SASIC();
 
-        inline std::vector<double> coeffs() const {return coeffs_;}
-        inline std::vector<size_t> indices() const {return indices_;}
+        std::vector<double> coeffs() const;
+        std::vector<size_t> indices() const;
 
         // Append a linear combination coefficient - index of scaled internal coordinate pair
         void append(const double & coeff, const size_t & index);
@@ -67,17 +67,17 @@ class SASICSet : public tchem::IC::IntCoordSet {
         // j-th symmetry adapted internal coordinate in i-th irreducible
         std::vector<std::vector<SASIC>> sasicss_;
     public:
-        inline SASICSet() {}
+        SASICSet();
         // internal coordinate definition format (Columbus7, default)
         // internal coordinate definition file
         // symmetry adaptation and scale definition file
         SASICSet(const std::string & format, const std::string & IC_file, const std::string & SAS_file);
-        inline ~SASICSet() {}
+        ~SASICSet();
 
-        inline at::Tensor origin() const {return origin_;}
+        at::Tensor origin() const;
 
         // Return number of irreducible representations
-        inline size_t NIrreds() const {return sasicss_.size();}
+        size_t NIrreds() const;
         // Return number of symmetry adapted and scaled internal coordinates per irreducible
         std::vector<size_t> NSASICs() const;
 

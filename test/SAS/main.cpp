@@ -63,13 +63,13 @@ int main() {
     for (size_t irred = 0; irred < SASq.size(); irred++) SASJ_N[irred] = SASq[irred].new_empty({SASq[irred].size(0), q.size(0)});
     for (size_t column = 0; column < q.size(0); column++) {
         at::Tensor q_plus = q.clone();
-        q_plus[column] += 1e-3;
+        q_plus[column] += 1e-5;
         std::vector<at::Tensor> SASq_plus = set(q_plus);
         at::Tensor q_minus = q.clone();
-        q_minus[column] -= 1e-3;
+        q_minus[column] -= 1e-5;
         std::vector<at::Tensor> SASq_minus = set(q_minus);
         for (size_t irred = 0; irred < SASq.size(); irred++) {
-            at::Tensor subvec = (SASq_plus[irred] - SASq_minus[irred]) / 2e-3;
+            at::Tensor subvec = (SASq_plus[irred] - SASq_minus[irred]) / 2e-5;
             for (size_t row = 0; row < SASJ_N[irred].size(0); row++) SASJ_N[irred][row][column] = subvec[row];
         }
     }

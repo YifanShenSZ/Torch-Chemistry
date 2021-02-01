@@ -23,14 +23,14 @@ class Gaussian {
         // Independent 1-dimensional gaussian distributions
         std::vector<std::normal_distribution<double>> independent_1Dgaussians_;
     public:
-        inline Gaussian() {}
+        Gaussian();
         // miu_ & var_ are deep copies of _miu & _var
         Gaussian(const at::Tensor & _miu, const at::Tensor & _var);
-        inline ~Gaussian() {}
+        ~Gaussian();
 
-        inline at::Tensor miu() const {return miu_;}
-        inline at::Tensor var() const {return var_;}
-        inline bool random_ready() const {return random_ready_;}
+        at::Tensor miu() const;
+        at::Tensor var() const;
+        bool random_ready() const;
 
         // g(r; miu, var) = (2pi)^(-dim/2) |var|^(-1/2) exp[-1/2 (r-miu)^T.var^-1.(r-miu)]
         at::Tensor operator()(const at::Tensor & r) const;

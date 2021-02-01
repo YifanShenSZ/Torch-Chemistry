@@ -9,6 +9,15 @@
 
 namespace tchem { namespace IC {
 
+InvDisp::InvDisp() {}
+InvDisp::InvDisp(const std::string & _type, const std::vector<size_t> & _atoms) : type_(_type), atoms_(_atoms) {}
+InvDisp::InvDisp(const std::string & _type, const std::vector<size_t> & _atoms, const double & _min) : type_(_type), atoms_(_atoms), min_(_min) {}
+InvDisp::~InvDisp() {}
+
+std::string InvDisp::type() const {return type_;}
+std::vector<size_t> InvDisp::atoms() const {return atoms_;}
+double InvDisp::min() const {return min_;}
+
 // Return the displacement given r
 at::Tensor InvDisp::operator()(const at::Tensor & r) const {
     assert(("r must be a vector", r.sizes().size() == 1));
@@ -181,6 +190,12 @@ std::tuple<at::Tensor, at::Tensor> InvDisp::compute_IC_J(const at::Tensor & r) c
 
 
 
+IntCoord::IntCoord() {}
+IntCoord::~IntCoord() {}
+
+std::vector<double> IntCoord::coeffs() const {return coeffs_;}
+std::vector<InvDisp> IntCoord::invdisps() const {return invdisps_;}
+
 // Append a linear combination coefficient - invariant displacement pair
 void IntCoord::append(const double & coeff, const InvDisp & invdisp) {
     coeffs_.push_back(coeff);
@@ -219,6 +234,7 @@ std::tuple<at::Tensor, at::Tensor> IntCoord::compute_IC_J(const at::Tensor & r) 
 
 
 
+IntCoordSet::IntCoordSet() {}
 // file format (Columbus7, default), internal coordinate definition file
 IntCoordSet::IntCoordSet(const std::string & format, const std::string & file) {
     if (format == "Columbus7") {
@@ -321,6 +337,11 @@ IntCoordSet::IntCoordSet(const std::string & format, const std::string & file) {
     // Normalize linear combination coefficient
     for (IntCoord & intcoord : intcoords_) intcoord.normalize();
 }
+IntCoordSet::~IntCoordSet() {}
+
+std::vector<IntCoord> IntCoordSet::intcoords() const {return intcoords_;}
+
+size_t IntCoordSet::size() const {return intcoords_.size();}
 
 // Return q given r
 at::Tensor IntCoordSet::operator()(const at::Tensor & r) const {

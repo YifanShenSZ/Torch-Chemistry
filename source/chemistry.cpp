@@ -53,6 +53,7 @@ void composite_representation_(at::Tensor & H, at::Tensor & dH) {
 
 
 
+Phaser::Phaser() {}
 Phaser::Phaser(const size_t & _NStates) : NStates_(_NStates) {
     possible_phases_.resize((1 << (NStates_ - 1)) - 1);
     for (std::vector<bool> & phase : possible_phases_) phase.resize(NStates_ - 1);
@@ -72,6 +73,10 @@ Phaser::Phaser(const size_t & _NStates) : NStates_(_NStates) {
         phase[index] = true;
     }
 }
+Phaser::~Phaser() {}
+
+size_t Phaser::NStates() const {return NStates_;}
+std::vector<std::vector<bool>> Phaser::possible_phases() const {return possible_phases_;}
 
 // Alter the phase of M to the index-th possible phase
 at::Tensor Phaser::alter(const at::Tensor & M, const size_t & index) const {

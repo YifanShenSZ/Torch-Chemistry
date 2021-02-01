@@ -33,12 +33,12 @@ class Phaser {
         // so possible_phases[i].size() = NStates - 1
         std::vector<std::vector<bool>> possible_phases_;
     public:
-        inline Phaser() {}
+        Phaser();
         Phaser(const size_t & _NStates);
-        inline ~Phaser() {}
+        ~Phaser();
 
-        inline size_t NStates() const {return NStates_;}
-        inline std::vector<std::vector<bool>> possible_phases() const {return possible_phases_;}
+        size_t NStates() const;
+        std::vector<std::vector<bool>> possible_phases() const;
 
         // Alter the phase of M to the index-th possible phase
         at::Tensor alter(const at::Tensor & M, const size_t & index) const;

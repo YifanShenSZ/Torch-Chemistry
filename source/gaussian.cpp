@@ -8,6 +8,7 @@
 
 namespace tchem { namespace gaussian {
 
+Gaussian::Gaussian() {}
 // miu_ & var_ are deep copies of _miu & _var
 Gaussian::Gaussian(const at::Tensor & _miu, const at::Tensor & _var) {
     assert(("miu must be a vector", _miu.sizes().size() == 1));
@@ -17,6 +18,11 @@ Gaussian::Gaussian(const at::Tensor & _miu, const at::Tensor & _var) {
     miu_ = _miu.clone();
     var_ = _var.clone();
 }
+Gaussian::~Gaussian() {}
+
+at::Tensor Gaussian::miu() const {return miu_;}
+at::Tensor Gaussian::var() const {return var_;}
+bool Gaussian::random_ready() const {return random_ready_;}
 
 // g(r; miu, var) = (2pi)^(-dim/2) |var|^(-1/2) exp[-1/2 (r-miu)^T.var^-1.(r-miu)]
 at::Tensor Gaussian::operator()(const at::Tensor & r) const {

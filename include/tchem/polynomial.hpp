@@ -11,11 +11,11 @@ class Polynomial {
         // Coordinates constituting the polynomial, sorted descendingly
         std::vector<size_t> coords_;
     public:
-        inline Polynomial() {}
+        Polynomial();
         Polynomial(const std::vector<size_t> & coords, const bool & sorted = false);
-        inline ~Polynomial() {}
+        ~Polynomial();
 
-        inline std::vector<size_t> coords() const {return coords_;}
+        std::vector<size_t> coords() const;
 
         // Return the polynomial value P(r) given r
         at::Tensor operator()(const at::Tensor & r) const;
@@ -51,15 +51,15 @@ class PolynomialSet {
         // If not found, return -1
         int index_polynomial(const std::vector<size_t> coords) const;
     public:
-        inline PolynomialSet() {}
+        PolynomialSet();
         // Generate all possible terms up to `order`-th order constituting of all `dimension` coordinates
         PolynomialSet(const size_t & _dimension, const size_t & _order);
-        inline ~PolynomialSet() {}
+        ~PolynomialSet();
 
-        inline size_t dimension() const {return dimension_;}
-        inline size_t order() const {return order_;}
-        inline std::vector<Polynomial> polynomials() const {return polynomials_;}
-        inline std::vector<std::vector<Polynomial *>> orders() const {return orders_;}
+        size_t dimension() const;
+        size_t order() const;
+        std::vector<Polynomial> polynomials() const;
+        std::vector<std::vector<Polynomial *>> orders() const;
 
         // Return the value of each term in {P(r)} as a vector
         at::Tensor operator()(const at::Tensor & r) const;

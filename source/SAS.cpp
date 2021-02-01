@@ -11,15 +11,23 @@
 
 namespace tchem { namespace SAS {
 
+OthScalRul::OthScalRul() {}
 OthScalRul::OthScalRul(const std::vector<std::string> & input_strs) {
     self   = std::stoul(input_strs[0]) - 1;
     scaler = std::stoul(input_strs[1]) - 1;
     alpha  = std::stod (input_strs[2]);
 }
+OthScalRul::~OthScalRul() {}
 
 
 
 
+
+SASIC::SASIC() {}
+SASIC::~SASIC() {}
+
+std::vector<double> SASIC::coeffs() const {return coeffs_;}
+std::vector<size_t> SASIC::indices() const {return indices_;}
 
 // Append a linear combination coefficient - index of scaled internal coordinate pair
 void SASIC::append(const double & coeff, const size_t & index) {
@@ -44,13 +52,7 @@ at::Tensor SASIC::operator()(const at::Tensor & SIC) const {
 
 
 
-// Return number of symmetry adapted and scaled internal coordinates per irreducible
-std::vector<size_t> SASICSet::NSASICs() const {
-    std::vector<size_t> N(NIrreds());
-    for (size_t i = 0; i < NIrreds(); i++) N[i] = sasicss_[i].size();
-    return N;
-}
-
+SASICSet::SASICSet() {}
 // internal coordinate definition format (Columbus7, default)
 // internal coordinate definition file
 // symmetry adaptation and scale definition file
@@ -114,22 +116,36 @@ SASICSet::SASICSet(const std::string & format, const std::string & IC_file, cons
         }
     ifs.close();
 }
+SASICSet::~SASICSet() {}
+
+at::Tensor SASICSet::origin() const {return origin_;}
+
+// Return number of irreducible representations
+size_t SASICSet::NIrreds() const {return sasicss_.size();}
+// Return number of symmetry adapted and scaled internal coordinates per irreducible
+std::vector<size_t> SASICSet::NSASICs() const {
+    std::vector<size_t> N(NIrreds());
+    for (size_t i = 0; i < NIrreds(); i++) N[i] = sasicss_[i].size();
+    return N;
+}
 
 std::vector<at::Tensor> SASICSet::operator()(const at::Tensor & q) {
     // Nondimensionalize
-    at::Tensor work = q - origin_;
+    at::Tensor DIC = q - origin_;
     std::vector<tchem::IC::IntCoord> IntCoordDef = intcoords();
     for (size_t i = 0; i < IntCoordDef.size(); i++)
     if (IntCoordDef[i].invdisps()[0].type() == "stretching")
-    work[i] = work[i] / origin_[i];
+    DIC[i] = DIC[i] / origin_[i];
     // Scale
-    for (OthScalRul & scaling : other_scaling_) work[scaling.self] = work[scaling.self] * at::exp(-scaling.alpha * work[scaling.scaler]);
-    work = M_PI * at::erf(self_scaling_.mv(work)) + self_complete_.mv(work);
+    at::Tensor SDIC = DIC.clone();
+    for (OthScalRul & scaling : other_scaling_)
+    SDIC[scaling.self] = DIC[scaling.self] * at::exp(-scaling.alpha * DIC[scaling.scaler]);
+    SDIC = M_PI * at::erf(self_scaling_.mv(SDIC)) + self_complete_.mv(SDIC);
     // Symmetrize
     std::vector<at::Tensor> SASgeom(NIrreds());
     for (size_t i = 0; i < NIrreds(); i++) {
         SASgeom[i] = q.new_zeros(sasicss_[i].size());
-        for (size_t j = 0; j < sasicss_[i].size(); j++) SASgeom[i][j] = sasicss_[i][j](work);
+        for (size_t j = 0; j < sasicss_[i].size(); j++) SASgeom[i][j] = sasicss_[i][j](SDIC);
     }
     return SASgeom;
 }

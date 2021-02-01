@@ -47,14 +47,14 @@ class InvDisp {
         // The dihedral angle is discontinuous at min and min + 2pi
         double min_ = -M_PI;
     public:
-        inline InvDisp() {}
-        inline InvDisp(const std::string & _type, const std::vector<size_t> & _atoms) : type_(_type), atoms_(_atoms) {};
-        inline InvDisp(const std::string & _type, const std::vector<size_t> & _atoms, const double & _min) : type_(_type), atoms_(_atoms), min_(_min) {};
-        inline ~InvDisp() {}
+        InvDisp();
+        InvDisp(const std::string & _type, const std::vector<size_t> & _atoms);
+        InvDisp(const std::string & _type, const std::vector<size_t> & _atoms, const double & _min);
+        ~InvDisp();
 
-        inline std::string type() const {return type_;}
-        inline std::vector<size_t> atoms() const {return atoms_;}
-        inline double min() const {return min_;}
+        std::string type() const;
+        std::vector<size_t> atoms() const;
+        double min() const;
 
         // Return the displacement given r
         at::Tensor operator()(const at::Tensor & r) const;
@@ -70,11 +70,11 @@ class IntCoord {
         // constitutional translationally and rotationally invariant displacements
         std::vector<InvDisp> invdisps_;
     public:
-        inline IntCoord() {}
-        inline ~IntCoord() {}
+        IntCoord();
+        ~IntCoord();
 
-        inline std::vector<double> coeffs() const {return coeffs_;}
-        inline std::vector<InvDisp> invdisps() const {return invdisps_;}
+        std::vector<double> coeffs() const;
+        std::vector<InvDisp> invdisps() const;
 
         // Append a linear combination coefficient - invariant displacement pair
         void append(const double & coeff, const InvDisp & invdisp);
@@ -93,14 +93,14 @@ class IntCoordSet {
         // Internal coordinates constituting the set
         std::vector<IntCoord> intcoords_;
     public:
-        inline IntCoordSet() {}
+        IntCoordSet();
         // file format (Columbus7, default), internal coordinate definition file
         IntCoordSet(const std::string & format, const std::string & file);
-        inline ~IntCoordSet() {}
+        ~IntCoordSet();
 
-        inline std::vector<IntCoord> intcoords() const {return intcoords_;}
+        std::vector<IntCoord> intcoords() const;
 
-        inline size_t size() const {return intcoords_.size();}
+        size_t size() const;
 
         // Return q given r
         at::Tensor operator()(const at::Tensor & r) const;

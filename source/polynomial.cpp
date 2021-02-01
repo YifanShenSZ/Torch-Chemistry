@@ -6,6 +6,7 @@
 
 namespace tchem { namespace polynomial {
 
+Polynomial::Polynomial() {}
 Polynomial::Polynomial(const std::vector<size_t> & _coords, const bool & sorted)
 : coords_(_coords) {
     if (! sorted) {
@@ -14,6 +15,9 @@ Polynomial::Polynomial(const std::vector<size_t> & _coords, const bool & sorted)
         for (size_t & coord : coords_) coord = -coord;
     }
 }
+Polynomial::~Polynomial() {}
+
+std::vector<size_t> Polynomial::coords() const {return coords_;}
 
 // Return the polynomial value P(r)
 at::Tensor Polynomial::operator()(const at::Tensor & r) const {
@@ -44,6 +48,7 @@ std::tuple<std::vector<size_t>, std::vector<size_t>> Polynomial::uniques_orders(
 
 
 
+PolynomialSet::PolynomialSet() {}
 // Generate all possible terms up to `order`-th order constituting of all `dimension` coordinates
 PolynomialSet::PolynomialSet(const size_t & _dimension, const size_t & _order)
 : dimension_(_dimension), order_(_order) {
@@ -93,6 +98,12 @@ PolynomialSet::PolynomialSet(const size_t & _dimension, const size_t & _order)
     if (count != polynomials_.size()) std::cerr << "Error in PolynomialSet construction";
     this->create_orders();
 }
+PolynomialSet::~PolynomialSet() {}
+
+size_t PolynomialSet::dimension() const {return dimension_;}
+size_t PolynomialSet::order() const {return order_;}
+std::vector<Polynomial> PolynomialSet::polynomials() const {return polynomials_;}
+std::vector<std::vector<Polynomial *>> PolynomialSet::orders() const {return orders_;}
 
 // Construct `orders_` after `polynomials_` has been constructed
 void PolynomialSet::create_orders() {
