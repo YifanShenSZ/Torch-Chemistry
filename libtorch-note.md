@@ -5,7 +5,9 @@ This note records my experience on libtorch
 `at::Tensor.symeig` returns eigenvectors in each column of a matrix, as mathematically required. I thought that would be in rows since it might call LAPACK, whose memory layout is a transpose to c++ frontend, but pytorch strides it back
 
 ## Shocking
-`A += A.transpose(0, 1)` does not give you `A = A + A.transpose(0, 1)`. The latter results in correct `A + A^T`, but the former one messes up by in-place adding and transposing at a same time, e.g. for 2 x 2 case it will perform `A[0][1] += A[1][0]; A[1][0] += A[0][1]`, which is wrong since the resulting `A[1][0]` is `A[0][1] + 2.0 * A[1][0]` rather than the desirable `A[0][1] + A[1][0]`
+For matrix `A`, `A += A.transpose(0, 1)` is different from `A = A + A.transpose(0, 1)`. The latter gives correct `A + A^T`, but the former one messes up by in-place adding and transposing at a same time, e.g. for 2 x 2 case it will perform `A[0][1] += A[1][0]; A[1][0] += A[0][1]`, which is wrong since the resulting `A[1][0]` is `A[0][1] + 2.0 * A[1][0]` rather than the desirable `A[0][1] + A[1][0]`
+
+For matrix `A`, `A -= 2.0` is different from `A -= 2.0 * at::eye(A.size(0), A.options())`. The latter gives correct `A - 2.0`, but the former subtracts `2.0` from every element. That's fine though, as FORTRAN and numpy behave the same (probably because of broadcast semantics)
 
 ## Memory
 Memory management is always a pain in the ass in using c++, so does libtorch

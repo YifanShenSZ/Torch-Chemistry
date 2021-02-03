@@ -5,38 +5,38 @@
 
 namespace tchem { namespace polynomial {
 
-// Polynomial P(r) = r[coords_[0]] * r[coords_[1]] * ... * r[coords_.back()]
+// Polynomial P(x) = x[coords_[0]] * x[coords_[1]] * ... * x[coords_.back()]
 class Polynomial {
     private:
         // Coordinates constituting the polynomial, sorted descendingly
         std::vector<size_t> coords_;
     public:
         Polynomial();
-        Polynomial(const std::vector<size_t> & coords, const bool & sorted = false);
+        Polynomial(const std::vector<size_t> & _coords, const bool & sorted = false);
         ~Polynomial();
 
         std::vector<size_t> coords() const;
 
-        // Return the polynomial value P(r) given r
-        at::Tensor operator()(const at::Tensor & r) const;
+        // Return the polynomial value P(x) given x
+        at::Tensor operator()(const at::Tensor & x) const;
 
         // Return the unique coordinates and their orders
         std::tuple<std::vector<size_t>, std::vector<size_t>> uniques_orders() const;
 };
 
-// Polynomial set {P(r)}
+// Polynomial set {P(x)}
 class PolynomialSet {
     private:
         // Dimension of the coordinate constituting the polynomial set
         size_t dimension_;
         // Highest order among the polynomials
         size_t order_;
-
         // Polynomials constituting the set, requirements:
         //     1. orders are sorted ascendingly
         //     2. same order terms are sorted ascendingly
         // e.g. 2-dimensional 2nd-order: 1, r0, r1, r0 r0, r1 r0, r1 r1
         std::vector<Polynomial> polynomials_;
+
         // A view to `polynomials_` grouped by order
         std::vector<std::vector<Polynomial *>> orders_;
 
@@ -52,6 +52,8 @@ class PolynomialSet {
         int index_polynomial(const std::vector<size_t> coords) const;
     public:
         PolynomialSet();
+        // `_polynomials` must meet the requirements of `polynomials_`
+        PolynomialSet(const size_t & _dimension, const size_t & _order, const std::vector<Polynomial> & _polynomials);
         // Generate all possible terms up to `order`-th order constituting of all `dimension` coordinates
         PolynomialSet(const size_t & _dimension, const size_t & _order);
         ~PolynomialSet();
@@ -61,15 +63,15 @@ class PolynomialSet {
         std::vector<Polynomial> polynomials() const;
         std::vector<std::vector<Polynomial *>> orders() const;
 
-        // Return the value of each term in {P(r)} as a vector
-        at::Tensor operator()(const at::Tensor & r) const;
+        // Return the value of each term in {P(x)} as a vector
+        at::Tensor operator()(const at::Tensor & x) const;
 
-        // Given `x`, the value of each term in {P(r)} as a vector
+        // Given `x`, the value of each term in {P(x)} as a vector
         // Return views to `x` grouped by order
         std::vector<at::Tensor> views(const at::Tensor & x) const;
 
-        // Consider coordinate rotation q = U^T . r
-        // so the polynomial set transforms as {P(r)} = T . {P(q)}
+        // Consider coordinate rotation y = U^T . x
+        // so the polynomial set transforms as {P(x)} = T . {P(y)}
         // Assuming:
         //     1. All 0th and 1st order terms are present
         //     2. Polynomial.coords are sorted
@@ -78,8 +80,8 @@ class PolynomialSet {
         // Assuming terms are the same under rotation
         at::Tensor rotation(const at::Tensor & U) const;
 
-        // Consider coordinate translation q = r - a
-        // so the polynomial set transforms as {P(r)} = T . {P(q)}
+        // Consider coordinate translation y = x - a
+        // so the polynomial set transforms as {P(x)} = T . {P(y)}
         // Assuming:
         //     1. All 0th and 1st order terms are present
         // Return transformation matrix T

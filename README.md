@@ -41,9 +41,8 @@ Linear algebra:
 
 ## Source
 Source code level from bottom to top:
-1. utility, polynomial, linalg
-2. gaussian, intcoord, chemistry
-3. SAS
+1. utility, linalg, polynomial, SApolynomial
+2. gaussian, intcoord, SASintcoord, chemistry
 
 ## Dependency
 1. libtorch

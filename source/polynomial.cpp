@@ -9,23 +9,19 @@ namespace tchem { namespace polynomial {
 Polynomial::Polynomial() {}
 Polynomial::Polynomial(const std::vector<size_t> & _coords, const bool & sorted)
 : coords_(_coords) {
-    if (! sorted) {
-        for (size_t & coord : coords_) coord = -coord;
-        std::sort(coords_.begin(), coords_.end());
-        for (size_t & coord : coords_) coord = -coord;
-    }
+    if (! sorted)
+    std::sort(coords_.begin(), coords_.end(), std::greater<size_t>());
 }
 Polynomial::~Polynomial() {}
 
 std::vector<size_t> Polynomial::coords() const {return coords_;}
 
-// Return the polynomial value P(r)
-at::Tensor Polynomial::operator()(const at::Tensor & r) const {
-    assert(("r must be a vector", r.sizes().size() == 1));
-    at::Tensor value = r.new_empty(1);
-    value[0] = 1.0;
-    for (auto & coord : coords_) value *= r[coord];
-    return value[0];
+// Return the polynomial value P(x)
+at::Tensor Polynomial::operator()(const at::Tensor & x) const {
+    assert(("x must be a vector", x.sizes().size() == 1));
+    at::Tensor value = x.new_full({}, 1.0);
+    for (auto & coord : coords_) value = value * x[coord];
+    return value;
 }
 
 // Return the unique coordinates and their orders
@@ -49,6 +45,8 @@ std::tuple<std::vector<size_t>, std::vector<size_t>> Polynomial::uniques_orders(
 
 
 PolynomialSet::PolynomialSet() {}
+PolynomialSet::PolynomialSet(const size_t & _dimension, const size_t & _order, const std::vector<Polynomial> & _polynomials)
+: dimension_(_dimension), order_(_order), polynomials_(_polynomials) {this->create_orders();}
 // Generate all possible terms up to `order`-th order constituting of all `dimension` coordinates
 PolynomialSet::PolynomialSet(const size_t & _dimension, const size_t & _order)
 : dimension_(_dimension), order_(_order) {
@@ -186,16 +184,16 @@ int PolynomialSet::index_polynomial(const std::vector<size_t> coords) const {
     return index;
 }
 
-// Return the value of each term in {{P(r)}} as a vector
-at::Tensor PolynomialSet::operator()(const at::Tensor & r) const {
-    assert(("r must be a vector", r.sizes().size() == 1));
-    assert(("r must have a same dimension as the coordinates", r.size(0) == dimension_));
-    at::Tensor value = r.new_empty(polynomials_.size());
-    for (size_t i = 0; i < polynomials_.size(); i++) value[i] = polynomials_[i](r);
+// Return the value of each term in {{P(x)}} as a vector
+at::Tensor PolynomialSet::operator()(const at::Tensor & x) const {
+    assert(("x must be a vector", x.sizes().size() == 1));
+    assert(("x must have a same dimension as the coordinates", x.size(0) == dimension_));
+    at::Tensor value = x.new_empty(polynomials_.size());
+    for (size_t i = 0; i < polynomials_.size(); i++) value[i] = polynomials_[i](x);
     return value;
 }
 
-// Given `x`, the value of each term in {P(r)} as a vector
+// Given `x`, the value of each term in {P(x)} as a vector
 // Return views to `x` grouped by order
 std::vector<at::Tensor> PolynomialSet::views(const at::Tensor & x) const {
     assert(("x must be a vector", x.sizes().size() == 1));
@@ -210,8 +208,8 @@ std::vector<at::Tensor> PolynomialSet::views(const at::Tensor & x) const {
     return views;
 }
 
-// Consider coordinate rotation q = U^T . r
-// so the polynomial set rotates as {P(r)} = T . {P(q)}
+// Consider coordinate rotation y = U^T . x
+// so the polynomial set rotates as {P(x)} = T . {P(y)}
 // Assuming:
 //     1. All 0th and 1st order terms are present
 //     2. Polynomial.coords are sorted
@@ -227,7 +225,7 @@ at::Tensor PolynomialSet::rotation(const at::Tensor & U, const PolynomialSet & q
     at::Tensor T = U.new_zeros({(int)polynomials_.size(), (int)q_set.polynomials_.size()});
     // 0th order term does not rotate
     T[0][0] = 1.0;
-    // 1st order terms rotate as r = U . q
+    // 1st order terms rotate as x = U . y
     if (order_ >= 1) {
         at::Tensor T_block = T.slice(0, 1, dimension_ + 1);
         T_block.slice(1, 1, dimension_ + 1) = U;
@@ -303,8 +301,8 @@ at::Tensor PolynomialSet::rotation(const at::Tensor & U, const PolynomialSet & q
 // Assuming terms are the same under rotation
 at::Tensor PolynomialSet::rotation(const at::Tensor & U) const {return rotation(U, * this);}
 
-// Consider coordinate translation q = r - a
-// so the polynomial set transforms as {P(r)} = T . {P(q)}
+// Consider coordinate translation y = x - a
+// so the polynomial set transforms as {P(x)} = T . {P(y)}
 // Assuming:
 //     1. All 0th and 1st order terms are present
 // Return transformation matrix T
@@ -316,7 +314,7 @@ at::Tensor PolynomialSet::translation(const at::Tensor & a, const PolynomialSet 
     at::Tensor T = a.new_zeros({(int)polynomials_.size(), (int)q_set.polynomials_.size()});
     // 0th order term does not shift
     T[0][0] = 1.0;
-    // 1st order terms shift as r = q + a
+    // 1st order terms shift as x = y + a
     if (order_ >= 1) for (size_t i = 1; i < dimension_ + 1; i++) {
         T[i][0] = a[i - 1];
         T[i][i] = 1.0;
@@ -335,7 +333,7 @@ at::Tensor PolynomialSet::translation(const at::Tensor & a, const PolynomialSet 
             T_block[i][0] = a[r_coords[0]];
             for (size_t j = 1; j < iorder; j++) T_block[i][0] *= a[r_coords[j]];
             // The other terms: as a binary counter
-            // when a bit == 1, place q there
+            // when a bit == 1, place y there
             std::vector<size_t> use_var(iorder, 0);
             while (true) {
                 use_var[0] += 1;
@@ -346,7 +344,7 @@ at::Tensor PolynomialSet::translation(const at::Tensor & a, const PolynomialSet 
                     use_var[j + 1] += 1;
                 }
                 if (use_var.back() == 2) break;
-                // Build the coordinates for q and a
+                // Build the coordinates for y and a
                 size_t NVars = std::accumulate(use_var.begin(), use_var.end(), 0);
                 size_t NCons = iorder - NVars;
                 std::vector<size_t> q_coords(NVars), a_coords(NCons);

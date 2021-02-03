@@ -11,14 +11,14 @@ The procedure to get symmetry adapted and scaled internal coordinate (SASIC) is:
     4. Symmetry adapted linear combinate the SDIC to get SASIC
 */
 
-#ifndef tchem_SAS_hpp
-#define tchem_SAS_hpp
+#ifndef tchem_SASintcoord_hpp
+#define tchem_SASintcoord_hpp
 
 #include <torch/torch.h>
 
 #include <tchem/intcoord.hpp>
 
-namespace tchem { namespace SAS {
+namespace tchem { namespace IC {
 
 // The rule of internal coordinates who are scaled by others
 // self is scaled by scaler with alpha
@@ -85,7 +85,7 @@ class SASICSet : public tchem::IC::IntCoordSet {
         std::vector<at::Tensor> operator()(const at::Tensor & q);
 };
 
-} // namespace SASIC
+} // namespace IC
 } // namespace tchem
 
 #endif

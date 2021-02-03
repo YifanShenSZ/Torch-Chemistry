@@ -7,9 +7,9 @@
 
 #include <tchem/intcoord.hpp>
 
-#include <tchem/SAS.hpp>
+#include <tchem/SASintcoord.hpp>
 
-namespace tchem { namespace SAS {
+namespace tchem { namespace IC {
 
 OthScalRul::OthScalRul() {}
 OthScalRul::OthScalRul(const std::vector<std::string> & input_strs) {
@@ -150,5 +150,5 @@ std::vector<at::Tensor> SASICSet::operator()(const at::Tensor & q) {
     return SASgeom;
 }
 
-} // namespace SAS
+} // namespace IC
 } // namespace tchem

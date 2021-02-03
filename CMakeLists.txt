@@ -16,12 +16,13 @@ include_directories(include)
 
 add_library(tchem STATIC
     source/utility.cpp
-    source/polynomial.cpp
     source/linalg.cpp
+    source/polynomial.cpp
+    source/SApolynomial.cpp
     source/gaussian.cpp
     source/intcoord.cpp
+    source/SASintcoord.cpp
     source/chemistry.cpp
-    source/SAS.cpp
 )
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")

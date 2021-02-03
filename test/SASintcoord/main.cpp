@@ -1,6 +1,6 @@
 #include <CppLibrary/chemistry.hpp>
 
-#include <tchem/SAS.hpp>
+#include <tchem/SASintcoord.hpp>
 
 int main() {
     std::cout << "This is a test program on Torch-Chemistry module 'SAS'\n"
@@ -8,7 +8,7 @@ int main() {
 
     c10::TensorOptions top = at::TensorOptions().dtype(torch::kFloat64);
 
-    tchem::SAS::SASICSet set("whatever", "whatever", "SAS.in");
+    tchem::IC::SASICSet set("whatever", "whatever", "SAS.in");
 
     CL::chem::xyz<double> geom_c2v("sad-A1.xyz", true);
     std::vector<double> coords_c2v = geom_c2v.coords();
