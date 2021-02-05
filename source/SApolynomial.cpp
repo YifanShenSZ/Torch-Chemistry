@@ -28,11 +28,11 @@ std::vector<size_t> SAP::irreds() const {return irreds_;}
 std::vector<size_t> SAP::coords() const {return coords_;}
 
 // Return the symmetry adapted polynomial SAP(x) given x
-at::Tensor SAP::operator()(const std::vector<at::Tensor> & x) const {
-    // assert(("Elements of x must be vectors"));
-    at::Tensor value = x[0].new_full({}, 1.0);
+at::Tensor SAP::operator()(const std::vector<at::Tensor> & xs) const {
+    // assert(("Elements of xs must be vectors"));
+    at::Tensor value = xs[0].new_full({}, 1.0);
     for (size_t i = 0; i < irreds_.size(); i++)
-    value = value * x[irreds_[i]][coords_[i]];
+    value = value * xs[irreds_[i]][coords_[i]];
     return value;
 }
 
@@ -66,14 +66,22 @@ SAPSet::~SAPSet() {}
 
 std::vector<std::vector<SAP>> SAPSet::SAPs() const {return SAPs_;}
 
+void SAPSet::pretty_print(std::ostream & stream) const {
+    stream << "Number of irreducibles = " << SAPs_.size() << '\n';
+    for (size_t i = 0; i < SAPs_.size(); i++) {
+        stream << "Irreducible " << i << ":\n";
+        stream << "Number of symmetry adapted polynomials = " << SAPs_[i].size() << '\n';
+    }
+}
+
 // Return the value of each term in {P(x)} as a vector of vectors
-std::vector<at::Tensor> SAPSet::operator()(const std::vector<at::Tensor> & x) const {
-    // assert(("Elements of x must be vectors"));
-    std::vector<at::Tensor> values(x.size());
+std::vector<at::Tensor> SAPSet::operator()(const std::vector<at::Tensor> & xs) const {
+    // assert(("Elements of xs must be vectors"));
+    std::vector<at::Tensor> values(xs.size());
     for (size_t i = 0; i < values.size(); i++) {
-        values[i] = x[i].new_empty(SAPs_[i].size());
+        values[i] = xs[i].new_empty(SAPs_[i].size());
         for (size_t j = 0; j < SAPs_[i].size(); j++)
-        values[i][j] = SAPs_[i][j](x);
+        values[i][j] = SAPs_[i][j](xs);
     }
     return values;
 }

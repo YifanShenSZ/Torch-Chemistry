@@ -3,7 +3,7 @@
 #include <tchem/SASintcoord.hpp>
 
 int main() {
-    std::cout << "This is a test program on Torch-Chemistry module 'SAS'\n"
+    std::cout << "This is a test program on Torch-Chemistry module 'SASintcoord'\n"
               << "Correct routines should print close to 0\n";
 
     c10::TensorOptions top = at::TensorOptions().dtype(torch::kFloat64);

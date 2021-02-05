@@ -3,7 +3,7 @@ Chemical routines based on libtorch
 
 ## Featured utilities
 Symmetry adaptation and scale (SAS) for internal coordinate:
-* For more details see `SAS.md`
+* For more details see `SASintcoord.md`
 
 Gaussian:
 * Merge of gaussian functions

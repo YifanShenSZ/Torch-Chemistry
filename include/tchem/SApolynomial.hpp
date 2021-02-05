@@ -28,7 +28,7 @@ class SAP {
         std::vector<size_t> coords() const;
 
         // Return the symmetry adapted polynomial SAP(x) given x
-        at::Tensor operator()(const std::vector<at::Tensor> & x) const;
+        at::Tensor operator()(const std::vector<at::Tensor> & xs) const;
 };
 
 // Symmetry adapted polynomial set {SAP(x)}
@@ -43,8 +43,10 @@ class SAPSet {
 
         std::vector<std::vector<SAP>> SAPs() const;
 
+        void pretty_print(std::ostream & stream) const;
+
         // Return the value of each term in {P(x)} as a vector of vectors
-        std::vector<at::Tensor> operator()(const std::vector<at::Tensor> & x) const;
+        std::vector<at::Tensor> operator()(const std::vector<at::Tensor> & xs) const;
 };
 
 } // namespace polynomial
