@@ -44,9 +44,91 @@ std::tuple<std::vector<size_t>, std::vector<size_t>> Polynomial::uniques_orders(
 
 
 
+// Construct `orders_` based on constructed `polynomials_`
+void PolynomialSet::construct_orders_() {
+    assert(("`polynomials_` must have been constructed", ! polynomials_.empty()));
+    orders_.clear();
+    size_t order_old = -1;
+    for (auto & polynomial : polynomials_) {
+        size_t order = polynomial.coords().size();
+        if (order != order_old) {
+            orders_.push_back(std::vector<Polynomial *>());
+            order_old = order;
+        }
+        orders_.back().push_back(& polynomial);
+    }
+    assert(("polynomial set should not contain higher order term than the defined order", orders_.size() == order_ + 1));
+}
+
+// Given a set of coordiantes constituting a polynomial,
+// try to locate its index within [lower, upper]
+void PolynomialSet::bisect_(const std::vector<size_t> coords, const size_t & lower, const size_t & upper, int & index) const {
+    // Final round
+    if (upper - lower == 1) {
+        // Try lower
+        bool match = true;
+        std::vector<size_t> ref_coords = polynomials_[lower].coords();
+        for (size_t i = 0; i < coords.size(); i++)
+        if (coords[i] != ref_coords[i]) {
+            match = false;
+            break;
+        }
+        if (match) {
+            index = lower;
+            return;
+        }
+        // Try upper
+        match = true;
+        ref_coords = polynomials_[upper].coords();
+        for (size_t i = 0; i < coords.size(); i++)
+        if (coords[i] != ref_coords[i]) {
+            match = false;
+            break;
+        }
+        if (match) {
+            index = upper;
+            return;
+        }
+        // Neither
+        index = -1;
+    }
+    // Normal bisection process
+    else {
+        // Try bisection
+        size_t bisection = (lower + upper) / 2;
+        bool match = true;
+        std::vector<size_t> ref_coords = polynomials_[bisection].coords();
+        size_t i;
+        for (i = 0; i < coords.size(); i++)
+        if (coords[i] != ref_coords[i]) {
+            match = false;
+            break;
+        }
+        if (match) {
+            index = bisection;
+            return;
+        }
+        // Next range
+        if (coords[i] > ref_coords[i]) bisect_(coords, bisection, upper, index);
+        else                           bisect_(coords, lower, bisection, index);
+    }
+}
+// Given a set of coordiantes constituting a polynomial,
+// find its index in this polynomial set
+// If not found, return -1
+int PolynomialSet::index_polynomial_(const std::vector<size_t> coords) const {
+    size_t order = coords.size();
+    size_t lower = 0;
+    for (size_t i = 0; i < order; i++) lower += orders_[i].size();
+    size_t upper = lower + orders_[order].size() - 1;
+    int index;
+    bisect_(coords, lower, upper, index);
+    return index;
+}
+
 PolynomialSet::PolynomialSet() {}
-PolynomialSet::PolynomialSet(const size_t & _dimension, const size_t & _order, const std::vector<Polynomial> & _polynomials)
-: dimension_(_dimension), order_(_order), polynomials_(_polynomials) {this->create_orders();}
+PolynomialSet::PolynomialSet(const std::vector<Polynomial> & _polynomials, const size_t & _dimension, const size_t & _order)
+: polynomials_(_polynomials), dimension_(_dimension), order_(_order) {this->construct_orders_();}
 // Generate all possible terms up to `order`-th order constituting of all `dimension` coordinates
 PolynomialSet::PolynomialSet(const size_t & _dimension, const size_t & _order)
 : dimension_(_dimension), order_(_order) {
@@ -94,97 +176,16 @@ PolynomialSet::PolynomialSet(const size_t & _dimension, const size_t & _order)
     }
     // Sanity check
     if (count != polynomials_.size()) std::cerr << "Error in PolynomialSet construction";
-    this->create_orders();
+    this->construct_orders_();
 }
 PolynomialSet::~PolynomialSet() {}
 
-size_t PolynomialSet::dimension() const {return dimension_;}
-size_t PolynomialSet::order() const {return order_;}
 std::vector<Polynomial> PolynomialSet::polynomials() const {return polynomials_;}
 std::vector<std::vector<Polynomial *>> PolynomialSet::orders() const {return orders_;}
+size_t PolynomialSet::dimension() const {return dimension_;}
+size_t PolynomialSet::order() const {return order_;}
 
-// Construct `orders_` after `polynomials_` has been constructed
-void PolynomialSet::create_orders() {
-    orders_.clear();
-    size_t order_old = -1;
-    for (auto & polynomial : polynomials_) {
-        size_t order = polynomial.coords().size();
-        if (order != order_old) {
-            orders_.push_back(std::vector<Polynomial *>());
-            order_old = order;
-        }
-        orders_.back().push_back(& polynomial);
-    }
-    assert(("polynomial set should not contain higher order term than the defined order", orders_.size() == order_ + 1));
-}
-
-// Given a set of coordiantes constituting a polynomial,
-// try to locate its index within [lower, upper]
-void PolynomialSet::bisect(const std::vector<size_t> coords, const size_t & lower, const size_t & upper, int & index) const {
-    // Final round
-    if (upper - lower == 1) {
-        // Try lower
-        bool match = true;
-        std::vector<size_t> ref_coords = polynomials_[lower].coords();
-        for (size_t i = 0; i < coords.size(); i++)
-        if (coords[i] != ref_coords[i]) {
-            match = false;
-            break;
-        }
-        if (match) {
-            index = lower;
-            return;
-        }
-        // Try upper
-        match = true;
-        ref_coords = polynomials_[upper].coords();
-        for (size_t i = 0; i < coords.size(); i++)
-        if (coords[i] != ref_coords[i]) {
-            match = false;
-            break;
-        }
-        if (match) {
-            index = upper;
-            return;
-        }
-        // Neither
-        index = -1;
-    }
-    // Normal bisection process
-    else {
-        // Try bisection
-        size_t bisection = (lower + upper) / 2;
-        bool match = true;
-        std::vector<size_t> ref_coords = polynomials_[bisection].coords();
-        size_t i;
-        for (i = 0; i < coords.size(); i++)
-        if (coords[i] != ref_coords[i]) {
-            match = false;
-            break;
-        }
-        if (match) {
-            index = bisection;
-            return;
-        }
-        // Next range
-        if (coords[i] > ref_coords[i]) bisect(coords, bisection, upper, index);
-        else                           bisect(coords, lower, bisection, index);
-    }
-}
-// Given a set of coordiantes constituting a polynomial,
-// find its index in this polynomial set
-// If not found, return -1
-int PolynomialSet::index_polynomial(const std::vector<size_t> coords) const {
-    size_t order = coords.size();
-    size_t lower = 0;
-    for (size_t i = 0; i < order; i++) lower += orders_[i].size();
-    size_t upper = lower + orders_[order].size() - 1;
-    int index;
-    bisect(coords, lower, upper, index);
-    return index;
-}
-
-// Return the value of each term in {{P(x)}} as a vector
+// Return the value of each term in {P(x)} as a vector
 at::Tensor PolynomialSet::operator()(const at::Tensor & x) const {
     assert(("x must be a vector", x.sizes().size() == 1));
     assert(("x must have a same dimension as the coordinates", x.size(0) == dimension_));
@@ -359,7 +360,7 @@ at::Tensor PolynomialSet::translation(const at::Tensor & a, const PolynomialSet 
                     count_a++;
                 }
                 // Determine T block element
-                int index = index_polynomial(q_coords);
+                int index = index_polynomial_(q_coords);
                 if (index >= 0) {
                     at::Tensor current = a.new_zeros(1);
                     current[0] = 1.0;

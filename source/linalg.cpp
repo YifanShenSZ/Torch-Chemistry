@@ -105,6 +105,48 @@ at::Tensor sy3matdotmul(const at::Tensor & A, const at::Tensor & B) {
     }
     return result;
 }
+// dot product defined with a metric S
+// S must be real symmetric positive definite
+// Warning: All elements of S will be read because of torch::mv
+//          Will fix it some day if pytorch introduces "symv" like BLAS
+at::Tensor ge3matdotmul(const at::Tensor & A, const at::Tensor & B, const at::Tensor & S) {
+    assert(("A must be a 3rd-order tensor", A.sizes().size() == 3));
+    assert(("B must be a 3rd-order tensor", B.sizes().size() == 3));
+    assert(("A & B must share a same vector dimension", A.size(-1) == B.size(-1)));
+    assert(("A & B must be matrix mutiplicable", A.size(1) == B.size(0)));
+    assert(("S must be a matrix", S.sizes().size() == 2));
+    assert(("S must be a square matrix", S.size(0) == S.size(1)));
+    at::Tensor result = A.new_zeros({A.size(0), B.size(1)});
+    for (size_t i = 0; i < result.size(0); i++)
+    for (size_t j = 0; j < result.size(1); j++)
+    for (size_t k = 0; k < B.size(0); k++)
+    result[i][j] += A[i][k].dot(S.mv(B[k][j]));
+    return result;
+}
+at::Tensor sy3matdotmul(const at::Tensor & A, const at::Tensor & B, const at::Tensor & S) {
+    assert(("A must be a 3rd-order tensor", A.sizes().size() == 3));
+    assert(("The matrix part of A must be square", A.size(0) == A.size(1)));
+    assert(("B must be a 3rd-order tensor", B.sizes().size() == 3));
+    assert(("The matrix part of B must be square", B.size(0) == B.size(1)));
+    assert(("A & B must share a same vector dimension", A.size(-1) == B.size(-1)));
+    assert(("A & B must be matrix mutiplicable", A.size(1) == B.size(0)));
+    assert(("S must be a matrix", S.sizes().size() == 2));
+    assert(("S must be a square matrix", S.size(0) == S.size(1)));
+    at::Tensor result = A.new_zeros({A.size(0), B.size(1)});
+    for (size_t i = 0; i < result.size(0); i++) {
+        for (size_t j = 0; j < i; j++) {
+            for (size_t k = 0; k < j; k++)         result[i][j] += A[k][i].dot(S.mv(B[k][j]));
+            for (size_t k = j; k < i; k++)         result[i][j] += A[k][i].dot(S.mv(B[j][k]));
+            for (size_t k = i; k < B.size(0); k++) result[i][j] += A[i][k].dot(S.mv(B[j][k]));
+        }
+        for (size_t j = i; j < result.size(1); j++) {
+            for (size_t k = 0; k < i; k++)         result[i][j] += A[k][i].dot(S.mv(B[k][j]));
+            for (size_t k = i; k < j; k++)         result[i][j] += A[i][k].dot(S.mv(B[k][j]));
+            for (size_t k = j; k < B.size(0); k++) result[i][j] += A[i][k].dot(S.mv(B[j][k]));
+        }
+    }
+    return result;
+}
 
 // Matrix dot multiplication for 4rh-order tensor A and 3rd-order tensor B
 // A.size(-1) == B.size(-1), A.size(1) == B.size(0)
@@ -142,6 +184,48 @@ at::Tensor sy4matmvmulsy3(const at::Tensor & A, const at::Tensor & B) {
             for (size_t k = 0; k < i; k++)         result[i][j] += A[k][i].mv(B[k][j]);
             for (size_t k = i; k < j; k++)         result[i][j] += A[i][k].mv(B[k][j]);
             for (size_t k = j; k < B.size(0); k++) result[i][j] += A[i][k].mv(B[j][k]);
+        }
+    }
+    return result;
+}
+// matrix-vector product defined with a metric S
+// S must be real symmetric positive definite
+// Warning: All elements of S will be read because of torch::mv
+//          Will fix it some day if pytorch introduces "symv" like BLAS
+at::Tensor ge4matmvmulge3(const at::Tensor & A, const at::Tensor & B, const at::Tensor & S) {
+    assert(("A must be a 4th-order tensor", A.sizes().size() == 4));
+    assert(("B must be a 3rd-order tensor", B.sizes().size() == 3));
+    assert(("The matrix-vector part of A & B must be matrix-vector mutiplicable", A.size(-1) == B.size(-1)));
+    assert(("A & B must be matrix mutiplicable", A.size(1) == B.size(0)));
+    assert(("S must be a matrix", S.sizes().size() == 2));
+    assert(("S must be a square matrix", S.size(0) == S.size(1)));
+    at::Tensor result = A.new_zeros({A.size(0), B.size(1), A.size(-2)});
+    for (size_t i = 0; i < result.size(0); i++)
+    for (size_t j = 0; j < result.size(1); j++)
+    for (size_t k = 0; k < B.size(0); k++)
+    result[i][j] += A[i][k].mv(S.mv(B[k][j]));
+    return result;
+}
+at::Tensor sy4matmvmulsy3(const at::Tensor & A, const at::Tensor & B, const at::Tensor & S) {
+    assert(("A must be a 4th-order tensor", A.sizes().size() == 4));
+    assert(("The matrix part of A must be square", A.size(0) == A.size(1)));
+    assert(("B must be a 3rd-order tensor", B.sizes().size() == 3));
+    assert(("The matrix part of B must be square", B.size(0) == B.size(1)));
+    assert(("The matrix-vector part of A & B must be matrix-vector mutiplicable", A.size(-1) == B.size(-1)));
+    assert(("A & B must be matrix mutiplicable", A.size(1) == B.size(0)));
+    assert(("S must be a matrix", S.sizes().size() == 2));
+    assert(("S must be a square matrix", S.size(0) == S.size(1)));
+    at::Tensor result = A.new_zeros({A.size(0), B.size(1), A.size(-2)});
+    for (size_t i = 0; i < result.size(0); i++) {
+        for (size_t j = 0; j < i; j++) {
+            for (size_t k = 0; k < j; k++)         result[i][j] += A[k][i].mv(S.mv(B[k][j]));
+            for (size_t k = j; k < i; k++)         result[i][j] += A[k][i].mv(S.mv(B[j][k]));
+            for (size_t k = i; k < B.size(0); k++) result[i][j] += A[i][k].mv(S.mv(B[j][k]));
+        }
+        for (size_t j = i; j < result.size(1); j++) {
+            for (size_t k = 0; k < i; k++)         result[i][j] += A[k][i].mv(S.mv(B[k][j]));
+            for (size_t k = i; k < j; k++)         result[i][j] += A[i][k].mv(S.mv(B[k][j]));
+            for (size_t k = j; k < B.size(0); k++) result[i][j] += A[i][k].mv(S.mv(B[j][k]));
         }
     }
     return result;

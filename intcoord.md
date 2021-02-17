@@ -14,7 +14,7 @@ The supported internal coordinates are:
 * out of plane angle
 
 ## Why internal coordinate
-Cartesian coordinate is a convenient but inappropriate representation for molecular properties, since they are invariant under translation and rotation. As a result, internal coordinate is adopted to remove the redundancy
+Cartesian coordinate is a convenient but inappropriate representation for molecular properties, who are invariant under translation and rotation. As a result, internal coordinate is adopted to remove the redundancy
 
 ## Usage
 `IntCoordSet` is the engine class. An instance can be constructed by `IntCoordSet(format, file)`, where `file` is an input file defining the internal coordinates whose format is specified by `format`

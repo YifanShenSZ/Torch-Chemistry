@@ -6,7 +6,6 @@ Nomenclature (following LAPACK):
     sy  = real symmetric
     asy = anti symmetric
     po  = real symmetric positive definite
-Only use upper triangle of sy & po, strictly upper triangle of asy, otherwise specified
 */
 
 #ifndef tchem_linalg_hpp
@@ -38,6 +37,12 @@ at::Tensor ge3matdotmul(const at::Tensor & A, const at::Tensor & B);
 // Here a symmetric 3rd-order tensor `A` means A[i][j] = A[j][i]
 // Only read the "upper triangle" (i <= j) of A and B
 at::Tensor sy3matdotmul(const at::Tensor & A, const at::Tensor & B);
+// dot product defined with a metric S
+// S must be real symmetric positive definite
+// Warning: All elements of S will be read because of torch::mv
+//          Will fix it some day if pytorch introduces "symv" like BLAS
+at::Tensor ge3matdotmul(const at::Tensor & A, const at::Tensor & B, const at::Tensor & S);
+at::Tensor sy3matdotmul(const at::Tensor & A, const at::Tensor & B, const at::Tensor & S);
 
 // Matrix dot multiplication for 4rh-order tensor A and 3rd-order tensor B
 // A.size(-1) == B.size(-1), A.size(1) == B.size(0)
@@ -47,6 +52,12 @@ at::Tensor ge4matmvmulge3(const at::Tensor & A, const at::Tensor & B);
 // Here a symmetric 3rd or 4th order tensor `A` means A[i][j] = A[j][i]
 // Only read the "upper triangle" (i <= j) of A and B
 at::Tensor sy4matmvmulsy3(const at::Tensor & A, const at::Tensor & B);
+// matrix-vector product defined with a metric S
+// S must be real symmetric positive definite
+// Warning: All elements of S will be read because of torch::mv
+//          Will fix it some day if pytorch introduces "symv" like BLAS
+at::Tensor ge4matmvmulge3(const at::Tensor & A, const at::Tensor & B, const at::Tensor & S);
+at::Tensor sy4matmvmulsy3(const at::Tensor & A, const at::Tensor & B, const at::Tensor & S);
 
 // Matrix outer multiplication for matrices or higher order tensors A and B
 // A.size(2) == B.size(2), A.size(1) == B.size(0)
@@ -65,6 +76,9 @@ void UT_ge_U_(at::Tensor & A, const at::Tensor & U);
 // Here a symmetric higher order tensor `A` means A[i][j] = A[j][i]
 // Only read the "upper triangle" (i <= j) of A
 // Only write the "upper triangle" (i <= j) of the output tensor
+// Warning: this routine is known to deteriorate backward propagation
+//          Probably because it explicitly loops over the matrix elements
+//          Will fix it some day if pytorch introduces "symm" like BLAS
 at::Tensor UT_sy_U(const at::Tensor & A, const at::Tensor & U);
 void UT_sy_U_(at::Tensor & A, const at::Tensor & U);
 

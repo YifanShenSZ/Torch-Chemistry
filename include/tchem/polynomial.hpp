@@ -27,10 +27,6 @@ class Polynomial {
 // Polynomial set {P(x)}
 class PolynomialSet {
     private:
-        // Dimension of the coordinate constituting the polynomial set
-        size_t dimension_;
-        // Highest order among the polynomials
-        size_t order_;
         // Polynomials constituting the set, requirements:
         //     1. orders are sorted ascendingly
         //     2. same order terms are sorted ascendingly
@@ -40,28 +36,33 @@ class PolynomialSet {
         // A view to `polynomials_` grouped by order
         std::vector<std::vector<Polynomial *>> orders_;
 
-        // Construct `orders_` after `polynomials_` has been constructed
-        void create_orders();
+        // Dimension of the coordinate constituting the polynomial set
+        size_t dimension_;
+        // Highest order among the polynomials
+        size_t order_;
+
+        // Construct `orders_` based on constructed `polynomials_`
+        void construct_orders_();
 
         // Given a set of coordiantes constituting a polynomial,
         // try to locate its index within [lower, upper)
-        void bisect(const std::vector<size_t> coords, const size_t & lower, const size_t & upper, int & index) const;
+        void bisect_(const std::vector<size_t> coords, const size_t & lower, const size_t & upper, int & index) const;
         // Given a set of coordiantes constituting a polynomial,
         // find its index in this polynomial set
         // If not found, return -1
-        int index_polynomial(const std::vector<size_t> coords) const;
+        int index_polynomial_(const std::vector<size_t> coords) const;
     public:
         PolynomialSet();
         // `_polynomials` must meet the requirements of `polynomials_`
-        PolynomialSet(const size_t & _dimension, const size_t & _order, const std::vector<Polynomial> & _polynomials);
+        PolynomialSet(const std::vector<Polynomial> & _polynomials, const size_t & _dimension, const size_t & _order);
         // Generate all possible terms up to `order`-th order constituting of all `dimension` coordinates
         PolynomialSet(const size_t & _dimension, const size_t & _order);
         ~PolynomialSet();
 
-        size_t dimension() const;
-        size_t order() const;
         std::vector<Polynomial> polynomials() const;
         std::vector<std::vector<Polynomial *>> orders() const;
+        size_t dimension() const;
+        size_t order() const;
 
         // Return the value of each term in {P(x)} as a vector
         at::Tensor operator()(const at::Tensor & x) const;

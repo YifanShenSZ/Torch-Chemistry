@@ -27,6 +27,13 @@ SAP::~SAP() {}
 std::vector<size_t> SAP::irreds() const {return irreds_;}
 std::vector<size_t> SAP::coords() const {return coords_;}
 
+void SAP::pretty_print(std::ostream & stream) const {
+    stream << coords_.size() << "    ";
+    for (size_t i = 0; i < coords_.size(); i++)
+    stream << irreds_[i] << ',' << coords_[i] << "    ";
+    stream << '\n';
+}
+
 // Return the symmetry adapted polynomial SAP(x) given x
 at::Tensor SAP::operator()(const std::vector<at::Tensor> & xs) const {
     // assert(("Elements of xs must be vectors"));
@@ -41,49 +48,34 @@ at::Tensor SAP::operator()(const std::vector<at::Tensor> & xs) const {
 
 
 SAPSet::SAPSet() {}
-// Symmetry adapted polynomials definition file
+// `sapoly_file` contains one SAP per line
 SAPSet::SAPSet(const std::string sapoly_file) {
     std::ifstream ifs; ifs.open(sapoly_file);
+    while (true) {
         std::string line;
         std::getline(ifs, line);
-        while (true) {
-            SAPs_.push_back({});
-            std::vector<SAP> & irred = SAPs_.back();
-            while (true) {
-                std::string line;
-                std::getline(ifs, line);
-                if (! ifs.good()) break;
-                std::vector<std::string> strs;
-                CL::utility::split(line, strs);
-                if (! std::regex_match(strs[0], std::regex("\\d+"))) break;
-                irred.push_back(SAP(strs));
-            }
-            if (! ifs.good()) break;
-        }
+        if (! ifs.good()) break;
+        std::vector<std::string> strs = CL::utility::split(line);
+        SAPs_.push_back(SAP(strs));
+    }
     ifs.close();
 }
 SAPSet::~SAPSet() {}
 
-std::vector<std::vector<SAP>> SAPSet::SAPs() const {return SAPs_;}
+std::vector<SAP> SAPSet::SAPs() const {return SAPs_;}
 
 void SAPSet::pretty_print(std::ostream & stream) const {
-    stream << "Number of irreducibles = " << SAPs_.size() << '\n';
-    for (size_t i = 0; i < SAPs_.size(); i++) {
-        stream << "Irreducible " << i << ":\n";
-        stream << "Number of symmetry adapted polynomials = " << SAPs_[i].size() << '\n';
-    }
+    for (const SAP & sap : SAPs_) sap.pretty_print(stream);
 }
 
 // Return the value of each term in {P(x)} as a vector of vectors
-std::vector<at::Tensor> SAPSet::operator()(const std::vector<at::Tensor> & xs) const {
-    // assert(("Elements of xs must be vectors"));
-    std::vector<at::Tensor> values(xs.size());
-    for (size_t i = 0; i < values.size(); i++) {
-        values[i] = xs[i].new_empty(SAPs_[i].size());
-        for (size_t j = 0; j < SAPs_[i].size(); j++)
-        values[i][j] = SAPs_[i][j](xs);
-    }
-    return values;
+at::Tensor SAPSet::operator()(const std::vector<at::Tensor> & xs) const {
+    for (const at::Tensor & x : xs)
+    if (x.sizes().size() != 1)
+    throw "Elements of xs must be vectors";
+    at::Tensor y = xs[0].new_empty(SAPs_.size());
+    for (size_t i = 0; i < SAPs_.size(); i++) y[i] = SAPs_[i](xs);
+    return y;
 }
 
 } // namespace polynomial

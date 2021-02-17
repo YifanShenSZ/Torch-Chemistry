@@ -26,7 +26,11 @@ Memory management is always a pain in the ass in using c++, so does libtorch
 The most common bug in using libtorch is probably backwarding through an in place operation. The most classic ones are the member functions ending with '_', as documented officialy. Also in official documentation are `+=`, `-=`, `*=`, `/=`
 
 Problem:
-* Say I have a tensor `x`, `x[i] = at::erf(x[i])` turns out to be in-place so `a[i] = at::erf(x[i])` is the correct way of coding. ~~However, in module `SAS` the similar pieces exist but why gradient works fine?~~ That no longer works, so it must be my compiler (ifort 2019.4) who used to break the problematic in-place pieces
+* Say I have a tensor `x`, `x[i] = at::erf(x[i])` turns out to be in-place so `a[i] = at::erf(x[i])` is the correct way of coding. ~~However, in module `SAS` the similar pieces exist but why gradient works fine?~~ That no longer works, so it must be my compiler (intel 2019.4) who used to break the problematic in-place pieces
 
 ## Numerical instability
 Explicitly looping over matrix elements deteriorates backward propagation. An example is `tchem::LA::UT_sy_U`
+
+## ModuleList
+`ModuleList` only forwards the transformation to the "registered submodule of the `ModuleList`", which means:
+* if a submodule is also a `ModuleList`, which is not registered of course, then the transformation would not be forwarded to the subsubmodules
