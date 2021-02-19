@@ -38,7 +38,7 @@ int main() {
         q_col[i].backward({}, true);
         J_col_back[i].copy_(r_col.grad());
     }
-    std::cout << "\nDirect Jacobian vs backward propagation: "
+    std::cout << "\nBackward propagation vs analytical Jacobian: "
               << (J_col - J_col_back).norm().item<double>() << '\n';
 
     CL::chem::xyz<double> geom_def("slow-1.5.xyz", true);

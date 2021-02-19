@@ -8,7 +8,7 @@ namespace tchem { namespace polynomial {
 // Polynomial P(x) = x[coords_[0]] * x[coords_[1]] * ... * x[coords_.back()]
 class Polynomial {
     private:
-        // Coordinates constituting the polynomial, sorted descendingly
+        // The indices of the coordinates constituting the polynomial, sorted descendingly
         std::vector<size_t> coords_;
     public:
         Polynomial();
@@ -17,11 +17,15 @@ class Polynomial {
 
         std::vector<size_t> coords() const;
 
-        // Return the polynomial value P(x) given x
-        at::Tensor operator()(const at::Tensor & x) const;
+        size_t order() const;
 
         // Return the unique coordinates and their orders
         std::tuple<std::vector<size_t>, std::vector<size_t>> uniques_orders() const;
+
+        // Return the polynomial value P(x) given x
+        at::Tensor operator()(const at::Tensor & x) const;
+        // Return dP(x) / dx given x
+        at::Tensor gradient(const at::Tensor & x) const;
 };
 
 // Polynomial set {P(x)}
@@ -29,19 +33,19 @@ class PolynomialSet {
     private:
         // Polynomials constituting the set, requirements:
         //     1. orders are sorted ascendingly
-        //     2. same order terms are sorted ascendingly
-        // e.g. 2-dimensional 2nd-order: 1, r0, r1, r0 r0, r1 r0, r1 r1
+        //     2. same order terms are sorted ascendingly, 
+        //        where the comparison is made from the last coordinate to the first
+        // e.g. 2-dimensional 2nd-order: 1, x0, x1, x0 x0, x1 x0, x1 x1
         std::vector<Polynomial> polynomials_;
-
-        // A view to `polynomials_` grouped by order
-        std::vector<std::vector<Polynomial *>> orders_;
-
-        // Dimension of the coordinate constituting the polynomial set
+        // Dimension of the coordinate system constituting the polynomial set
         size_t dimension_;
+
         // Highest order among the polynomials
         size_t order_;
+        // A view to `polynomials_` grouped by order
+        std::vector<std::vector<const Polynomial *>> orders_;
 
-        // Construct `orders_` based on constructed `polynomials_`
+        // Construct `order_` and `orders_` based on constructed `polynomials_`
         void construct_orders_();
 
         // Given a set of coordiantes constituting a polynomial,
@@ -54,22 +58,24 @@ class PolynomialSet {
     public:
         PolynomialSet();
         // `_polynomials` must meet the requirements of `polynomials_`
-        PolynomialSet(const std::vector<Polynomial> & _polynomials, const size_t & _dimension, const size_t & _order);
+        PolynomialSet(const std::vector<Polynomial> & _polynomials, const size_t & _dimension);
         // Generate all possible terms up to `order`-th order constituting of all `dimension` coordinates
         PolynomialSet(const size_t & _dimension, const size_t & _order);
         ~PolynomialSet();
 
         std::vector<Polynomial> polynomials() const;
-        std::vector<std::vector<Polynomial *>> orders() const;
         size_t dimension() const;
         size_t order() const;
-
-        // Return the value of each term in {P(x)} as a vector
-        at::Tensor operator()(const at::Tensor & x) const;
+        std::vector<std::vector<const Polynomial *>> orders() const;
 
         // Given `x`, the value of each term in {P(x)} as a vector
         // Return views to `x` grouped by order
         std::vector<at::Tensor> views(const at::Tensor & x) const;
+
+        // Return the value of each term in {P(x)} given x as a vector
+        at::Tensor operator()(const at::Tensor & x) const;
+        // Return d{P(x)} / dx given x
+        at::Tensor Jacobian(const at::Tensor & x) const;
 
         // Consider coordinate rotation y = U^T . x
         // so the polynomial set transforms as {P(x)} = T . {P(y)}

@@ -128,6 +128,12 @@ std::vector<size_t> SASICSet::NSASICs() const {
     for (size_t i = 0; i < NIrreds(); i++) N[i] = sasicss_[i].size();
     return N;
 }
+// Return number of internal coordinates
+size_t SASICSet::intdim() const {
+    size_t intdim = 0;
+    for (const auto & sasics : sasicss_) intdim += sasics.size();
+    return intdim;
+}
 
 std::vector<at::Tensor> SASICSet::operator()(const at::Tensor & q) {
     // Nondimensionalize

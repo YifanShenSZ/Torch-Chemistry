@@ -16,19 +16,13 @@ Polynomial::~Polynomial() {}
 
 std::vector<size_t> Polynomial::coords() const {return coords_;}
 
-// Return the polynomial value P(x)
-at::Tensor Polynomial::operator()(const at::Tensor & x) const {
-    assert(("x must be a vector", x.sizes().size() == 1));
-    at::Tensor value = x.new_full({}, 1.0);
-    for (auto & coord : coords_) value = value * x[coord];
-    return value;
-}
+size_t Polynomial::order() const {return coords_.size();}
 
 // Return the unique coordinates and their orders
 std::tuple<std::vector<size_t>, std::vector<size_t>> Polynomial::uniques_orders() const {
     std::vector<size_t> uniques, orders;
     size_t coord_old = -1;
-    for (auto & coord : coords_)
+    for (const size_t & coord : coords_)
     if (coord != coord_old) {
         uniques.push_back(coord);
         orders .push_back(1);
@@ -40,6 +34,29 @@ std::tuple<std::vector<size_t>, std::vector<size_t>> Polynomial::uniques_orders(
     return std::make_tuple(uniques, orders);
 }
 
+// Return the polynomial value P(x)
+at::Tensor Polynomial::operator()(const at::Tensor & x) const {
+    assert(("x must be a vector", x.sizes().size() == 1));
+    at::Tensor value = x.new_full({}, 1.0);
+    for (auto & coord : coords_) value = value * x[coord];
+    return value;
+}
+// Return dP(x) / dx given x
+at::Tensor Polynomial::gradient(const at::Tensor & x) const {
+    assert(("x must be a vector", x.sizes().size() == 1));
+    std::vector<size_t> uniques, orders;
+    std::tie(uniques, orders) = this->uniques_orders();
+    at::Tensor grad = x.new_zeros(x.sizes());
+    for (size_t i = 0; i < uniques.size(); i++) {
+        grad[uniques[i]] = (double)orders[i] * at::pow(x[uniques[i]], (double)(orders[i] - 1));
+        for (size_t j = 0; j < i; j++)
+        grad[uniques[i]] = grad[uniques[i]] * at::pow(x[uniques[j]], (double)orders[j]);
+        for (size_t j = i + 1; j < uniques.size(); j++)
+        grad[uniques[i]] = grad[uniques[i]] * at::pow(x[uniques[j]], (double)orders[j]);
+    }
+    return grad;
+}
+
 
 
 
@@ -47,17 +64,16 @@ std::tuple<std::vector<size_t>, std::vector<size_t>> Polynomial::uniques_orders(
 // Construct `orders_` based on constructed `polynomials_`
 void PolynomialSet::construct_orders_() {
     assert(("`polynomials_` must have been constructed", ! polynomials_.empty()));
+    // Find out the highest order among the polynomials
+    size_t order_ = 0;
+    for (const Polynomial & polynomial : polynomials_)
+    if (polynomial.order() > order_)
+    order_ = polynomial.order();
+    // Construct a view to `polynomials_` grouped by order
     orders_.clear();
-    size_t order_old = -1;
-    for (auto & polynomial : polynomials_) {
-        size_t order = polynomial.coords().size();
-        if (order != order_old) {
-            orders_.push_back(std::vector<Polynomial *>());
-            order_old = order;
-        }
-        orders_.back().push_back(& polynomial);
-    }
-    assert(("polynomial set should not contain higher order term than the defined order", orders_.size() == order_ + 1));
+    orders_.resize(order_ + 1);
+    for (const Polynomial & polynomial : polynomials_)
+    orders_[polynomial.order()].push_back(& polynomial);
 }
 
 // Given a set of coordiantes constituting a polynomial,
@@ -127,8 +143,8 @@ int PolynomialSet::index_polynomial_(const std::vector<size_t> coords) const {
 }
 
 PolynomialSet::PolynomialSet() {}
-PolynomialSet::PolynomialSet(const std::vector<Polynomial> & _polynomials, const size_t & _dimension, const size_t & _order)
-: polynomials_(_polynomials), dimension_(_dimension), order_(_order) {this->construct_orders_();}
+PolynomialSet::PolynomialSet(const std::vector<Polynomial> & _polynomials, const size_t & _dimension)
+: polynomials_(_polynomials), dimension_(_dimension) {this->construct_orders_();}
 // Generate all possible terms up to `order`-th order constituting of all `dimension` coordinates
 PolynomialSet::PolynomialSet(const size_t & _dimension, const size_t & _order)
 : dimension_(_dimension), order_(_order) {
@@ -148,7 +164,7 @@ PolynomialSet::PolynomialSet(const size_t & _dimension, const size_t & _order)
     polynomials_[0] = Polynomial(coords);
     // Generate 1st and higher orders
     count = 1;
-    for (size_t iorder = 1; iorder <=order_; iorder++) {
+    for (size_t iorder = 1; iorder <= order_; iorder++) {
         // The 1st term: r0^iorder
         coords.resize(iorder);
         fill(coords.begin(), coords.end(), 0);
@@ -181,18 +197,9 @@ PolynomialSet::PolynomialSet(const size_t & _dimension, const size_t & _order)
 PolynomialSet::~PolynomialSet() {}
 
 std::vector<Polynomial> PolynomialSet::polynomials() const {return polynomials_;}
-std::vector<std::vector<Polynomial *>> PolynomialSet::orders() const {return orders_;}
 size_t PolynomialSet::dimension() const {return dimension_;}
 size_t PolynomialSet::order() const {return order_;}
-
-// Return the value of each term in {P(x)} as a vector
-at::Tensor PolynomialSet::operator()(const at::Tensor & x) const {
-    assert(("x must be a vector", x.sizes().size() == 1));
-    assert(("x must have a same dimension as the coordinates", x.size(0) == dimension_));
-    at::Tensor value = x.new_empty(polynomials_.size());
-    for (size_t i = 0; i < polynomials_.size(); i++) value[i] = polynomials_[i](x);
-    return value;
-}
+std::vector<std::vector<const Polynomial *>> PolynomialSet::orders() const {return orders_;}
 
 // Given `x`, the value of each term in {P(x)} as a vector
 // Return views to `x` grouped by order
@@ -207,6 +214,23 @@ std::vector<at::Tensor> PolynomialSet::views(const at::Tensor & x) const {
     }
     assert(("The length of x must equal to the number of polynomial terms", x.size(0) == stop));
     return views;
+}
+
+// Return the value of each term in {P(x)} given x as a vector
+at::Tensor PolynomialSet::operator()(const at::Tensor & x) const {
+    assert(("x must be a vector", x.sizes().size() == 1));
+    assert(("x must have a same dimension as the coordinates", x.size(0) == dimension_));
+    at::Tensor value = x.new_empty(polynomials_.size());
+    for (size_t i = 0; i < polynomials_.size(); i++) value[i] = polynomials_[i](x);
+    return value;
+}
+// Return d{P(x)} / dx given x
+at::Tensor PolynomialSet::Jacobian(const at::Tensor & x) const {
+    assert(("x must be a vector", x.sizes().size() == 1));
+    assert(("x must have a same dimension as the coordinates", x.size(0) == dimension_));
+    at::Tensor J = x.new_empty({(int64_t)polynomials_.size(), x.size(0)});
+    for (size_t i = 0; i < polynomials_.size(); i++) J[i] = polynomials_[i].gradient(x);
+    return J;
 }
 
 // Consider coordinate rotation y = U^T . x

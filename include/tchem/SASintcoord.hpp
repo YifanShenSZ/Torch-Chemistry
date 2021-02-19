@@ -80,6 +80,8 @@ class SASICSet : public tchem::IC::IntCoordSet {
         size_t NIrreds() const;
         // Return number of symmetry adapted and scaled internal coordinates per irreducible
         std::vector<size_t> NSASICs() const;
+        // Return number of internal coordinates
+        size_t intdim() const;
 
         // Return SASIC given internal coordinate q
         std::vector<at::Tensor> operator()(const at::Tensor & q);
