@@ -107,8 +107,33 @@ Phaser::~Phaser() {}
 size_t Phaser::NStates() const {return NStates_;}
 std::vector<std::vector<bool>> Phaser::possible_phases() const {return possible_phases_;}
 
+// Alter the phase of eigenstates `U` to the `index`-th possible phase
+at::Tensor Phaser::alter_states (const at::Tensor & U, const size_t & index) const {
+    assert(("U must be a matrix", U.sizes().size() == 2));
+    assert(("The number of columns must be the number of electronic states", U.size(1) == NStates_));
+    if (index >= possible_phases_.size()) return U;
+    at::Tensor result = U.clone().transpose_(0, 1);
+    const std::vector<bool> & phase = possible_phases_[index];
+    // The phase of the last state is always arbitrarily assigned to +
+    for (size_t i = 0; i < NStates_ - 1; i++) if (phase[i]) result[i].neg_();
+    result.transpose_(0, 1);
+    return result;
+}
+void       Phaser::alter_states_(      at::Tensor & U, const size_t & index) const {
+    assert(("U must be a matrix", U.sizes().size() == 2));
+    assert(("The number of columns must be the number of electronic states", U.size(1) == NStates_));
+    if (index >= possible_phases_.size()) return;
+    U.transpose_(0, 1);
+    const std::vector<bool> & phase = possible_phases_[index];
+    // The phase of the last state is always arbitrarily assigned to +
+    for (size_t i = 0; i < NStates_ - 1; i++) if (phase[i]) U[i].neg_();
+    U.transpose_(0, 1);
+}
 // Alter the phase of M to the index-th possible phase
-at::Tensor Phaser::alter(const at::Tensor & M, const size_t & index) const {
+at::Tensor Phaser::alter_ob (const at::Tensor & M, const size_t & index) const {
+    assert(("M must be a matrix or higher order tensor", M.sizes().size() >= 2));
+    assert(("The matrix part of M must be square", M.size(0) == M.size(1)));
+    assert(("The matrix dimension must be the number of electronic states", M.size(0) == NStates_));
     if (index >= possible_phases_.size()) return M;
     at::Tensor result = M.new_empty(M.sizes());
     const std::vector<bool> & phase = possible_phases_[index];
@@ -125,7 +150,10 @@ at::Tensor Phaser::alter(const at::Tensor & M, const size_t & index) const {
     }
     return result;
 }
-void Phaser::alter_(at::Tensor & M, const size_t & index) const {
+void       Phaser::alter_ob_(      at::Tensor & M, const size_t & index) const {
+    assert(("M must be a matrix or higher order tensor", M.sizes().size() >= 2));
+    assert(("The matrix part of M must be square", M.size(0) == M.size(1)));
+    assert(("The matrix dimension must be the number of electronic states", M.size(0) == NStates_));
     if (index >= possible_phases_.size()) return;
     const std::vector<bool> & phase = possible_phases_[index];
     for (size_t i = 0; i < NStates_ - 1; i++) {
@@ -237,24 +265,26 @@ size_t Phaser::iphase_min(const at::Tensor & M1, const at::Tensor & M2, const at
     return iphase_min;
 }
 
-// Fix M by minimizing || M - ref ||_F^2
-at::Tensor Phaser::fix(const at::Tensor & M, const at::Tensor & ref) const {
+// Fix observable `M` by minimizing || M - ref ||_F^2
+at::Tensor Phaser::fix_ob(const at::Tensor & M, const at::Tensor & ref) const {
     size_t iphase = iphase_min(M, ref);
-    return alter(M, iphase);
+    return alter_ob(M, iphase);
 }
-void Phaser::fix_(at::Tensor & M, const at::Tensor & ref) const {
+void       Phaser::fix_ob_(     at::Tensor & M, const at::Tensor & ref) const {
     size_t iphase = iphase_min(M, ref);
-    alter_(M, iphase);
+    alter_ob_(M, iphase);
 }
-// Fix M1 and M2 by minimizing weight * || M1 - ref1 ||_F^2 + || M2 - ref2 ||_F^2
-std::tuple<at::Tensor, at::Tensor> Phaser::fix(const at::Tensor & M1, const at::Tensor & M2, const at::Tensor & ref1, const at::Tensor & ref2, const double & weight) const {
+// Fix observables `M1` and `M2` by minimizing weight * || M1 - ref1 ||_F^2 + || M2 - ref2 ||_F^2
+std::tuple<at::Tensor, at::Tensor> Phaser::fix_ob (const at::Tensor & M1, const at::Tensor & M2,
+const at::Tensor & ref1, const at::Tensor & ref2, const double & weight) const {
     size_t iphase = iphase_min(M1, M2, ref1, ref2, weight);
-    return std::make_tuple(alter(M1, iphase), alter(M2, iphase));
+    return std::make_tuple(alter_ob(M1, iphase), alter_ob(M2, iphase));
 }
-void Phaser::fix_(at::Tensor & M1, at::Tensor & M2, const at::Tensor & ref1, const at::Tensor & ref2, const double & weight) const {
+void                               Phaser::fix_ob_(      at::Tensor & M1,       at::Tensor & M2,
+const at::Tensor & ref1, const at::Tensor & ref2, const double & weight) const {
     size_t iphase = iphase_min(M1, M2, ref1, ref2, weight);
-    alter_(M1, iphase);
-    alter_(M2, iphase);
+    alter_ob_(M1, iphase);
+    alter_ob_(M2, iphase);
 }
 
 } // namespace chem
