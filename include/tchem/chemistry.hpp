@@ -9,7 +9,7 @@ namespace tchem { namespace chem {
 bool check_degeneracy(const at::Tensor & energy, const double & thresh);
 
 // Transform Hamiltonian (or energy) and gradient to composite representation
-// which is defined by diagonalizing tchem::LA::sy3matdotmul(dH, dH)
+// which is defined by diagonalizing tchem::linalg::sy3matdotmul(dH, dH)
 // Return composite Hamiltonian and gradient
 // Only read the "upper triangle" (i <= j) of H and dH
 // Only write the "upper triangle" (i <= j) of the output tensor

@@ -52,7 +52,7 @@ at::Tensor InvDisp::operator()(const at::Tensor & r) const {
         if (theta.item<double>() > 1.0) theta.fill_(0.0);
         else if (theta.item<double>() < -1.0) theta.fill_(M_PI);
         else theta = at::acos(theta);
-        if(tchem::LA::triple_product(n123, n234, r23).item<double>() < 0.0) theta = -theta;
+        if(tchem::linalg::triple_product(n123, n234, r23).item<double>() < 0.0) theta = -theta;
         if(theta.item<double>() < min_) theta = theta + 2.0 * M_PI;
         else if(theta.item<double>() > min_ + 2.0 * M_PI) theta = theta - 2.0 * M_PI;
         return theta;
@@ -137,7 +137,7 @@ std::tuple<at::Tensor, at::Tensor> InvDisp::compute_IC_J(const at::Tensor & r) c
         if (theta.item<double>() > 1.0) theta.fill_(0.0);
         else if (theta.item<double>() < -1.0) theta.fill_(M_PI);
         else theta = at::acos(theta);
-        if(tchem::LA::triple_product(n123, n234, runit23).item<double>() < 0.0) theta = -theta;
+        if(tchem::linalg::triple_product(n123, n234, runit23).item<double>() < 0.0) theta = -theta;
         if(theta.item<double>() < min_) theta = theta + 2.0 * M_PI;
         else if(theta.item<double>() > min_ + 2.0 * M_PI) theta = theta - 2.0 * M_PI;
         // Output
@@ -166,7 +166,7 @@ std::tuple<at::Tensor, at::Tensor> InvDisp::compute_IC_J(const at::Tensor & r) c
         at::Tensor cos324 = runit23.dot(runit24);
         at::Tensor sin324sq = 1.0 - cos324 * cos324;
         at::Tensor sin324 = at::sqrt(sin324sq);
-        at::Tensor sintheta = tchem::LA::triple_product(runit23, runit24, runit21) / sin324;
+        at::Tensor sintheta = tchem::linalg::triple_product(runit23, runit24, runit21) / sin324;
         at::Tensor costheta = at::sqrt(1.0 - sintheta * sintheta);
         at::Tensor tantheta = sintheta/costheta;
         at::Tensor J0 = (runit23.cross(runit24) / costheta / sin324 - tantheta * runit21) / r21;
@@ -203,7 +203,7 @@ void IntCoord::append(const double & coeff, const InvDisp & invdisp) {
 }
 // Normalize linear combination coefficients
 void IntCoord::normalize() {
-    double norm2 = CL::LA::norm2(coeffs_);
+    double norm2 = CL::linalg::norm2(coeffs_);
     for (double & coeff : coeffs_) coeff /= norm2;
 }
 

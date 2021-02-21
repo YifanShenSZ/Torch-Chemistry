@@ -18,7 +18,7 @@ namespace {
     }
 }
 
-namespace tchem { namespace LA {
+namespace tchem { namespace linalg {
 
 at::Tensor triple_product(const at::Tensor & a, const at::Tensor & b, const at::Tensor & c) {
     assert(("a must be a 3D vector", a.sizes().size() == 1 && a.size(0) == 3));
@@ -381,5 +381,5 @@ void UT_sy_U_(at::Tensor & A, const at::Tensor & U) {
     A[i][j] += work[i][b] * U[b][j];
 }
 
-} // namespace LA
+} // namespace linalg
 } // namespace tchem

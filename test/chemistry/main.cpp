@@ -33,14 +33,14 @@ void fix() {
     // Adiabatic representation
     at::Tensor energies, states;
     std::tie(energies, states) = Hd.symeig(true);
-    at::Tensor dH_a = tchem::LA::UT_sy_U(dHd, states);
+    at::Tensor dH_a = tchem::linalg::UT_sy_U(dHd, states);
     // Composite representation
     at::Tensor H_c, dH_c;
     std::tie(H_c, dH_c) = tchem::chem::composite_representation(Hd, dHd);
     // Composite representation -> adiabatic representation
     at::Tensor energies_c, states_c;
     std::tie(energies_c, states_c) = H_c.symeig(true);
-    tchem::LA::UT_sy_U_(dH_c, states_c);
+    tchem::linalg::UT_sy_U_(dH_c, states_c);
     at::Tensor dH_ca = phaser.fix(dH_c, dH_a);
     at::Tensor dH_ca_ = dH_c.clone();
     phaser.fix_(dH_ca_, dH_a);
@@ -56,7 +56,7 @@ void fix2() {
     // Adiabatic representation
     at::Tensor energies, states;
     std::tie(energies, states) = Hd.symeig(true);
-    at::Tensor dH_a = tchem::LA::UT_sy_U(dHd, states);
+    at::Tensor dH_a = tchem::linalg::UT_sy_U(dHd, states);
     // Adiabatic representation -> Composite representation
     at::Tensor H_c, dH_c;
     std::tie(H_c, dH_c) = tchem::chem::composite_representation(Hd, dHd);

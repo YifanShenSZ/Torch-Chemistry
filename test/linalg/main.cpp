@@ -5,7 +5,7 @@ void triple_product() {
     at::Tensor a = at::rand(3, top),
                b = at::rand(3, top),
                c = at::rand(3, top);
-    at::Tensor result = tchem::LA::triple_product(a, b, c),
+    at::Tensor result = tchem::linalg::triple_product(a, b, c),
                answer = a.cross(b).dot(c);
     std::cout << "\nTriple product: "
               << (result - answer).norm().item<double>() << '\n';
@@ -22,7 +22,7 @@ void outer_product() {
     for (size_t k = 0; k < 2; k++)
     for (size_t l = 0; l < 2; l++)
     answer[i][j][k][l] = A[i][j] * B[k][l];
-    at::Tensor result = tchem::LA::outer_product(A, B);
+    at::Tensor result = tchem::linalg::outer_product(A, B);
     std::cout << "\nOuter product for general tensor: "
               << (result - answer).norm().item<double>() << '\n';
 }
@@ -31,7 +31,7 @@ void vec2sytensor() {
     at::Tensor x = at::tensor({8.0, 28.0, 98.0, 343.0});
     at::Tensor answer = at::tensor({8.0, 28.0, 28.0, 98.0, 28.0, 98.0, 98.0, 343.0});
     answer = answer.view({2, 2, 2});
-    at::Tensor result = tchem::LA::vec2sytensor(x, 3, 2);
+    at::Tensor result = tchem::linalg::vec2sytensor(x, 3, 2);
     double residue = abs((result[0][0][0] - answer[0][0][0]).item<double>())
                    + abs((result[0][0][1] - answer[0][0][1]).item<double>())
                    + abs((result[0][1][1] - answer[0][1][1]).item<double>())
@@ -42,7 +42,7 @@ void vec2sytensor() {
                          56.0, 196.0, 196.0, 686.0,
                          196.0, 686.0, 686.0, 2401.0});
     answer = answer.view({2, 2, 2, 2});
-    result = tchem::LA::vec2sytensor(x, 4, 2);
+    result = tchem::linalg::vec2sytensor(x, 4, 2);
     residue += abs((result[0][0][0][0] - answer[0][0][0][0]).item<double>())
              + abs((result[0][0][0][1] - answer[0][0][0][1]).item<double>())
              + abs((result[0][0][1][1] - answer[0][0][1][1]).item<double>())
@@ -54,39 +54,39 @@ void vec2sytensor() {
 
 void matdotmul() {
     at::Tensor A = at::rand({3, 3, 5}), B = at::rand({3, 3, 5});
-    at::Tensor sy = tchem::LA::sy3matdotmul(A, B);
+    at::Tensor sy = tchem::linalg::sy3matdotmul(A, B);
     for (size_t i = 0; i < 3; i++)
     for (size_t j = i + 1; j < 3; j++) {
         A[j][i].copy_(A[i][j]);
         B[j][i].copy_(B[i][j]);
     }
-    at::Tensor ge = tchem::LA::ge3matdotmul(A, B);
+    at::Tensor ge = tchem::linalg::ge3matdotmul(A, B);
     std::cout << "\nMatrix dot multiplication: "
               << (sy - ge).norm().item<double>() << '\n';
 }
 
 void matmvmul() {
     at::Tensor A = at::rand({3, 3, 4, 5}), B = at::rand({3, 3, 5});
-    at::Tensor sy = tchem::LA::sy4matmvmulsy3(A, B);
+    at::Tensor sy = tchem::linalg::sy4matmvmulsy3(A, B);
     for (size_t i = 0; i < 3; i++)
     for (size_t j = i + 1; j < 3; j++) {
         A[j][i].copy_(A[i][j]);
         B[j][i].copy_(B[i][j]);
     }
-    at::Tensor ge = tchem::LA::ge4matmvmulge3(A, B);
+    at::Tensor ge = tchem::linalg::ge4matmvmulge3(A, B);
     std::cout << "\nMatrix matrix-vector multiplication: "
               << (sy - ge).norm().item<double>() << '\n';
 }
 
 void matoutermul() {
     at::Tensor A = at::rand({3, 3}), B = at::rand({3, 3, 5});
-    at::Tensor sy = tchem::LA::symatoutermul(A, B);
+    at::Tensor sy = tchem::linalg::symatoutermul(A, B);
     for (size_t i = 0; i < 3; i++)
     for (size_t j = i + 1; j < 3; j++) {
         A[j][i].copy_(A[i][j]);
         B[j][i].copy_(B[i][j]);
     }
-    at::Tensor ge = tchem::LA::gematoutermul(A, B);
+    at::Tensor ge = tchem::linalg::gematoutermul(A, B);
     std::cout << "\nMatrix outer multiplication: "
               << (sy - ge).norm().item<double>() << '\n';
 }
@@ -99,15 +99,15 @@ void UT_A_U() {
     at::Tensor energies, states;
     std::tie(energies, states) = H.symeig(true);
     // sy
-    at::Tensor sy2 = tchem::LA::UT_sy_U(H, states);
+    at::Tensor sy2 = tchem::linalg::UT_sy_U(H, states);
     at::Tensor sy2_ = H.clone();
-    tchem::LA::UT_sy_U_(sy2_, states);
-    at::Tensor sy3 = tchem::LA::UT_sy_U(dH, states);
+    tchem::linalg::UT_sy_U_(sy2_, states);
+    at::Tensor sy3 = tchem::linalg::UT_sy_U(dH, states);
     at::Tensor sy3_ = dH.clone();
-    tchem::LA::UT_sy_U_(sy3_, states);
-    at::Tensor sy4 = tchem::LA::UT_sy_U(ddH, states);
+    tchem::linalg::UT_sy_U_(sy3_, states);
+    at::Tensor sy4 = tchem::linalg::UT_sy_U(ddH, states);
     at::Tensor sy4_ = ddH.clone();
-    tchem::LA::UT_sy_U_(sy4_, states);
+    tchem::linalg::UT_sy_U_(sy4_, states);
     // ge
     for (size_t i = 0; i < H.size(0); i++)
     for (size_t j = i + 1; j < H.size(1); j++) {
@@ -115,15 +115,15 @@ void UT_A_U() {
          dH[j][i].copy_( dH[i][j]);
         ddH[j][i].copy_(ddH[i][j]);
     }
-    at::Tensor ge2 = tchem::LA::UT_ge_U(H, states);
+    at::Tensor ge2 = tchem::linalg::UT_ge_U(H, states);
     at::Tensor ge2_ = H.clone();
-    tchem::LA::UT_ge_U_(ge2_, states);
-    at::Tensor ge3 = tchem::LA::UT_ge_U(dH, states);
+    tchem::linalg::UT_ge_U_(ge2_, states);
+    at::Tensor ge3 = tchem::linalg::UT_ge_U(dH, states);
     at::Tensor ge3_ = dH.clone();
-    tchem::LA::UT_ge_U_(ge3_, states);
-    at::Tensor ge4 = tchem::LA::UT_ge_U(ddH, states);
+    tchem::linalg::UT_ge_U_(ge3_, states);
+    at::Tensor ge4 = tchem::linalg::UT_ge_U(ddH, states);
     at::Tensor ge4_ = ddH.clone();
-    tchem::LA::UT_ge_U_(ge4_, states);
+    tchem::linalg::UT_ge_U_(ge4_, states);
     for (size_t i = 0; i < H.size(0); i++)
     for (size_t j = i + 1; j < H.size(1); j++) {
         ge2 [j][i].zero_();

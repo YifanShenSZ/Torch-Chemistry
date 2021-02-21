@@ -13,7 +13,7 @@ Nomenclature (following LAPACK):
 
 #include <torch/torch.h>
 
-namespace tchem { namespace LA {
+namespace tchem { namespace linalg {
 
 at::Tensor triple_product(const at::Tensor & a, const at::Tensor & b, const at::Tensor & c);
 
@@ -82,7 +82,7 @@ void UT_ge_U_(at::Tensor & A, const at::Tensor & U);
 at::Tensor UT_sy_U(const at::Tensor & A, const at::Tensor & U);
 void UT_sy_U_(at::Tensor & A, const at::Tensor & U);
 
-} // namespace LA
+} // namespace linalg
 } // namespace tchem
 
 #endif

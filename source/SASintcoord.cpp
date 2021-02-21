@@ -36,7 +36,7 @@ void SASIC::append(const double & coeff, const size_t & index) {
 }
 // Normalize linear combination coefficients
 void SASIC::normalize() {
-    double norm2 = CL::LA::norm2(coeffs_);
+    double norm2 = CL::linalg::norm2(coeffs_);
     for (double & coeff : coeffs_) coeff /= norm2;
 }
 
