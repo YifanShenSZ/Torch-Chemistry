@@ -43,6 +43,18 @@ void alter_states() {
     std::cout << "\nFixing phase of eigenstates: "
               << diff0 << "    "
               << diff1 << '\n';
+    at::Tensor Hd4 = at::rand({4, 4}, top);
+    at::Tensor energies4, states4;
+    std::tie(energies4, states4) = Hd4.symeig(true);
+    at::Tensor states40 = states4.clone();
+    at::Tensor states40_view = states40.slice(1, 0, 3);
+    phaser.alter_states_(states40_view, 0);
+    double diff4 = ((states4 - states40.neg()).select(1, 0).norm()
+                 +  (states4 - states40      ).select(1, 1).norm()
+                 +  (states4 - states40      ).select(1, 2).norm()
+                 +  (states4 - states40      ).select(1, 3).norm()).item<double>();
+    std::cout << "\nFixing more eigenstates than phaser's definition: "
+              << diff4 << '\n';
 }
 
 void fix_ob() {
