@@ -84,6 +84,7 @@ void composite_representation_(at::Tensor & H, at::Tensor & dH, const at::Tensor
 
 Phaser::Phaser() {}
 Phaser::Phaser(const size_t & _NStates) : NStates_(_NStates) {
+    assert(("There must be more than 2 states to have 'phase difference'", NStates_ > 0));
     possible_phases_.resize((1 << (NStates_ - 1)) - 1);
     for (std::vector<bool> & phase : possible_phases_) phase.resize(NStates_ - 1);
     std::vector<bool> & phase = possible_phases_[0];
