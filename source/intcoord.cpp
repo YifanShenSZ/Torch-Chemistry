@@ -242,6 +242,7 @@ IntCoordSet::IntCoordSet(const std::string & format, const std::string & file) {
         // New internal coordinate line starts with 'K'
         std::ifstream ifs; ifs.open(file);
         if (! ifs.good()) {ifs.close(); ifs.open("intcfl");}
+        assert((file + " or intcfl must be good", ifs));
         std::string line; std::getline(ifs, line);
         while (true) {
             std::getline(ifs, line);
@@ -287,6 +288,7 @@ IntCoordSet::IntCoordSet(const std::string & format, const std::string & file) {
         // At the end of each line, anything after # is considered as comment
         std::ifstream ifs; ifs.open(file);
         if (! ifs.good()) {ifs.close(); ifs.open("IntCoordDef");}
+        assert((file + " or IntCoordDef must be good", ifs));
         while (true) {
             std::string line;
             std::getline(ifs, line);

@@ -92,6 +92,7 @@ SAPSet::SAPSet() {}
 SAPSet::SAPSet(const std::string & sapoly_file, const std::vector<size_t> & _dimensions)
 : dimensions_(_dimensions) {
     std::ifstream ifs; ifs.open(sapoly_file);
+    assert((sapoly_file + " must be good", ifs));
     while (true) {
         std::string line;
         std::getline(ifs, line);
