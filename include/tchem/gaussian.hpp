@@ -7,7 +7,7 @@
 
 #include <tchem/polynomial.hpp>
 
-namespace tchem { namespace gaussian {
+namespace tchem {
 
 // Gaussian function g(r; miu, var) = (2pi)^(-dim/2) |var|^(-1/2) exp[-1/2 (r-miu)^T.var^-1.(r-miu)]
 // where `dim` is the dimension of `r`
@@ -58,7 +58,6 @@ class Gaussian {
         at::Tensor rand(std::default_random_engine & generator);
 };
 
-} // namespace gaussian
 } // namespace tchem
 
 #endif

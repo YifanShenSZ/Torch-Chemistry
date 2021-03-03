@@ -12,9 +12,9 @@ int main() {
                                   0.12, 0.36});
     var1.resize_({2, 2});
     var2.resize_({2, 2});
-    tchem::gaussian::Gaussian g1(miu1, var1), g2(miu2, var2);
+    tchem::Gaussian g1(miu1, var1), g2(miu2, var2);
     at::Tensor c;
-    tchem::gaussian::Gaussian g;
+    tchem::Gaussian g;
     std::tie(c, g) = g1 * g2;
     at::Tensor r = at::tensor({1.4, 1.7});
     std::cout << "\nValue of gaussian after multiplication: "

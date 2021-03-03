@@ -1,5 +1,5 @@
-for directory in linalg polynomial SApolynomial \
-gaussian intcoord SASintcoord chemistry; do
+for directory in linalg polynomial SApolynomial phaser \
+intcoord SASintcoord gaussian chemistry; do
     cd $directory/build
     rm -f test.exe
     cmake --build .

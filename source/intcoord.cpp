@@ -366,5 +366,78 @@ std::tuple<at::Tensor, at::Tensor> IntCoordSet::compute_IC_J(const at::Tensor & 
     return std::make_tuple(q, J);
 }
 
+// Return internal coordinate gradient given r and Cartesian coordinate gradient
+at::Tensor IntCoordSet::gradient_cart2int(const at::Tensor & r, const at::Tensor & cartgrad) const {
+    assert(("r must be a vector", r.sizes().size() == 1));
+    assert(("Cartesian coordinate gradient must be a vector", cartgrad.sizes().size() == 1));
+    assert(("Cartesian coordinate gradient must share a same dimension with r", cartgrad.size(0) == r.size(0)));
+    at::Tensor q, J;
+    std::tie(q, J) = this->compute_IC_J(r);
+    at::Tensor JJT = J.mm(J.transpose(0, 1));
+    at::Tensor cholesky = JJT.cholesky(true);
+    at::Tensor inverse = at::cholesky_inverse(cholesky, true);
+    at::Tensor cart2int = inverse.mm(J);
+    at::Tensor intgrad = cart2int.mv(cartgrad);
+    return intgrad;
+}
+// Return Cartesian coordinate gradient given r and internal coordinate gradient
+at::Tensor IntCoordSet::gradient_int2cart(const at::Tensor & r, const at::Tensor & intgrad) const {
+    assert(("r must be a vector", r.sizes().size() == 1));
+    assert(("Internal coordinate gradient must be a vector", intgrad.sizes().size() == 1));
+    at::Tensor q, J;
+    std::tie(q, J) = this->compute_IC_J(r);
+    assert(("Internal coordinate gradient must share a same dimension with q", intgrad.size(0) == q.size(0)));
+    at::Tensor cartgrad = J.transpose(0, 1).mv(intgrad);
+    return cartgrad;
+}
+
+// Return internal coordinate Hessian given r and Cartesian coordinate gradient and Hessian
+at::Tensor IntCoordSet::Hessian_cart2int(const at::Tensor & r, const at::Tensor & cartgrad, const at::Tensor & cartHess) const {
+    assert(("r must be a vector", r.sizes().size() == 1));
+    assert(("r must require gradient", r.requires_grad()));
+    assert(("Cartesian coordinate gradient must be a vector", cartgrad.sizes().size() == 1));
+    assert(("Cartesian coordinate Hessian must be a matrix", cartHess.sizes().size() == 2));
+    assert(("Cartesian coordinate Hessian must be a square matrix", cartHess.size(0) == cartHess.size(1)));
+    assert(("The dimensions of the gradient and the Hessian must match", cartgrad.size(0) == cartHess.size(0)));
+    assert(("Cartesian coordinate gradient must share a same dimension with r", cartgrad.size(0) == r.size(0)));
+    at::Tensor q, J;
+    std::tie(q, J) = this->compute_IC_J(r);
+    at::Tensor J2 = J.new_empty({q.size(0), r.size(0), r.size(0)});
+    for (size_t i = 0; i < q.size(0); i++)
+    for (size_t j = 0; j < r.size(0); j++) {
+        std::vector<at::Tensor> gs = torch::autograd::grad({J[i][j]}, {r}, {}, true);
+        J2[i][j].copy_(gs[0]);
+    }
+    at::Tensor JJT = J.mm(J.transpose(0, 1));
+    at::Tensor cholesky = JJT.cholesky(true);
+    at::Tensor inverse = at::cholesky_inverse(cholesky, true);
+    at::Tensor AT = inverse.mm(J);
+    at::Tensor A  = A.transpose(0, 1);
+    at::Tensor C = at::matmul(AT, at::matmul(J2, A));
+    at::Tensor intgrad = AT.mv(cartgrad);
+    at::Tensor intHess = AT.mm(cartHess.mm(A)) - at::matmul(intgrad, C);
+    return intHess;
+}
+// Return Cartesian coordinate Hessian given r and internal coordinate gradient and Hessian
+at::Tensor IntCoordSet::Hessian_int2cart(const at::Tensor & r, const at::Tensor & intgrad, const at::Tensor & intHess) const {
+    assert(("r must be a vector", r.sizes().size() == 1));
+    assert(("r must require gradient", r.requires_grad()));
+    assert(("Internal coordinate gradient must be a vector", intgrad.sizes().size() == 1));
+    assert(("Internal coordinate Hessian must be a matrix", intHess.sizes().size() == 2));
+    assert(("Internal coordinate Hessian must be a square matrix", intHess.size(0) == intHess.size(1)));
+    assert(("The dimensions of the gradient and the Hessian must match", intgrad.size(0) == intHess.size(0)));
+    at::Tensor q, J;
+    std::tie(q, J) = this->compute_IC_J(r);
+    assert(("Internal coordinate gradient must share a same dimension with q", intgrad.size(0) == q.size(0)));
+    at::Tensor J2 = J.new_empty({q.size(0), r.size(0), r.size(0)});
+    for (size_t i = 0; i < q.size(0); i++)
+    for (size_t j = 0; j < r.size(0); j++) {
+        std::vector<at::Tensor> gs = torch::autograd::grad({J[i][j]}, {r}, {}, true);
+        J2[i][j].copy_(gs[0]);
+    }
+    at::Tensor cartHess = J.transpose(0, 1).mm(intHess.mm(J)) + at::matmul(intgrad, J2);
+    return cartHess;
+}
+
 } // namespace IC
 } // namespace tchem

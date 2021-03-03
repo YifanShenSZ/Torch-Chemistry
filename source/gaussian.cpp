@@ -6,7 +6,7 @@
 
 #include <tchem/gaussian.hpp>
 
-namespace tchem { namespace gaussian {
+namespace tchem {
 
 Gaussian::Gaussian() {}
 // miu_ & var_ are deep copies of _miu & _var
@@ -140,5 +140,4 @@ at::Tensor Gaussian::rand(std::default_random_engine & generator) {
     return rand;
 }
 
-} // namespace gaussian
 } // namespace tchem

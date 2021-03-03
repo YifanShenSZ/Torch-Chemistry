@@ -106,6 +106,16 @@ class IntCoordSet {
         at::Tensor operator()(const at::Tensor & r) const;
         // Return q and J given r
         std::tuple<at::Tensor, at::Tensor> compute_IC_J(const at::Tensor & r) const;
+
+        // Return internal coordinate gradient given r and Cartesian coordinate gradient
+        at::Tensor gradient_cart2int(const at::Tensor & r, const at::Tensor & cartgrad) const;
+        // Return Cartesian coordinate gradient given r and internal coordinate gradient
+        at::Tensor gradient_int2cart(const at::Tensor & r, const at::Tensor & intgrad) const;
+
+        // Return internal coordinate Hessian given r and Cartesian coordinate Hessian
+        at::Tensor Hessian_cart2int(const at::Tensor & r, const at::Tensor & cartgrad, const at::Tensor & cartHess) const;
+        // Return Cartesian coordinate Hessian given r and internal coordinate gradient and Hessian
+        at::Tensor Hessian_int2cart(const at::Tensor & r, const at::Tensor & intgrad, const at::Tensor & intHess) const;
 };
 
 } // namespace IC

@@ -2,31 +2,35 @@
 Chemical routines based on libtorch
 
 ## Featured utilities
-Symmetry adaptation and scale (SAS) for internal coordinate:
-* For more details see `SASintcoord.md`
-
-Gaussian:
-* Merge of gaussian functions
-* Gaussian integrals
-
 Internal coordinate:
 * Cartesian -> internal coordinate
 * Jacobian of internal coordinate over Cartesian coordinate
+* Cartesian coordinate gradient <-> internal coordinate gradient
+* Cartesian coordinate Hessian <-> internal coordinate Hessian
 * For more details see `intcoord.md`
+* For symmetry adaptation and scale see `SASintcoord.md`
+
+Gaussian:
+* Merge gaussian functions
+* Gaussian integrals
 
 Chemistry:
 * Alternative representation near electronic degeneracy
-* Phase fixing
+* Vibration analysis
 
 Utility:
 * Some general basic routine
 
-Polynomial:
-* Polynomial operation
-
 Linear algebra:
 * Triple product
 * 3rd-order tensor operation
+
+Polynomial:
+* Polynomial operation
+* symmetry adaptation
+
+Phaser:
+* Phase fixing
 
 ## Installation
 1. `mkdir build lib`
@@ -41,8 +45,8 @@ Linear algebra:
 
 ## Source
 Source code level from bottom to top:
-1. utility, linalg, polynomial, SApolynomial
-2. gaussian, intcoord, SASintcoord, chemistry
+1. utility, linalg, polynomial, SApolynomial, phaser
+2. intcoord, SASintcoord, gaussian, chemistry
 
 ## Dependency
 1. libtorch
