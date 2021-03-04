@@ -8,6 +8,7 @@ Nomenclature:
     r: Cartesian coordinate vector
     q: internal coordinate vector
     J: the Jacobian matrix of q over r
+    K: the gradient of J over r
 
 Warning:
     * J of bending is singular at 0 and pi,
@@ -60,6 +61,8 @@ class InvDisp {
         at::Tensor operator()(const at::Tensor & r) const;
         // Return the displacement and its gradient over r given r
         std::tuple<at::Tensor, at::Tensor> compute_IC_J(const at::Tensor & r) const;
+        // Return the displacement and its 1st and 2nd order gradient over r given r
+        std::tuple<at::Tensor, at::Tensor, at::Tensor> compute_IC_J_K(const at::Tensor & r) const;
 };
 
 // An internal coordinate, i.e. a linear combination of several translationally and rotationally invariant displacements
@@ -85,6 +88,8 @@ class IntCoord {
         at::Tensor operator()(const at::Tensor & r) const;
         // Return the internal coordinate and its gradient over r given r
         std::tuple<at::Tensor, at::Tensor> compute_IC_J(const at::Tensor & r) const;
+        // Return the internal coordinate and its 1st and 2nd order gradient over r given r
+        std::tuple<at::Tensor, at::Tensor, at::Tensor> compute_IC_J_K(const at::Tensor & r) const;
 };
 
 // A set of internal coordinates
@@ -106,6 +111,8 @@ class IntCoordSet {
         at::Tensor operator()(const at::Tensor & r) const;
         // Return q and J given r
         std::tuple<at::Tensor, at::Tensor> compute_IC_J(const at::Tensor & r) const;
+        // Return q and J and K given r
+        std::tuple<at::Tensor, at::Tensor, at::Tensor> compute_IC_J_K(const at::Tensor & r) const;
 
         // Return internal coordinate gradient given r and Cartesian coordinate gradient
         at::Tensor gradient_cart2int(const at::Tensor & r, const at::Tensor & cartgrad) const;

@@ -60,7 +60,7 @@ SASICSet::SASICSet(const std::string & format, const std::string & IC_file, cons
 : tchem::IC::IntCoordSet(format, IC_file) {
     c10::TensorOptions top = at::TensorOptions().dtype(torch::kFloat64);
     std::ifstream ifs; ifs.open(SAS_file);
-    assert((SAS_file + " must be good", ifs));
+    if (! ifs.good()) throw CL::utility::file_error(SAS_file);
         std::string line;
         // Internal coordinate origin
         std::string origin_file;

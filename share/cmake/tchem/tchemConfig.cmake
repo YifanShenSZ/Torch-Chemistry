@@ -27,15 +27,19 @@ add_library(tchem STATIC IMPORTED)
 set(tchem_LIBRARIES tchem)
 
 # dependency 1: libtorch
-find_package(Torch REQUIRED PATHS ~/Software/Programming/libtorch-cuda10.1-1.7.1) 
-list(APPEND tchem_INCLUDE_DIRS ${TORCH_INCLUDE_DIRS})
-list(APPEND tchem_LIBRARIES ${TORCH_LIBRARIES})
-set(tchem_CXX_FLAGS "${TORCH_CXX_FLAGS}")
+if(NOT TORCH_FOUND)
+    find_package(Torch REQUIRED PATHS ~/Software/Programming/libtorch-cuda10.1-1.7.1) 
+    list(APPEND tchem_INCLUDE_DIRS ${TORCH_INCLUDE_DIRS})
+    list(APPEND tchem_LIBRARIES ${TORCH_LIBRARIES})
+    set(tchem_CXX_FLAGS "${TORCH_CXX_FLAGS}")
+endif()
 
 # dependency 2: Cpp-Library
-find_package(CL REQUIRED PATHS ~/Library/Cpp-Library)
-list(APPEND tchem_INCLUDE_DIRS ${CL_INCLUDE_DIRS})
-list(APPEND tchem_LIBRARIES ${CL_LIBRARIES})
+if(NOT CL_FOUND)
+    find_package(CL REQUIRED PATHS ~/Library/Cpp-Library)
+    list(APPEND tchem_INCLUDE_DIRS ${CL_INCLUDE_DIRS})
+    list(APPEND tchem_LIBRARIES ${CL_LIBRARIES})
+endif()
 
 # import location
 find_library(tchem_LIBRARY tchem PATHS "${tchemROOT}/lib")

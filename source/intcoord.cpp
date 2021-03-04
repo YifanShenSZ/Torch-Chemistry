@@ -1,6 +1,7 @@
 #include <regex>
 #include <torch/torch.h>
 
+#include <CppLibrary/utility.hpp>
 #include <CppLibrary/linalg.hpp>
 
 #include <tchem/linalg.hpp>
@@ -20,7 +21,8 @@ double InvDisp::min() const {return min_;}
 
 // Return the displacement given r
 at::Tensor InvDisp::operator()(const at::Tensor & r) const {
-    assert(("r must be a vector", r.sizes().size() == 1));
+    if (r.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::IC::InvDisp::operator(): r must be a vector");
     if (type_ == "stretching") {
         at::Tensor r12 = r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3)
                        - r.slice(0, 3 * atoms_[0], 3 * atoms_[0] + 3);
@@ -52,8 +54,8 @@ at::Tensor InvDisp::operator()(const at::Tensor & r) const {
         if (theta.item<double>() > 1.0) theta.fill_(0.0);
         else if (theta.item<double>() < -1.0) theta.fill_(M_PI);
         else theta = at::acos(theta);
-        if(tchem::linalg::triple_product(n123, n234, r23).item<double>() < 0.0) theta = -theta;
-        if(theta.item<double>() < min_) theta = theta + 2.0 * M_PI;
+        if (n123.dot(n234.cross(r23)).item<double>() < 0.0) theta = -theta;
+        if (theta.item<double>() < min_) theta = theta + 2.0 * M_PI;
         else if(theta.item<double>() > min_ + 2.0 * M_PI) theta = theta - 2.0 * M_PI;
         return theta;
     }
@@ -71,13 +73,13 @@ at::Tensor InvDisp::operator()(const at::Tensor & r) const {
         //    exactly where you should avoid out of plane
         return at::asin(n234.dot(r21));
     }
-    else {
-        throw "Unsupported internal coordinate type: " + type_;
-    }
+    else
+    throw std::invalid_argument("Unimplemented internal coordinate type: " + type_);
 }
 // Return the displacement and its gradient over r given r
 std::tuple<at::Tensor, at::Tensor> InvDisp::compute_IC_J(const at::Tensor & r) const {
-    assert(("r must be a vector", r.sizes().size() == 1));
+    if (r.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::IC::InvDisp::compute_IC_J: r must be a vector");
     if (type_ == "stretching") {
         // Prepare
         at::Tensor runit12 = r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3)
@@ -137,8 +139,8 @@ std::tuple<at::Tensor, at::Tensor> InvDisp::compute_IC_J(const at::Tensor & r) c
         if (theta.item<double>() > 1.0) theta.fill_(0.0);
         else if (theta.item<double>() < -1.0) theta.fill_(M_PI);
         else theta = at::acos(theta);
-        if(tchem::linalg::triple_product(n123, n234, runit23).item<double>() < 0.0) theta = -theta;
-        if(theta.item<double>() < min_) theta = theta + 2.0 * M_PI;
+        if (n123.dot(n234.cross(runit23)).item<double>() < 0.0) theta = -theta;
+        if (theta.item<double>() < min_) theta = theta + 2.0 * M_PI;
         else if(theta.item<double>() > min_ + 2.0 * M_PI) theta = theta - 2.0 * M_PI;
         // Output
         at::Tensor q = theta;
@@ -166,9 +168,9 @@ std::tuple<at::Tensor, at::Tensor> InvDisp::compute_IC_J(const at::Tensor & r) c
         at::Tensor cos324 = runit23.dot(runit24);
         at::Tensor sin324sq = 1.0 - cos324 * cos324;
         at::Tensor sin324 = at::sqrt(sin324sq);
-        at::Tensor sintheta = tchem::linalg::triple_product(runit23, runit24, runit21) / sin324;
+        at::Tensor sintheta = runit23.dot(runit24.cross(runit21)) / sin324;
         at::Tensor costheta = at::sqrt(1.0 - sintheta * sintheta);
-        at::Tensor tantheta = sintheta/costheta;
+        at::Tensor tantheta = sintheta / costheta;
         at::Tensor J0 = (runit23.cross(runit24) / costheta / sin324 - tantheta * runit21) / r21;
         at::Tensor J2 = (runit24.cross(runit21) / costheta / sin324 - tantheta / sin324sq * (runit23 - cos324 * runit24)) / r23;
         at::Tensor J3 = (runit21.cross(runit23) / costheta / sin324 - tantheta / sin324sq * (runit24 - cos324 * runit23)) / r24;
@@ -178,12 +180,141 @@ std::tuple<at::Tensor, at::Tensor> InvDisp::compute_IC_J(const at::Tensor & r) c
         J.slice(0, 3 * atoms_[0], 3 * atoms_[0] + 3) = J0;
         J.slice(0, 3 * atoms_[2], 3 * atoms_[2] + 3) = J2;
         J.slice(0, 3 * atoms_[3], 3 * atoms_[3] + 3) = J3;
-        J.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3) = (- J0 - J2 - J3);
+        J.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3) = - J0 - J2 - J3;
         return std::make_tuple(q, J);
     }
-    else {
-        throw "Unsupported internal coordinate type: " + type_;
+    else
+    throw std::invalid_argument("Unimplemented internal coordinate type: " + type_);
+}
+// Return the displacement and its 1st and 2nd order gradient over r given r
+std::tuple<at::Tensor, at::Tensor, at::Tensor> InvDisp::compute_IC_J_K(const at::Tensor & r) const {
+    if (r.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::IC::InvDisp::compute_IC_J_K: r must be a vector");
+    // Prepare
+    at::Tensor q;
+    std::vector<at::Tensor> rs(atoms_.size());
+    for (size_t i = 0; i < atoms_.size(); i++) {
+        rs[i] = r.slice(0, 3 * atoms_[i], 3 * atoms_[i] + 3);
+        rs[i].set_requires_grad(true);
     }
+    std::vector<at::Tensor> Js(atoms_.size());
+    if (type_ == "stretching") {
+        // Prepare
+        at::Tensor runit12 = rs[1] - rs[0];
+        at::Tensor r12 = runit12.norm();
+        runit12 = runit12 / r12;
+        // q
+        q = r12;
+        // J
+        Js[0] = -runit12;
+        Js[1] =  runit12;
+    }
+    else if (type_ == "bending") {
+        // Prepare
+        at::Tensor runit21 = rs[0] - rs[1];
+        at::Tensor r21 = runit21.norm();
+        runit21 = runit21 / r21;
+        at::Tensor runit23 = rs[2] - rs[1];
+        at::Tensor r23 = runit23.norm();
+        runit23 = runit23 / r23;
+        at::Tensor costheta = runit21.dot(runit23);
+        at::Tensor sintheta = at::sqrt(1.0 - costheta * costheta);
+        at::Tensor J0 = (costheta * runit21 - runit23) / (sintheta * r21);
+        at::Tensor J2 = (costheta * runit23 - runit21) / (sintheta * r23);
+        // q
+        q = at::acos(costheta);
+        // J
+        Js[0] = J0;
+        Js[2] = J2;
+        Js[1] = (- J0 - J2);
+    }
+    else if (type_ == "torsion") {
+        at::Tensor runit12 = rs[1] - rs[0];
+        at::Tensor r12 = runit12.norm();
+        runit12 = runit12 / r12;
+        at::Tensor runit23 = rs[2] - rs[1];
+        at::Tensor r23 = runit23.norm();
+        runit23 = runit23 / r23;
+        at::Tensor runit34 = rs[3] - rs[2];
+        at::Tensor r34 = runit34.norm();
+        runit34 = runit34 / r34;
+        at::Tensor cos123 = -(runit12.dot(runit23));
+        at::Tensor sin123 = at::sqrt(1.0 - cos123 * cos123);
+        at::Tensor cos234 = -(runit23.dot(runit34));
+        at::Tensor sin234 = at::sqrt(1.0 - cos234 * cos234);
+        at::Tensor n123 = runit12.cross(runit23) / sin123;
+        at::Tensor n234 = runit23.cross(runit34) / sin234;
+        at::Tensor theta = n123.dot(n234);
+        theta.detach_();
+        if (theta.item<double>() > 1.0) theta.fill_(0.0);
+        else if (theta.item<double>() < -1.0) theta.fill_(M_PI);
+        else theta = at::acos(theta);
+        if (n123.dot(n234.cross(runit23)).item<double>() < 0.0) theta = -theta;
+        if (theta.item<double>() < min_) theta = theta + 2.0 * M_PI;
+        else if(theta.item<double>() > min_ + 2.0 * M_PI) theta = theta - 2.0 * M_PI;
+        // q
+        q = theta;
+        // J
+        Js[0] = (-n123 / (r12 * sin123));
+        Js[1] = ((r23 - r12 * cos123) / (r12 * r23 * sin123) * n123 - cos234 / (r23 * sin234) * n234);
+        Js[2] = ((r34 * cos234 - r23) / (r23 * r34 * sin234) * n234 + cos123 / (r23 * sin123) * n123);
+        Js[3] = ( n234 / (r34 * sin234));
+    }
+    else if (type_ == "OutOfPlane") {
+        // Prepare
+        at::Tensor runit21 = rs[0] - rs[1];
+        at::Tensor r21 = runit21.norm();
+        runit21 = runit21 / r21;
+        at::Tensor runit23 = rs[2] - rs[1];
+        at::Tensor r23 = runit23.norm();
+        runit23 = runit23 / r23;
+        at::Tensor runit24 = rs[3] - rs[1];
+        at::Tensor r24 = runit24.norm();
+        runit24 = runit24 / r24;
+        at::Tensor cos324 = runit23.dot(runit24);
+        at::Tensor sin324sq = 1.0 - cos324 * cos324;
+        at::Tensor sin324 = at::sqrt(sin324sq);
+        at::Tensor sintheta = runit23.dot(runit24.cross(runit21)) / sin324;
+        at::Tensor costheta = at::sqrt(1.0 - sintheta * sintheta);
+        at::Tensor tantheta = sintheta / costheta;
+        at::Tensor J0 = (runit23.cross(runit24) / costheta / sin324 - tantheta * runit21) / r21;
+        at::Tensor J2 = (runit24.cross(runit21) / costheta / sin324 - tantheta / sin324sq * (runit23 - cos324 * runit24)) / r23;
+        at::Tensor J3 = (runit21.cross(runit23) / costheta / sin324 - tantheta / sin324sq * (runit24 - cos324 * runit23)) / r24;
+        // q
+        q = at::asin(sintheta);
+        // J
+        Js[0] = J0;
+        Js[2] = J2;
+        Js[3] = J3;
+        Js[1] = - J0 - J2 - J3;
+    }
+    else
+    throw std::invalid_argument("Unimplemented internal coordinate type: " + type_);
+    q.detach_();
+    // J
+    at::Tensor J = r.new_zeros(r.size(0));
+    for (size_t i = 0; i < atoms_.size(); i++)
+    J.slice(0, 3 * atoms_[i], 3 * atoms_[i] + 3).copy_(Js[i]);
+    // K
+    CL::utility::matrix<at::Tensor> Ks(atoms_.size());
+    for (size_t i = 0; i < atoms_.size(); i++)
+    for (size_t j = i; j < atoms_.size(); j++) {
+        Ks[i][j] = r.new_empty({3, 3});
+        for (size_t k = 0; k < 3; k++) {
+            auto gs = torch::autograd::grad({Js[i][k]}, {rs[j]}, {}, true, false, true);
+            if (gs[0].defined()) Ks[i][j][k].copy_(gs[0]);
+            else                 Ks[i][j][k].fill_(0.0);
+        }
+    }
+    at::Tensor K = r.new_zeros({(int64_t)r.size(0), (int64_t)r.size(0)});
+    for (size_t i = 0; i < atoms_.size(); i++) {
+        K.slice(0, 3 * atoms_[i], 3 * atoms_[i] + 3).slice(1, 3 * atoms_[i], 3 * atoms_[i] + 3).copy_(Ks[i][i]);
+        for (size_t j = i + 1; j < atoms_.size(); j++) {
+            K.slice(0, 3 * atoms_[i], 3 * atoms_[i] + 3).slice(1, 3 * atoms_[j], 3 * atoms_[j] + 3).copy_(Ks[i][j]);
+            K.slice(0, 3 * atoms_[j], 3 * atoms_[j] + 3).slice(1, 3 * atoms_[i], 3 * atoms_[i] + 3).copy_(Ks[i][j].transpose(0, 1));
+        }
+    }
+    return std::make_tuple(q, J, K);
 }
 
 
@@ -209,14 +340,16 @@ void IntCoord::normalize() {
 
 // Return the internal coordinate given r
 at::Tensor IntCoord::operator()(const at::Tensor & r) const {
-    assert(("r must be a vector", r.sizes().size() == 1));
+    if (r.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::IC::IntCoord::operator(): r must be a vector");
     at::Tensor q = coeffs_[0] * invdisps_[0](r);
     for (size_t i = 1; i < coeffs_.size(); i++) q = q + coeffs_[i] * invdisps_[i](r);
     return q;
 }
 // Return the internal coordinate and its gradient over r given r
 std::tuple<at::Tensor, at::Tensor> IntCoord::compute_IC_J(const at::Tensor & r) const {
-    assert(("r must be a vector", r.sizes().size() == 1));
+    if (r.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::IC::IntCoord::compute_IC_J: r must be a vector");
     at::Tensor q, J;
     std::tie(q, J) = invdisps_[0].compute_IC_J(r);
     q = q * coeffs_[0];
@@ -228,6 +361,24 @@ std::tuple<at::Tensor, at::Tensor> IntCoord::compute_IC_J(const at::Tensor & r) 
         J = J + coeffs_[i] * Ji;
     }
     return std::make_tuple(q, J);
+}
+// Return the internal coordinate and its 1st and 2nd order gradient over r given r
+std::tuple<at::Tensor, at::Tensor, at::Tensor> IntCoord::compute_IC_J_K(const at::Tensor & r) const {
+    if (r.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::IC::IntCoord::compute_IC_J_K: r must be a vector");
+    at::Tensor q, J, K;
+    std::tie(q, J, K) = invdisps_[0].compute_IC_J_K(r);
+    q = q * coeffs_[0];
+    J = J * coeffs_[0];
+    K = K * coeffs_[0];
+    for (size_t i = 1; i < coeffs_.size(); i++) {
+        at::Tensor qi, Ji, Ki;
+        std::tie(qi, Ji, Ki) = invdisps_[i].compute_IC_J_K(r);
+        q = q + coeffs_[i] * qi;
+        J = J + coeffs_[i] * Ji;
+        K = K + coeffs_[i] * Ki;
+    }
+    return std::make_tuple(q, J, K);
 }
 
 
@@ -242,7 +393,7 @@ IntCoordSet::IntCoordSet(const std::string & format, const std::string & file) {
         // New internal coordinate line starts with 'K'
         std::ifstream ifs; ifs.open(file);
         if (! ifs.good()) {ifs.close(); ifs.open("intcfl");}
-        assert((file + " or intcfl must be good", ifs));
+        if (! ifs.good()) throw CL::utility::file_error(file + " or intcfl");
         std::string line; std::getline(ifs, line);
         while (true) {
             std::getline(ifs, line);
@@ -288,7 +439,7 @@ IntCoordSet::IntCoordSet(const std::string & format, const std::string & file) {
         // At the end of each line, anything after # is considered as comment
         std::ifstream ifs; ifs.open(file);
         if (! ifs.good()) {ifs.close(); ifs.open("IntCoordDef");}
-        assert((file + " or IntCoordDef must be good", ifs));
+        if (! ifs.good()) throw CL::utility::file_error(file + " or IntCoordDef");
         while (true) {
             std::string line;
             std::getline(ifs, line);
@@ -347,14 +498,16 @@ size_t IntCoordSet::size() const {return intcoords_.size();}
 
 // Return q given r
 at::Tensor IntCoordSet::operator()(const at::Tensor & r) const {
-    assert(("r must be a vector", r.sizes().size() == 1));
+    if (r.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::IC::IntCoordSet::operator(): r must be a vector");
     at::Tensor q = r.new_empty(intcoords_.size());
     for (size_t i = 0; i < intcoords_.size(); i++) q[i] = intcoords_[i](r);
     return q;
 }
 // Return q and J given r
 std::tuple<at::Tensor, at::Tensor> IntCoordSet::compute_IC_J(const at::Tensor & r) const {
-    assert(("r must be a vector", r.sizes().size() == 1));
+    if (r.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::IC::IntCoordSet::compute_IC_J: r must be a vector");
     at::Tensor q = r.new_empty(intcoords_.size());
     at::Tensor J = r.new_empty({q.size(0), r.size(0)});
     for (size_t i = 0; i < intcoords_.size(); i++) {
@@ -365,12 +518,31 @@ std::tuple<at::Tensor, at::Tensor> IntCoordSet::compute_IC_J(const at::Tensor & 
     }
     return std::make_tuple(q, J);
 }
+// Return q and J and K given r
+std::tuple<at::Tensor, at::Tensor, at::Tensor> IntCoordSet::compute_IC_J_K(const at::Tensor & r) const {
+    if (r.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::IC::IntCoordSet::compute_IC_J_K: r must be a vector");
+    at::Tensor q = r.new_empty(intcoords_.size());
+    at::Tensor J = r.new_empty({q.size(0), r.size(0)});
+    at::Tensor K = r.new_empty({q.size(0), r.size(0), r.size(0)});
+    for (size_t i = 0; i < intcoords_.size(); i++) {
+        at::Tensor qi, Ji, Ki;
+        std::tie(qi, Ji, Ki) = intcoords_[i].compute_IC_J_K(r);
+        q[i] = qi;
+        J[i] = Ji;
+        K[i] = Ki;
+    }
+    return std::make_tuple(q, J, K);
+}
 
 // Return internal coordinate gradient given r and Cartesian coordinate gradient
 at::Tensor IntCoordSet::gradient_cart2int(const at::Tensor & r, const at::Tensor & cartgrad) const {
-    assert(("r must be a vector", r.sizes().size() == 1));
-    assert(("Cartesian coordinate gradient must be a vector", cartgrad.sizes().size() == 1));
-    assert(("Cartesian coordinate gradient must share a same dimension with r", cartgrad.size(0) == r.size(0)));
+    if (r.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::IC::IntCoordSet::gradient_cart2int: r must be a vector");
+    if (cartgrad.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::IC::IntCoordSet::gradient_cart2int: Cartesian coordinate gradient must be a vector");
+    if (cartgrad.size(0) != r.size(0)) throw std::invalid_argument(
+    "tchem::IC::IntCoordSet::gradient_cart2int: Cartesian coordinate gradient must share a same dimension with r");
     at::Tensor q, J;
     std::tie(q, J) = this->compute_IC_J(r);
     at::Tensor JJT = J.mm(J.transpose(0, 1));
@@ -382,60 +554,61 @@ at::Tensor IntCoordSet::gradient_cart2int(const at::Tensor & r, const at::Tensor
 }
 // Return Cartesian coordinate gradient given r and internal coordinate gradient
 at::Tensor IntCoordSet::gradient_int2cart(const at::Tensor & r, const at::Tensor & intgrad) const {
-    assert(("r must be a vector", r.sizes().size() == 1));
-    assert(("Internal coordinate gradient must be a vector", intgrad.sizes().size() == 1));
+    if (r.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::IC::IntCoordSet::gradient_int2cart: r must be a vector");
+    if (intgrad.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::IC::IntCoordSet::gradient_int2cart: Internal coordinate gradient must be a vector");
     at::Tensor q, J;
     std::tie(q, J) = this->compute_IC_J(r);
-    assert(("Internal coordinate gradient must share a same dimension with q", intgrad.size(0) == q.size(0)));
+    if (intgrad.size(0) != q.size(0)) throw std::invalid_argument(
+    "tchem::IC::IntCoordSet::gradient_int2cart: Internal coordinate gradient must share a same dimension with q");
     at::Tensor cartgrad = J.transpose(0, 1).mv(intgrad);
     return cartgrad;
 }
 
 // Return internal coordinate Hessian given r and Cartesian coordinate gradient and Hessian
 at::Tensor IntCoordSet::Hessian_cart2int(const at::Tensor & r, const at::Tensor & cartgrad, const at::Tensor & cartHess) const {
-    assert(("r must be a vector", r.sizes().size() == 1));
-    assert(("r must require gradient", r.requires_grad()));
-    assert(("Cartesian coordinate gradient must be a vector", cartgrad.sizes().size() == 1));
-    assert(("Cartesian coordinate Hessian must be a matrix", cartHess.sizes().size() == 2));
-    assert(("Cartesian coordinate Hessian must be a square matrix", cartHess.size(0) == cartHess.size(1)));
-    assert(("The dimensions of the gradient and the Hessian must match", cartgrad.size(0) == cartHess.size(0)));
-    assert(("Cartesian coordinate gradient must share a same dimension with r", cartgrad.size(0) == r.size(0)));
-    at::Tensor q, J;
-    std::tie(q, J) = this->compute_IC_J(r);
-    at::Tensor J2 = J.new_empty({q.size(0), r.size(0), r.size(0)});
-    for (size_t i = 0; i < q.size(0); i++)
-    for (size_t j = 0; j < r.size(0); j++) {
-        std::vector<at::Tensor> gs = torch::autograd::grad({J[i][j]}, {r}, {}, true);
-        J2[i][j].copy_(gs[0]);
-    }
+    if (r.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::IC::IntCoordSet::Hessian_cart2int: r must be a vector");
+    if (cartgrad.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::IC::IntCoordSet::Hessian_cart2int: Cartesian coordinate gradient must be a vector");
+    if (cartgrad.size(0) != r.size(0)) throw std::invalid_argument(
+    "tchem::IC::IntCoordSet::Hessian_cart2int: Cartesian coordinate gradient must share a same dimension with r");   
+    if (cartHess.sizes().size() != 2) throw std::invalid_argument(
+    "tchem::IC::IntCoordSet::Hessian_cart2int: Cartesian coordinate Hessian must be a matrix");
+    if (cartHess.size(0) != cartHess.size(1)) throw std::invalid_argument(
+    "tchem::IC::IntCoordSet::Hessian_cart2int: Cartesian coordinate Hessian must be a square matrix");
+    if (cartgrad.size(0) != cartHess.size(0)) throw std::invalid_argument(
+    "tchem::IC::IntCoordSet::Hessian_cart2int: The dimensions of the gradient and the Hessian must match");
+    at::Tensor q, J, K;
+    std::tie(q, J, K) = this->compute_IC_J_K(r);
     at::Tensor JJT = J.mm(J.transpose(0, 1));
     at::Tensor cholesky = JJT.cholesky(true);
     at::Tensor inverse = at::cholesky_inverse(cholesky, true);
     at::Tensor AT = inverse.mm(J);
     at::Tensor A  = A.transpose(0, 1);
-    at::Tensor C = at::matmul(AT, at::matmul(J2, A));
+    at::Tensor C = at::matmul(AT, at::matmul(K, A));
     at::Tensor intgrad = AT.mv(cartgrad);
     at::Tensor intHess = AT.mm(cartHess.mm(A)) - at::matmul(intgrad, C);
     return intHess;
 }
 // Return Cartesian coordinate Hessian given r and internal coordinate gradient and Hessian
 at::Tensor IntCoordSet::Hessian_int2cart(const at::Tensor & r, const at::Tensor & intgrad, const at::Tensor & intHess) const {
-    assert(("r must be a vector", r.sizes().size() == 1));
-    assert(("r must require gradient", r.requires_grad()));
-    assert(("Internal coordinate gradient must be a vector", intgrad.sizes().size() == 1));
-    assert(("Internal coordinate Hessian must be a matrix", intHess.sizes().size() == 2));
-    assert(("Internal coordinate Hessian must be a square matrix", intHess.size(0) == intHess.size(1)));
-    assert(("The dimensions of the gradient and the Hessian must match", intgrad.size(0) == intHess.size(0)));
-    at::Tensor q, J;
-    std::tie(q, J) = this->compute_IC_J(r);
-    assert(("Internal coordinate gradient must share a same dimension with q", intgrad.size(0) == q.size(0)));
-    at::Tensor J2 = J.new_empty({q.size(0), r.size(0), r.size(0)});
-    for (size_t i = 0; i < q.size(0); i++)
-    for (size_t j = 0; j < r.size(0); j++) {
-        std::vector<at::Tensor> gs = torch::autograd::grad({J[i][j]}, {r}, {}, true);
-        J2[i][j].copy_(gs[0]);
-    }
-    at::Tensor cartHess = J.transpose(0, 1).mm(intHess.mm(J)) + at::matmul(intgrad, J2);
+    if (r.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::IC::IntCoordSet::Hessian_int2cart: r must be a vector");
+    if (intgrad.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::IC::IntCoordSet::Hessian_int2cart: Internal coordinate gradient must be a vector");
+    if (intHess.sizes().size() != 2) throw std::invalid_argument(
+    "tchem::IC::IntCoordSet::Hessian_int2cart: Internal coordinate Hessian must be a matrix");
+    if (intHess.size(0) != intHess.size(1)) throw std::invalid_argument(
+    "tchem::IC::IntCoordSet::Hessian_int2cart: Internal coordinate Hessian must be a square matrix");
+    if (intgrad.size(0) != intHess.size(0)) throw std::invalid_argument(
+    "tchem::IC::IntCoordSet::Hessian_int2cart: The dimensions of the gradient and the Hessian must match");
+    at::Tensor q, J, K;
+    std::tie(q, J, K) = this->compute_IC_J_K(r);
+    if (intgrad.size(0) != q.size(0)) throw std::invalid_argument(
+    "tchem::IC::IntCoordSet::Hessian_int2cart: Internal coordinate gradient must share a same dimension with q");
+    at::Tensor cartHess = J.transpose(0, 1).mm(intHess.mm(J)) + at::matmul(intgrad, K);
     return cartHess;
 }
 

@@ -24,22 +24,46 @@ int main() {
               << ((q0_col - intgeom) / intgeom).norm().item<double>() << '\n';
 
     r_col.set_requires_grad(true);
-    at::Tensor q_col, J_col;
-    std::tie(q_col, J_col) = set_col.compute_IC_J(r_col);
+    at::Tensor q1_col, J1_col;
+    std::tie(q1_col, J1_col) = set_col.compute_IC_J(r_col);
     std::cout << "\nInternal coordinate calculated with Jacobian: "
-              << (q0_col - q_col).norm().item<double>() << '\n';
+              << (q0_col - q1_col).norm().item<double>() << '\n';
 
-    at::Tensor J_col_back = J_col.new_empty(J_col.sizes());
-    for (size_t i = 0; i < q_col.size(0); i++) {
+    at::Tensor J_col_back = J1_col.new_empty(J1_col.sizes());
+    for (size_t i = 0; i < q1_col.size(0); i++) {
         if (r_col.grad().defined()) {
             r_col.grad().detach_();
             r_col.grad().zero_();
         }
-        q_col[i].backward({}, true);
+        q1_col[i].backward({}, true);
         J_col_back[i].copy_(r_col.grad());
     }
+    r_col.set_requires_grad(false);
     std::cout << "\nBackward propagation vs analytical Jacobian: "
-              << (J_col - J_col_back).norm().item<double>() << '\n';
+              << (J1_col - J_col_back).norm().item<double>() << '\n';
+
+    at::Tensor q2_col, J2_col, K2_col;
+    std::tie(q2_col, J2_col, K2_col) = set_col.compute_IC_J_K(r_col);
+    std::cout << "\nInternal coordinate calculated with 1st and 2nd order Jacobian: "
+              << (q0_col - q2_col).norm().item<double>() << '\n';
+    std::cout << "\nJacobian calculated with 2nd order Jacobian: "
+              << (J1_col - J2_col).norm().item<double>() << '\n';
+
+    const double dr = 1e-5;
+    std::vector<at::Tensor> plus(r_col.size(0)), minus(r_col.size(0));
+    for (size_t i = 0; i < r_col.size(0); i++) {
+        at::Tensor q;
+        plus[i] = r_col.clone();
+        plus[i][i] += dr;
+        std::tie(q, plus[i]) = set_col.compute_IC_J(plus[i]);
+        minus[i] = r_col.clone();
+        minus[i][i] -= dr;
+        std::tie(q, minus[i]) = set_col.compute_IC_J(minus[i]);
+    }
+    at::Tensor K_numerical = K2_col.new_empty(K2_col.sizes());
+    for (size_t i = 0; i < r_col.size(0); i++) K_numerical.select(1, i).copy_((plus[i] - minus[i]) / 2.0 / dr);
+    std::cout << "\nFinite difference vs analytical 2nd order Jacobian: "
+              << (K2_col - K_numerical).norm().item<double>() << '\n';
 
     CL::chem::xyz<double> geom_def("slow-1.5.xyz", true);
     std::vector<double> coords_def = geom_def.coords();
@@ -49,6 +73,6 @@ int main() {
     at::Tensor q_def, J_def;
     std::tie(q_def, J_def) = set_def.compute_IC_J(r_def);
     std::cout << "\nDefault internal coordinate and Jacobian: "
-              << (q_col - q_def).norm().item<double>()
-               + (J_col - J_def).norm().item<double>() << '\n';
+              << (q1_col - q_def).norm().item<double>()
+               + (J1_col - J_def).norm().item<double>() << '\n';
 }

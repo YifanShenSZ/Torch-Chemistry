@@ -1,16 +1,5 @@
 #include <tchem/linalg.hpp>
 
-void triple_product() {
-    c10::TensorOptions top = at::TensorOptions().dtype(torch::kFloat64);
-    at::Tensor a = at::rand(3, top),
-               b = at::rand(3, top),
-               c = at::rand(3, top);
-    at::Tensor result = tchem::linalg::triple_product(a, b, c),
-               answer = a.cross(b).dot(c);
-    std::cout << "\nTriple product: "
-              << (result - answer).norm().item<double>() << '\n';
-}
-
 void outer_product() {
     at::Tensor A = at::tensor({1.0, 2.0, 3.0, 4.0}),
                B = at::tensor({5.0, 6.0, 7.0, 8.0});
@@ -148,7 +137,6 @@ void UT_A_U() {
 int main() {
     std::cout << "This is a test program on Torch-Chemistry module 'linalg'\n"
               << "Correct routines should print close to 0\n";
-    triple_product();
     outer_product();
     vec2sytensor();
     matdotmul();

@@ -20,15 +20,6 @@ namespace {
 
 namespace tchem { namespace linalg {
 
-at::Tensor triple_product(const at::Tensor & a, const at::Tensor & b, const at::Tensor & c) {
-    assert(("a must be a 3D vector", a.sizes().size() == 1 && a.size(0) == 3));
-    assert(("b must be a 3D vector", b.sizes().size() == 1 && b.size(0) == 3));
-    assert(("c must be a 3D vector", c.sizes().size() == 1 && c.size(0) == 3));
-    return ( c[0] * (a[1] * b[2] - a[2] * b[1])
-           - c[1] * (a[0] * b[2] - a[2] * b[0])
-           + c[2] * (a[0] * b[1] - a[1] * b[0]));
-}
-
 // a.outer(b) only works for vectors a & b
 // This function is meant for general a & b with
 // result_i1,i2,...,im,j1,j2,...,jn = a_i1,i2,...,im b_j1,j2,...,jn

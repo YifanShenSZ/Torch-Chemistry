@@ -15,8 +15,6 @@ Nomenclature (following LAPACK):
 
 namespace tchem { namespace linalg {
 
-at::Tensor triple_product(const at::Tensor & a, const at::Tensor & b, const at::Tensor & c);
-
 // a.outer(b) only works for vectors a & b
 // This function is meant for general a & b with
 // result_i1,i2,...,im,j1,j2,...,jn = a_i1,i2,...,im b_j1,j2,...,jn
