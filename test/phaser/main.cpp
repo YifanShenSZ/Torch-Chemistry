@@ -8,8 +8,8 @@ void alter_states() {
     tchem::Phaser phaser(3);
     c10::TensorOptions top = at::TensorOptions().dtype(torch::kFloat64);
     at::Tensor Hd = at::rand({3, 3}, top);
-    at::Tensor energies, states;
-    std::tie(energies, states) = Hd.symeig(true);
+    at::Tensor energy, states;
+    std::tie(energy, states) = Hd.symeig(true);
     at::Tensor states0 = phaser.alter_states(states, 0);
     double diff0 = ((states - states0.neg()).select(1, 0).norm()
                  +  (states - states0      ).select(1, 1).norm()
@@ -23,8 +23,8 @@ void alter_states() {
               << diff0 << "    "
               << diff1 << '\n';
     at::Tensor Hd4 = at::rand({4, 4}, top);
-    at::Tensor energies4, states4;
-    std::tie(energies4, states4) = Hd4.symeig(true);
+    at::Tensor energy4, states4;
+    std::tie(energy4, states4) = Hd4.symeig(true);
     at::Tensor states40 = states4.clone();
     at::Tensor states40_view = states40.slice(1, 0, 3);
     phaser.alter_states_(states40_view, 0);
@@ -42,15 +42,15 @@ void fix_ob() {
     at::Tensor  Hd = at::rand({3, 3}, top),
                dHd = at::rand({3, 3, 5}, top);
     // Adiabatic representation
-    at::Tensor energies, states;
-    std::tie(energies, states) = Hd.symeig(true);
+    at::Tensor energy, states;
+    std::tie(energy, states) = Hd.symeig(true);
     at::Tensor dH_a = tchem::linalg::UT_sy_U(dHd, states);
     // Composite representation
     at::Tensor H_c, dH_c;
     std::tie(H_c, dH_c) = tchem::chem::composite_representation(Hd, dHd);
     // Composite representation -> adiabatic representation
-    at::Tensor energies_c, states_c;
-    std::tie(energies_c, states_c) = H_c.symeig(true);
+    at::Tensor energy_c, states_c;
+    std::tie(energy_c, states_c) = H_c.symeig(true);
     tchem::linalg::UT_sy_U_(dH_c, states_c);
     at::Tensor dH_ca = phaser.fix_ob(dH_c, dH_a);
     at::Tensor dH_ca_ = dH_c.clone();
@@ -65,17 +65,17 @@ void fix_ob2() {
     at::Tensor  Hd = at::rand({4, 4}),
                dHd = at::rand({4, 4, 5});
     // Adiabatic representation
-    at::Tensor energies, states;
-    std::tie(energies, states) = Hd.symeig(true);
+    at::Tensor energy, states;
+    std::tie(energy, states) = Hd.symeig(true);
     at::Tensor dH_a = tchem::linalg::UT_sy_U(dHd, states);
     // Adiabatic representation -> Composite representation
     at::Tensor H_c, dH_c;
-    std::tie(H_c, dH_c) = tchem::chem::composite_representation(Hd, dHd);
+    std::tie(H_c, dH_c) = tchem::chem::composite_representation(energy, dH_a);
     // Composite representation
     at::Tensor  H_c_ =  Hd.clone(),
                dH_c_ = dHd.clone();
     tchem::chem::composite_representation_(H_c_, dH_c_);
-    srand (time(NULL));
+    srand(time(NULL));
     size_t index = rand() % phaser.possible_phases().size();
     H_c_ = phaser.alter_ob(H_c_, index);
     phaser.alter_ob_(dH_c_, index);
@@ -89,6 +89,11 @@ void fix_ob2() {
     at::Tensor  H_fixed_ =  H_c.clone(),
                dH_fixed_ = dH_c.clone();
     phaser.fix_ob_(H_fixed_, dH_fixed_, H_c_, dH_c_, 1.0);
+    for (size_t i = 0    ; i < Hd.size(0); i++)
+    for (size_t j = i + 1; j < Hd.size(1); j++) {
+         H_fixed_[j][i].zero_();
+        dH_fixed_[j][i].zero_();
+    }
     std::cout << "\nFixing phase of 2 observables: "
               << ((H_fixed - H_fixed_).norm() + (dH_fixed - dH_fixed_).norm()).item<double>() << "    "
               << ((H_fixed - H_c_).norm() + (dH_fixed - dH_c_).norm()).item<double>() << '\n';
