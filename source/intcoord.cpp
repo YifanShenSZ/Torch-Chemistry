@@ -586,7 +586,7 @@ at::Tensor IntCoordSet::Hessian_cart2int(const at::Tensor & r, const at::Tensor 
     at::Tensor cholesky = JJT.cholesky(true);
     at::Tensor inverse = at::cholesky_inverse(cholesky, true);
     at::Tensor AT = inverse.mm(J);
-    at::Tensor A  = A.transpose(0, 1);
+    at::Tensor A  = AT.transpose(0, 1);
     at::Tensor C = at::matmul(AT, at::matmul(K, A));
     at::Tensor intgrad = AT.mv(cartgrad);
     at::Tensor intHess = AT.mm(cartHess.mm(A)) - at::matmul(intgrad, C);

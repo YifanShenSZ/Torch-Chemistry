@@ -8,7 +8,8 @@ namespace tchem { namespace chem {
 
 // Check if two energy levels are closer than the threshold
 bool check_degeneracy(const at::Tensor & energy, const double & thresh) {
-    assert(("energy must be a vector", energy.sizes().size() == 1));
+    if (energy.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::chem::check_degeneracy: energy must be a vector");
     bool deg = false;
     for (size_t i = 0; i < energy.size(0) - 1; i++) {
         if (energy[i + 1].item<double>() - energy[i].item<double>() < thresh) {
@@ -20,14 +21,17 @@ bool check_degeneracy(const at::Tensor & energy, const double & thresh) {
 }
 
 // Transform Hamiltonian (or energy) and gradient to composite representation
-// which is defined by diagonalizing tchem::linalg::sy3matdotmul(dH, dH)
+// which is defined by diagonalizing tchem::linalg::sy3matdotmul(▽H, ▽H)
 // Return composite Hamiltonian and gradient
-// Only read the "upper triangle" (i <= j) of H and dH
+// Only read the "upper triangle" (i <= j) of H and ▽H
 // Only write the "upper triangle" (i <= j) of the output tensor
 std::tuple<at::Tensor, at::Tensor> composite_representation(const at::Tensor & H, const at::Tensor & dH) {
-    assert(("H must be a matrix or an energy vector", H.sizes().size() == 2 || H.sizes().size() == 1));
-    assert(("dH must be a 3rd-order tensor", dH.sizes().size() == 3));
-    assert(("The matrix part of dH must be square", dH.size(0) == dH.size(1)));
+    if (H.sizes().size() != 2 && H.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::chem::composite_representation: H must be a matrix or an energy vector");
+    if (dH.sizes().size() != 3) throw std::invalid_argument(
+    "tchem::chem::composite_representation: ▽H must be a 3rd-order tensor");
+    if (dH.size(0) != dH.size(1)) throw std::invalid_argument(
+    "tchem::chem::composite_representation: The matrix part of ▽H must be square");
     at::Tensor dHdH = tchem::linalg::sy3matdotmul(dH, dH);
     at::Tensor eigval, eigvec;
     std::tie(eigval, eigvec) = dHdH.symeig(true);
@@ -37,11 +41,14 @@ std::tuple<at::Tensor, at::Tensor> composite_representation(const at::Tensor & H
     at::Tensor dH_c = tchem::linalg::UT_sy_U(dH, eigvec);
     return std::make_tuple(H_c, dH_c);
 }
-// Only read/write the "upper triangle" (i <= j) of H and dH
+// Only read/write the "upper triangle" (i <= j) of H and ▽H
 void composite_representation_(at::Tensor & H, at::Tensor & dH) {
-    assert(("H must be a matrix or an energy vector", H.sizes().size() == 2 || H.sizes().size() == 1));
-    assert(("dH must be a 3rd-order tensor", dH.sizes().size() == 3));
-    assert(("The matrix part of dH must be square", dH.size(0) == dH.size(1)));
+    if (H.sizes().size() != 2 && H.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::chem::composite_representation_: H must be a matrix or an energy vector");
+    if (dH.sizes().size() != 3) throw std::invalid_argument(
+    "tchem::chem::composite_representation_: ▽H must be a 3rd-order tensor");
+    if (dH.size(0) != dH.size(1)) throw std::invalid_argument(
+    "tchem::chem::composite_representation_: The matrix part of ▽H must be square");
     at::Tensor dHdH = tchem::linalg::sy3matdotmul(dH, dH);
     at::Tensor eigval, eigvec;
     std::tie(eigval, eigvec) = dHdH.symeig(true);
@@ -54,9 +61,16 @@ void composite_representation_(at::Tensor & H, at::Tensor & dH) {
 // Warning: All elements of S will be read because of torch::mv
 //          Will fix it some day if pytorch introduces "symv" like BLAS
 std::tuple<at::Tensor, at::Tensor> composite_representation(const at::Tensor & H, const at::Tensor & dH, const at::Tensor & S) {
-    assert(("Hamiltonian must be a matrix or an energy vector", H.sizes().size() == 2 || H.sizes().size() == 1));
-    assert(("gradient must be a 3rd-order tensor", dH.sizes().size() == 3));
-    assert(("The matrix part of gradient must be square", dH.size(0) == dH.size(1)));
+    if (H.sizes().size() != 2 && H.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::chem::composite_representation: H must be a matrix or an energy vector");
+    if (dH.sizes().size() != 3) throw std::invalid_argument(
+    "tchem::chem::composite_representation: ▽H must be a 3rd-order tensor");
+    if (dH.size(0) != dH.size(1)) throw std::invalid_argument(
+    "tchem::chem::composite_representation: The matrix part of ▽H must be square");
+    if (S.sizes().size() != 2) throw std::invalid_argument(
+    "tchem::chem::composite_representation: S must be a matrix");
+    if (S.size(0) != S.size(1)) throw std::invalid_argument(
+    "tchem::chem::composite_representation: S must be a square matrix");   
     at::Tensor dHdH = tchem::linalg::sy3matdotmul(dH, dH, S);
     at::Tensor eigval, eigvec;
     std::tie(eigval, eigvec) = dHdH.symeig(true);
@@ -67,9 +81,16 @@ std::tuple<at::Tensor, at::Tensor> composite_representation(const at::Tensor & H
     return std::make_tuple(H_c, dH_c);
 }
 void composite_representation_(at::Tensor & H, at::Tensor & dH, const at::Tensor & S) {
-    assert(("H must be a matrix or an energy vector", H.sizes().size() == 2 || H.sizes().size() == 1));
-    assert(("dH must be a 3rd-order tensor", dH.sizes().size() == 3));
-    assert(("The matrix part of dH must be square", dH.size(0) == dH.size(1)));
+    if (H.sizes().size() != 2 && H.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::chem::composite_representation_: H must be a matrix or an energy vector");
+    if (dH.sizes().size() != 3) throw std::invalid_argument(
+    "tchem::chem::composite_representation_: ▽H must be a 3rd-order tensor");
+    if (dH.size(0) != dH.size(1)) throw std::invalid_argument(
+    "tchem::chem::composite_representation_: The matrix part of ▽H must be square");
+    if (S.sizes().size() != 2) throw std::invalid_argument(
+    "tchem::chem::composite_representation_: S must be a matrix");
+    if (S.size(0) != S.size(1)) throw std::invalid_argument(
+    "tchem::chem::composite_representation_: S must be a square matrix");
     at::Tensor dHdH = tchem::linalg::sy3matdotmul(dH, dH, S);
     at::Tensor eigval, eigvec;
     std::tie(eigval, eigvec) = dHdH.symeig(true);

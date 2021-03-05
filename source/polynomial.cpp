@@ -36,14 +36,16 @@ std::tuple<std::vector<size_t>, std::vector<size_t>> Polynomial::uniques_orders(
 
 // Return the polynomial value P(x)
 at::Tensor Polynomial::operator()(const at::Tensor & x) const {
-    assert(("x must be a vector", x.sizes().size() == 1));
+    if (x.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::polynomial::Polynomial::operator(): x must be a vector");
     at::Tensor value = x.new_full({}, 1.0);
     for (auto & coord : coords_) value = value * x[coord];
     return value;
 }
 // Return dP(x) / dx given x
 at::Tensor Polynomial::gradient(const at::Tensor & x) const {
-    assert(("x must be a vector", x.sizes().size() == 1));
+    if (x.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::polynomial::Polynomial::gradient: x must be a vector");
     std::vector<size_t> uniques, orders;
     std::tie(uniques, orders) = this->uniques_orders();
     at::Tensor grad = x.new_zeros(x.sizes());
@@ -218,16 +220,20 @@ std::vector<at::Tensor> PolynomialSet::views(const at::Tensor & x) const {
 
 // Return the value of each term in {P(x)} given x as a vector
 at::Tensor PolynomialSet::operator()(const at::Tensor & x) const {
-    assert(("x must be a vector", x.sizes().size() == 1));
-    assert(("x must have a same dimension as the coordinates", x.size(0) == dimension_));
+    if (x.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::polynomial::PolynomialSet::operator(): x must be a vector");
+    if (x.size(0) != dimension_) throw std::invalid_argument(
+    "tchem::polynomial::PolynomialSet::operator(): x must have a same dimension as the coordinates");
     at::Tensor value = x.new_empty(polynomials_.size());
     for (size_t i = 0; i < polynomials_.size(); i++) value[i] = polynomials_[i](x);
     return value;
 }
 // Return d{P(x)} / dx given x
 at::Tensor PolynomialSet::Jacobian(const at::Tensor & x) const {
-    assert(("x must be a vector", x.sizes().size() == 1));
-    assert(("x must have a same dimension as the coordinates", x.size(0) == dimension_));
+    if (x.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::polynomial::PolynomialSet::Jacobian: x must be a vector");
+    if (x.size(0) != dimension_) throw std::invalid_argument(
+    "tchem::polynomial::PolynomialSet::Jacobian: x must have a same dimension as the coordinates");
     at::Tensor J = x.new_empty({(int64_t)polynomials_.size(), x.size(0)});
     for (size_t i = 0; i < polynomials_.size(); i++) J[i] = polynomials_[i].gradient(x);
     return J;

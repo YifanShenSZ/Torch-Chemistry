@@ -4,7 +4,8 @@ namespace tchem {
 
 Phaser::Phaser() {}
 Phaser::Phaser(const size_t & _NStates) : NStates_(_NStates) {
-    assert(("There must be at least 2 states to have 'phase difference'", NStates_ > 1));
+    if (_NStates < 2) throw std::invalid_argument(
+    "tchem::Phaser::Phaser: There must be at least 2 states to have 'phase difference'");
     possible_phases_.resize((1 << (NStates_ - 1)) - 1);
     for (std::vector<bool> & phase : possible_phases_) phase.resize(NStates_ - 1);
     std::vector<bool> & phase = possible_phases_[0];
@@ -29,9 +30,11 @@ size_t Phaser::NStates() const {return NStates_;}
 std::vector<std::vector<bool>> Phaser::possible_phases() const {return possible_phases_;}
 
 // Alter the phase of eigenstates `U` to the `index`-th possible phase
-at::Tensor Phaser::alter_states (const at::Tensor & U, const size_t & index) const {
-    assert(("U must be a matrix", U.sizes().size() == 2));
-    assert(("The number of columns must be the number of electronic states", U.size(1) == NStates_));
+at::Tensor Phaser::alter_states(const at::Tensor & U, const size_t & index) const {
+    if (U.sizes().size() != 2) throw std::invalid_argument(
+    "tchem::Phaser::alter_states: U must be a matrix");
+    if (U.size(1) != NStates_) throw std::invalid_argument(
+    "tchem::Phaser::alter_states: The number of columns must be the number of electronic states");
     if (index >= possible_phases_.size()) return U;
     at::Tensor result = U.clone().transpose_(0, 1);
     const std::vector<bool> & phase = possible_phases_[index];
@@ -40,9 +43,11 @@ at::Tensor Phaser::alter_states (const at::Tensor & U, const size_t & index) con
     result.transpose_(0, 1);
     return result;
 }
-void       Phaser::alter_states_(      at::Tensor & U, const size_t & index) const {
-    assert(("U must be a matrix", U.sizes().size() == 2));
-    assert(("The number of columns must be the number of electronic states", U.size(1) == NStates_));
+void Phaser::alter_states_(at::Tensor & U, const size_t & index) const {
+    if (U.sizes().size() != 2) throw std::invalid_argument(
+    "tchem::Phaser::alter_states_: U must be a matrix");
+    if (U.size(1) != NStates_) throw std::invalid_argument(
+    "tchem::Phaser::alter_states_: The number of columns must be the number of electronic states");
     if (index >= possible_phases_.size()) return;
     U.transpose_(0, 1);
     const std::vector<bool> & phase = possible_phases_[index];
@@ -50,11 +55,14 @@ void       Phaser::alter_states_(      at::Tensor & U, const size_t & index) con
     for (size_t i = 0; i < NStates_ - 1; i++) if (phase[i]) U[i].neg_();
     U.transpose_(0, 1);
 }
-// Alter the phase of M to the index-th possible phase
-at::Tensor Phaser::alter_ob (const at::Tensor & M, const size_t & index) const {
-    assert(("M must be a matrix or higher order tensor", M.sizes().size() >= 2));
-    assert(("The matrix part of M must be square", M.size(0) == M.size(1)));
-    assert(("The matrix dimension must be the number of electronic states", M.size(0) == NStates_));
+// Alter the phase of observable `M` to the `index`-th possible phase
+at::Tensor Phaser::alter_ob(const at::Tensor & M, const size_t & index) const {
+    if (M.sizes().size() < 2) throw std::invalid_argument(
+    "tchem::Phaser::alter_ob: M must be a matrix or higher order tensor");
+    if (M.size(0) != M.size(1)) throw std::invalid_argument(
+    "tchem::Phaser::alter_ob: The matrix part of M must be square");
+    if (M.size(0) != NStates_) throw std::invalid_argument(
+    "tchem::Phaser::alter_ob: The matrix dimension must be the number of electronic states");
     if (index >= possible_phases_.size()) return M;
     at::Tensor result = M.new_empty(M.sizes());
     const std::vector<bool> & phase = possible_phases_[index];
@@ -71,10 +79,13 @@ at::Tensor Phaser::alter_ob (const at::Tensor & M, const size_t & index) const {
     }
     return result;
 }
-void       Phaser::alter_ob_(      at::Tensor & M, const size_t & index) const {
-    assert(("M must be a matrix or higher order tensor", M.sizes().size() >= 2));
-    assert(("The matrix part of M must be square", M.size(0) == M.size(1)));
-    assert(("The matrix dimension must be the number of electronic states", M.size(0) == NStates_));
+void Phaser::alter_ob_(at::Tensor & M, const size_t & index) const {
+    if (M.sizes().size() < 2) throw std::invalid_argument(
+    "tchem::Phaser::alter_ob_: M must be a matrix or higher order tensor");
+    if (M.size(0) != M.size(1)) throw std::invalid_argument(
+    "tchem::Phaser::alter_ob_: The matrix part of M must be square");
+    if (M.size(0) != NStates_) throw std::invalid_argument(
+    "tchem::Phaser::alter_ob_: The matrix dimension must be the number of electronic states");
     if (index >= possible_phases_.size()) return;
     const std::vector<bool> & phase = possible_phases_[index];
     for (size_t i = 0; i < NStates_ - 1; i++) {
@@ -90,10 +101,14 @@ void       Phaser::alter_ob_(      at::Tensor & M, const size_t & index) const {
 // Return the index of the possible phase who minimizes || M - ref ||_F^2
 // Return -1 if no need to change phase
 size_t Phaser::iphase_min(const at::Tensor & M, const at::Tensor & ref) const {
-    assert(("M must be a matrix or higher order tensor", M.sizes().size() >= 2));
-    assert(("The matrix part of M must be square", M.size(0) == M.size(1)));
-    assert(("The matrix dimension must be the number of electronic states", M.size(0) == NStates_));
-    assert(("M and ref must share a same shape", at::tensor(M.sizes()).equal(at::tensor(ref.sizes()))));
+    if (M.sizes().size() < 2) throw std::invalid_argument(
+    "tchem::Phaser::alter_ob: M must be a matrix or higher order tensor");
+    if (M.size(0) != M.size(1)) throw std::invalid_argument(
+    "tchem::Phaser::alter_ob: The matrix part of M must be square");
+    if (M.size(0) != NStates_) throw std::invalid_argument(
+    "tchem::Phaser::alter_ob: The matrix dimension must be the number of electronic states");
+    if (! at::tensor(M.sizes()).equal(at::tensor(ref.sizes()))) throw std::invalid_argument(
+    "tchem::Phaser::alter_ob: M & ref must share a same shape");
     // Calculate the initial difference of each matrix element
     at::Tensor diff_mat = (M - ref).pow_(2);
     if (M.sizes().size() == 3) {
@@ -130,14 +145,20 @@ size_t Phaser::iphase_min(const at::Tensor & M, const at::Tensor & ref) const {
 // Return the index of the possible phase who minimizes weight * || M1 - ref1 ||_F^2 + || M2 - ref2 ||_F^2
 // Return -1 if no need to change phase
 size_t Phaser::iphase_min(const at::Tensor & M1, const at::Tensor & M2, const at::Tensor & ref1, const at::Tensor & ref2, const double & weight) const {
-    assert(("M1 must be a matrix or higher order tensor", M1.sizes().size() >= 2));
-    assert(("The matrix part of M1 must be square", M1.size(0) == M1.size(1)));
-    assert(("M2 must be a matrix or higher order tensor", M2.sizes().size() >= 2));
-    assert(("The matrix part of M2 must be square", M2.size(0) == M2.size(1)));
-    assert(("M1 and M2 must share a same matrix dimension", M1.size(0) == M2.size(0)));
-    assert(("The matrix dimension must be the number of electronic states", M1.size(0) == NStates_));
-    assert(("M1 and ref1 must share a same shape", at::tensor(M1.sizes()).equal(at::tensor(ref1.sizes()))));
-    assert(("M2 and ref2 must share a same shape", at::tensor(M2.sizes()).equal(at::tensor(ref2.sizes()))));
+    if (M1.sizes().size() < 2) throw std::invalid_argument(
+    "tchem::Phaser::alter_ob: M1 must be a matrix or higher order tensor");
+    if (M1.size(0) != M1.size(1)) throw std::invalid_argument(
+    "tchem::Phaser::alter_ob: The matrix part of M1 must be square");
+    if (M2.sizes().size() < 2) throw std::invalid_argument(
+    "tchem::Phaser::alter_ob: M2 must be a matrix or higher order tensor");
+    if (M2.size(0) != M2.size(1)) throw std::invalid_argument(
+    "tchem::Phaser::alter_ob: The matrix part of M2 must be square");
+    if (M1.size(0) != NStates_ || M2.size(0) != NStates_) throw std::invalid_argument(
+    "tchem::Phaser::alter_ob: The matrix dimension must be the number of electronic states");
+    if (! (at::tensor(M1.sizes()).equal(at::tensor(ref1.sizes()))
+        && at::tensor(M2.sizes()).equal(at::tensor(ref2.sizes())))
+    ) throw std::invalid_argument(
+    "tchem::Phaser::alter_ob: M & ref must share a same shape");
     // Calculate the initial difference of each matrix element
     at::Tensor diff_mat1 = (M1 - ref1).pow_(2);
     if (M1.sizes().size() == 3) {
@@ -191,17 +212,17 @@ at::Tensor Phaser::fix_ob(const at::Tensor & M, const at::Tensor & ref) const {
     size_t iphase = iphase_min(M, ref);
     return alter_ob(M, iphase);
 }
-void       Phaser::fix_ob_(     at::Tensor & M, const at::Tensor & ref) const {
+void Phaser::fix_ob_(at::Tensor & M, const at::Tensor & ref) const {
     size_t iphase = iphase_min(M, ref);
     alter_ob_(M, iphase);
 }
 // Fix observables `M1` and `M2` by minimizing weight * || M1 - ref1 ||_F^2 + || M2 - ref2 ||_F^2
-std::tuple<at::Tensor, at::Tensor> Phaser::fix_ob (const at::Tensor & M1, const at::Tensor & M2,
+std::tuple<at::Tensor, at::Tensor> Phaser::fix_ob(const at::Tensor & M1, const at::Tensor & M2,
 const at::Tensor & ref1, const at::Tensor & ref2, const double & weight) const {
     size_t iphase = iphase_min(M1, M2, ref1, ref2, weight);
     return std::make_tuple(alter_ob(M1, iphase), alter_ob(M2, iphase));
 }
-void                               Phaser::fix_ob_(      at::Tensor & M1,       at::Tensor & M2,
+void Phaser::fix_ob_(at::Tensor & M1, at::Tensor & M2,
 const at::Tensor & ref1, const at::Tensor & ref2, const double & weight) const {
     size_t iphase = iphase_min(M1, M2, ref1, ref2, weight);
     alter_ob_(M1, iphase);

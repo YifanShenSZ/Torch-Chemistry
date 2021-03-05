@@ -11,10 +11,14 @@ namespace tchem {
 Gaussian::Gaussian() {}
 // miu_ & var_ are deep copies of _miu & _var
 Gaussian::Gaussian(const at::Tensor & _miu, const at::Tensor & _var) {
-    assert(("miu must be a vector", _miu.sizes().size() == 1));
-    assert(("var must be a matrix", _var.sizes().size() == 2));
-    assert(("var must be a square matrix", _var.size(0) == _var.size(1)));
-    assert(("miu and var must have same dimension", _miu.size(0) == _var.size(0)));
+    if (_miu.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::Gaussian::Gaussian: miu must be a vector");
+    if (_var.sizes().size() != 2) throw std::invalid_argument(
+    "tchem::Gaussian::Gaussian: var must be a matrix");
+    if (_var.size(0) != _var.size(1)) throw std::invalid_argument(
+    "tchem::Gaussian::Gaussian: var must be a square matrix");
+    if (_miu.size(0) != _var.size(0)) throw std::invalid_argument(
+    "tchem::Gaussian::Gaussian: miu & var must share a same dimension");
     miu_ = _miu.clone();
     var_ = _var.clone();
 }
@@ -26,8 +30,10 @@ bool Gaussian::random_ready() const {return random_ready_;}
 
 // g(r; miu, var) = (2pi)^(-dim/2) |var|^(-1/2) exp[-1/2 (r-miu)^T.var^-1.(r-miu)]
 at::Tensor Gaussian::operator()(const at::Tensor & r) const {
-    assert(("r must be a vector", r.sizes().size() == 1));
-    assert(("r and miu must have same dimension", r.size(0) == miu_.size(0)));
+    if (r.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::Gaussian::operator(): r must be a vector");
+    if (r.size(0) != miu_.size(0)) throw std::invalid_argument(
+    "tchem::Gaussian::operator(): r & miu must share a same dimension");
     at::Tensor cholesky_var = var_.cholesky(true);
     at::Tensor inv_var = at::cholesky_inverse(cholesky_var, true);
     at::Tensor sqrtdet_var = cholesky_var.diag().prod();
@@ -130,7 +136,8 @@ void Gaussian::rand_init() {
 }
 // Return a gaussian random tensor
 at::Tensor Gaussian::rand(std::default_random_engine & generator) {
-    assert(("Must initialize before generating random tensor", random_ready_));
+    if (! random_ready_) throw std::invalid_argument(
+    "tchem::Gaussian::rand: Must initialize before generating random tensor");
     at::Tensor rand = miu_.new_empty(miu_.sizes());
     // Generate a random vector in the miu-centred && `var`-diagonalized (normal) coordinate
     for (size_t i = 0; i < rand.size(0); i++)

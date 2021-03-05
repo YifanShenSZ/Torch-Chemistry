@@ -57,7 +57,9 @@ std::tuple<std::vector<std::pair<size_t, size_t>>, std::vector<size_t>> SAP::uni
 
 // Return the symmetry adapted polynomial value SAP(x) given x
 at::Tensor SAP::operator()(const std::vector<at::Tensor> & xs) const {
-    for (const at::Tensor & x : xs) assert(("x must be a vector", x.sizes().size() == 1));
+    for (const at::Tensor & x : xs)
+    if (x.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::polynomial::SAP::operator(): x must be a vector");
     at::Tensor value = xs[0].new_full({}, 1.0);
     for (size_t i = 0; i < coords_.size(); i++)
     value = value * xs[coords_[i].first][coords_[i].second];
@@ -65,7 +67,9 @@ at::Tensor SAP::operator()(const std::vector<at::Tensor> & xs) const {
 }
 // Return dP(x) / dx given x
 std::vector<at::Tensor> SAP::gradient(const std::vector<at::Tensor> & xs) const {
-    for (const at::Tensor & x : xs) assert(("x must be a vector", x.sizes().size() == 1));
+    for (const at::Tensor & x : xs)
+    if (x.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::polynomial::SAP::gradient: x must be a vector");
     std::vector<std::pair<size_t, size_t>> uniques;
     std::vector<size_t> orders;
     std::tie(uniques, orders) = this->uniques_orders();
@@ -112,18 +116,28 @@ void SAPSet::pretty_print(std::ostream & stream) const {
 
 // Return the value of each term in {P(x)} as a vector of vectors
 at::Tensor SAPSet::operator()(const std::vector<at::Tensor> & xs) const {
-    for (const at::Tensor & x : xs) assert(("x must be a vector", x.sizes().size() == 1));
-    assert(("x must share a same number of irreducibles as the coordinate system", xs.size() == dimensions_.size()));
-    for (size_t i = 0; i < xs.size(); i++) assert(("x must have a same dimension as the coordinates", xs[i].size(0) == dimensions_[i]));
+    for (const at::Tensor & x : xs)
+    if (x.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::polynomial::SAP::operator(): x must be a vector");
+    if (xs.size() != dimensions_.size()) throw std::invalid_argument(
+    "tchem::polynomial::SAP::operator(): x must share a same number of irreducibles as the coordinate system");
+    for (size_t i = 0; i < xs.size(); i++)
+    if (xs[i].size(0) != dimensions_[i]) throw std::invalid_argument(
+    "tchem::polynomial::SAP::operator(): x must have a same dimension as the coordinates");
     at::Tensor y = xs[0].new_empty(SAPs_.size());
     for (size_t i = 0; i < SAPs_.size(); i++) y[i] = SAPs_[i](xs);
     return y;
 }
 // Return d{P(x)} / dx given x
 std::vector<at::Tensor> SAPSet::Jacobian(const std::vector<at::Tensor> & xs) const {
-    for (const at::Tensor & x : xs) assert(("x must be a vector", x.sizes().size() == 1));
-    assert(("x must share a same number of irreducibles as the coordinate system", xs.size() == dimensions_.size()));
-    for (size_t i = 0; i < xs.size(); i++) assert(("x must have a same dimension as the coordinates", xs[i].size(0) == dimensions_[i]));
+    for (const at::Tensor & x : xs)
+    if (x.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::polynomial::SAP::Jacobian: x must be a vector");
+    if (xs.size() != dimensions_.size()) throw std::invalid_argument(
+    "tchem::polynomial::SAP::Jacobian: x must share a same number of irreducibles as the coordinate system");
+    for (size_t i = 0; i < xs.size(); i++)
+    if (xs[i].size(0) != dimensions_[i]) throw std::invalid_argument(
+    "tchem::polynomial::SAP::Jacobian: x must have a same dimension as the coordinates");
     std::vector<at::Tensor> Js(xs.size());
     for (size_t i = 0; i < xs.size(); i++) Js[i] = xs[i].new_empty({(int64_t)SAPs_.size(), xs[i].size(0)});
     for (size_t i = 0; i < SAPs_.size(); i++) {

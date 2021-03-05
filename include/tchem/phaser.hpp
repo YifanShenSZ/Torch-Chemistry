@@ -30,11 +30,11 @@ class Phaser {
         std::vector<std::vector<bool>> possible_phases() const;
 
         // Alter the phase of eigenstates `U` to the `index`-th possible phase
-        at::Tensor alter_states (const at::Tensor & U, const size_t & index) const;
-        void       alter_states_(      at::Tensor & U, const size_t & index) const;
+        at::Tensor alter_states(const at::Tensor & U, const size_t & index) const;
+        void alter_states_(at::Tensor & U, const size_t & index) const;
         // Alter the phase of observable `M` to the `index`-th possible phase
-        at::Tensor alter_ob (const at::Tensor & M, const size_t & index) const;
-        void       alter_ob_(      at::Tensor & M, const size_t & index) const;
+        at::Tensor alter_ob(const at::Tensor & M, const size_t & index) const;
+        void alter_ob_(at::Tensor & M, const size_t & index) const;
 
         // Return the index of the possible phase who minimizes || M - ref ||_F^2
         // Return -1 if no need to change phase
@@ -45,13 +45,13 @@ class Phaser {
                           const at::Tensor & ref1, const at::Tensor & ref2, const double & weight) const;
 
         // Fix observable `M` by minimizing || M - ref ||_F^2
-        at::Tensor fix_ob (const at::Tensor & M, const at::Tensor & ref) const;
-        void       fix_ob_(      at::Tensor & M, const at::Tensor & ref) const;
+        at::Tensor fix_ob(const at::Tensor & M, const at::Tensor & ref) const;
+        void fix_ob_(at::Tensor & M, const at::Tensor & ref) const;
         // Fix observables `M1` and `M2` by minimizing weight * || M1 - ref1 ||_F^2 + || M2 - ref2 ||_F^2
-        std::tuple<at::Tensor, at::Tensor> fix_ob (const at::Tensor & M1, const at::Tensor & M2,
-                                                   const at::Tensor & ref1, const at::Tensor & ref2, const double & weight) const;
-        void                               fix_ob_(      at::Tensor & M1,       at::Tensor & M2,
-                                                   const at::Tensor & ref1, const at::Tensor & ref2, const double & weight) const;
+        std::tuple<at::Tensor, at::Tensor> fix_ob(const at::Tensor & M1, const at::Tensor & M2,
+                                                  const at::Tensor & ref1, const at::Tensor & ref2, const double & weight) const;
+        void fix_ob_(at::Tensor & M1, at::Tensor & M2,
+                     const at::Tensor & ref1, const at::Tensor & ref2, const double & weight) const;
 };
 
 } // namespace tchem
