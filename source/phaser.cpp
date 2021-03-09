@@ -4,8 +4,8 @@ namespace tchem {
 
 Phaser::Phaser() {}
 Phaser::Phaser(const size_t & _NStates) : NStates_(_NStates) {
-    if (_NStates < 2) throw std::invalid_argument(
-    "tchem::Phaser::Phaser: There must be at least 2 states to have 'phase difference'");
+    // There must be at least 2 states to have 'phase difference'
+    if (_NStates < 2) return;
     possible_phases_.resize((1 << (NStates_ - 1)) - 1);
     for (std::vector<bool> & phase : possible_phases_) phase.resize(NStates_ - 1);
     std::vector<bool> & phase = possible_phases_[0];
