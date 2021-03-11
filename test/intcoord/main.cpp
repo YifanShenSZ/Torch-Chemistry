@@ -3,12 +3,9 @@
 #include <tchem/utility.hpp>
 #include <tchem/intcoord.hpp>
 
-int main() {
-    std::cout << "This is a test program on Torch-Chemistry module 'intcoord'\n"
-              << "Correct routines should print close to 0\n";
+c10::TensorOptions top = at::TensorOptions().dtype(torch::kFloat64);
 
-    c10::TensorOptions top = at::TensorOptions().dtype(torch::kFloat64);
-
+void q_J_K() {
     at::Tensor intgeom = tchem::utility::read_vector("intgeom");
     intgeom.slice(0, 0 , 7 ) *= 1.8897261339212517;
     intgeom.slice(0, 11, 16) *= 1.8897261339212517;
@@ -63,7 +60,7 @@ int main() {
     at::Tensor K_numerical = K2_col.new_empty(K2_col.sizes());
     for (size_t i = 0; i < r_col.size(0); i++) K_numerical.select(1, i).copy_((plus[i] - minus[i]) / 2.0 / dr);
     std::cout << "\nFinite difference vs analytical 2nd order Jacobian: "
-              << (K2_col - K_numerical).norm().item<double>() << '\n';
+              << (K2_col - K_numerical).abs_().max().item<double>() << '\n';
 
     CL::chem::xyz<double> geom_def("slow-1.5.xyz", true);
     std::vector<double> coords_def = geom_def.coords();
@@ -73,6 +70,41 @@ int main() {
     at::Tensor q_def, J_def;
     std::tie(q_def, J_def) = set_def.compute_IC_J(r_def);
     std::cout << "\nDefault internal coordinate and Jacobian: "
-              << (q1_col - q_def).norm().item<double>()
-               + (J1_col - J_def).norm().item<double>() << '\n';
+              << (q1_col - q_def).norm().item<double>() << ' '
+              << (J1_col - J_def).norm().item<double>() << '\n';
+}
+
+void grad_hess() {
+    tchem::IC::IntCoordSet set("whatever", "whatever");
+
+    CL::chem::xyz<double> origin("min-B1.xyz", true);
+    std::vector<double> origin_coords = origin.coords();
+    at::Tensor r_origin = at::from_blob(origin_coords.data(), origin_coords.size(), top);
+
+    CL::chem::xyz<double> geom("slow-1.5.xyz", true);
+    std::vector<double> coords = geom.coords();
+    at::Tensor r = at::from_blob(coords.data(), coords.size(), top);
+
+    at::Tensor q = set(r) - set(r_origin);
+    at::Tensor  intgrad = q.clone(),
+                intHess = at::eye(36, top);
+    at::Tensor cartgrad = set.gradient_int2cart(r, intgrad);
+    at::Tensor cartHess = set.Hessian_int2cart(r, intgrad, intHess);
+
+    at::Tensor  intgrad1 = set.gradient_cart2int(r, cartgrad),
+                intHess1 = set.Hessian_cart2int(r, cartgrad, cartHess);
+    at::Tensor cartgrad1 = set.gradient_int2cart(r, intgrad1),
+               cartHess1 = set.Hessian_int2cart(r, intgrad1, intHess1);
+    std::cout << "\nGradient and Hessian transformations: "
+              << ( intgrad -  intgrad1).norm().item<double>() << ' '
+              << ( intHess -  intHess1).norm().item<double>() << ' '
+              << (cartgrad - cartgrad1).norm().item<double>() << ' '
+              << (cartHess - cartHess1).norm().item<double>() << '\n';
+}
+
+int main() {
+    std::cout << "This is a test program on Torch-Chemistry module 'intcoord'\n"
+              << "Correct routines should print close to 0\n";
+    q_J_K();
+    grad_hess();
 }

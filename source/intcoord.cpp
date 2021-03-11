@@ -589,6 +589,7 @@ at::Tensor IntCoordSet::Hessian_cart2int(const at::Tensor & r, const at::Tensor 
     at::Tensor A  = AT.transpose(0, 1);
     at::Tensor C = at::matmul(AT, at::matmul(K, A));
     at::Tensor intgrad = AT.mv(cartgrad);
+    C.transpose_(0, -2); // move the contraction dimension to -2 for batched matmul
     at::Tensor intHess = AT.mm(cartHess.mm(A)) - at::matmul(intgrad, C);
     return intHess;
 }
@@ -608,6 +609,7 @@ at::Tensor IntCoordSet::Hessian_int2cart(const at::Tensor & r, const at::Tensor 
     std::tie(q, J, K) = this->compute_IC_J_K(r);
     if (intgrad.size(0) != q.size(0)) throw std::invalid_argument(
     "tchem::IC::IntCoordSet::Hessian_int2cart: Internal coordinate gradient must share a same dimension with q");
+    K.transpose_(0, -2); // move the contraction dimension to -2 for batched matmul
     at::Tensor cartHess = J.transpose(0, 1).mm(intHess.mm(J)) + at::matmul(intgrad, K);
     return cartHess;
 }
