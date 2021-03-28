@@ -35,3 +35,6 @@ lib/
 
 # Back up
 BAK/
+
+# Reading materials
+*.pdf

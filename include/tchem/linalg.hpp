@@ -42,7 +42,7 @@ at::Tensor sy3matdotmul(const at::Tensor & A, const at::Tensor & B);
 at::Tensor ge3matdotmul(const at::Tensor & A, const at::Tensor & B, const at::Tensor & S);
 at::Tensor sy3matdotmul(const at::Tensor & A, const at::Tensor & B, const at::Tensor & S);
 
-// Matrix dot multiplication for 4rh-order tensor A and 3rd-order tensor B
+// Matrix dot multiplication for 4th-order tensor A and 3rd-order tensor B
 // A.size(-1) == B.size(-1), A.size(1) == B.size(0)
 // result_ij = A_ik . B_kj
 at::Tensor ge4matmvmulge3(const at::Tensor & A, const at::Tensor & B);

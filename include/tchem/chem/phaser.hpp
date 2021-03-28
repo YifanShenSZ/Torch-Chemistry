@@ -3,7 +3,7 @@
 
 #include <torch/torch.h>
 
-namespace tchem {
+namespace tchem { namespace chem {
 
 // Observable matrix off-diagonal elements do not have determinate phase
 // because the basis eigenstates have indeterminate phase
@@ -54,6 +54,7 @@ class Phaser {
                      const at::Tensor & ref1, const at::Tensor & ref2, const double & weight) const;
 };
 
+} // namespace chem
 } // namespace tchem
 
 #endif

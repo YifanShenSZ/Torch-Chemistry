@@ -3,6 +3,9 @@
 
 #include <torch/torch.h>
 
+#include <tchem/chem/phaser.hpp>
+#include <tchem/chem/normal_mode.hpp>
+
 namespace tchem { namespace chem {
 
 // Check if two energy levels are closer than the threshold

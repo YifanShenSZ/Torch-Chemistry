@@ -3,9 +3,11 @@ Converting Cartesian coordinate to internal coordinate
 
 An interal coordinate is a linear combination of several translationally and rotationally invariant displacements, but only displacements under same unit can be combined, i.e. you must treat lengthes and angles separately, unless appropriate metric tensor is applied
 
-The Jacobian of internal coordinate over Cartesian coordinate can be calculated directly instead of through backward propagation. In fact, direct Jacobian is always recommended because:
-* A direct calculation is more efficient and stable than backward propagation
+The Jacobian of internal coordinate over Cartesian coordinate can be calculated analytically instead of through backward propagation. In fact, analytical Jacobian is always recommended because:
+* A analytical calculation is more efficient and stable than backward propagation
 * In few cases (e.g. acos a number > 1, possible when an angle = 0 or pi and numerical fluctutation arises) the internal coordinate cannot be backward propagated
+
+~~Although in principle the 2nd order Jacobian also has analytical form, since a backward propagation from the Jacobian is always feasible, I'm too lazy to implement it~~ :sleeping:
 
 The supported internal coordinates are:
 * bond stretching
@@ -13,7 +15,7 @@ The supported internal coordinates are:
 * dihedral angle
 * out of plane angle
 
-## Why internal coordinate
+## Why internal coordinate?
 Cartesian coordinate is a convenient but inappropriate representation for molecular properties, who are invariant under translation and rotation. As a result, internal coordinate is adopted to remove the redundancy
 
 ## Usage

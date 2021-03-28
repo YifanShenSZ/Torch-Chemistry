@@ -34,7 +34,7 @@ size_t SAP::order() const {return coords_.size();}
 void SAP::pretty_print(std::ostream & stream) const {
     stream << coords_.size() << "    ";
     for (size_t i = 0; i < coords_.size(); i++)
-    stream << coords_[i].first << ',' << coords_[i].second << "    ";
+    stream << coords_[i].first + 1 << ',' << coords_[i].second + 1 << "    ";
     stream << '\n';
 }
 
@@ -91,6 +91,87 @@ std::vector<at::Tensor> SAP::gradient(const std::vector<at::Tensor> & xs) const 
 
 
 
+// Construct `orders_` based on constructed `SAP_`
+void SAPSet::construct_orders_() {
+    assert(("`SAPs_` must have been constructed", ! SAPs_.empty()));
+    // Find out the highest order among the SAPs
+    size_t order_ = 0;
+    for (const SAP & sap : SAPs_)
+    if (sap.order() > order_)
+    order_ = sap.order();
+    // Construct a view to `SAPs_` grouped by order
+    orders_.clear();
+    orders_.resize(order_ + 1);
+    for (const SAP & sap : SAPs_)
+    orders_[sap.order()].push_back(& sap);
+}
+
+// Given a set of coordiantes constituting a SAP,
+// try to locate its index within [lower, upper]
+void SAPSet::bisect_(const std::vector<std::pair<size_t, size_t>> coords, const size_t & lower, const size_t & upper, int64_t & index) const {
+    // Final round
+    if (upper - lower == 1) {
+        // Try lower
+        bool match = true;
+        std::vector<std::pair<size_t, size_t>> ref_coords = SAPs_[lower].coords();
+        for (size_t i = 0; i < coords.size(); i++)
+        if (coords[i] != ref_coords[i]) {
+            match = false;
+            break;
+        }
+        if (match) {
+            index = lower;
+            return;
+        }
+        // Try upper
+        match = true;
+        ref_coords = SAPs_[upper].coords();
+        for (size_t i = 0; i < coords.size(); i++)
+        if (coords[i] != ref_coords[i]) {
+            match = false;
+            break;
+        }
+        if (match) {
+            index = upper;
+            return;
+        }
+        // Neither
+        index = -1;
+    }
+    // Normal bisection process
+    else {
+        // Try bisection
+        size_t bisection = (lower + upper) / 2;
+        bool match = true;
+        std::vector<std::pair<size_t, size_t>> ref_coords = SAPs_[bisection].coords();
+        size_t i;
+        for (i = 0; i < coords.size(); i++)
+        if (coords[i] != ref_coords[i]) {
+            match = false;
+            break;
+        }
+        if (match) {
+            index = bisection;
+            return;
+        }
+        // Next range
+        if (coords[i] > ref_coords[i]) bisect_(coords, bisection, upper, index);
+        else                           bisect_(coords, lower, bisection, index);
+    }
+}
+// Given a set of coordiantes constituting a SAP,
+// find its index in this SAP set
+// If not found, return -1
+int64_t SAPSet::index_SAP_(const std::vector<std::pair<size_t, size_t>> coords) const {
+    size_t order = coords.size();
+    size_t lower = 0;
+    for (size_t i = 0; i < order; i++) lower += orders_[i].size();
+    size_t upper = lower + orders_[order].size() - 1;
+    int64_t index;
+    bisect_(coords, lower, upper, index);
+    return index;
+}
+
 SAPSet::SAPSet() {}
 // `sapoly_file` contains one SAP per line
 SAPSet::SAPSet(const std::string & sapoly_file, const std::vector<size_t> & _dimensions)
@@ -105,6 +186,7 @@ SAPSet::SAPSet(const std::string & sapoly_file, const std::vector<size_t> & _dim
         SAPs_.push_back(SAP(strs));
     }
     ifs.close();
+    this->construct_orders_();
 }
 SAPSet::~SAPSet() {}
 
@@ -146,6 +228,29 @@ std::vector<at::Tensor> SAPSet::Jacobian(const std::vector<at::Tensor> & xs) con
     }
     return Js;
 }
+
+// Consider coordinate rotation y = U^T . x
+// so the SAP set transforms as {SAP(x)} = T . {SAP(y)}
+// Assuming:
+//     1. All 0th and 1st order terms are present
+//     2. SAP.coords are sorted
+// Return rotation matrix T
+at::Tensor SAPSet::rotation(const std::vector<at::Tensor> & U, const SAPSet & y_set) const {
+    
+}
+// Assuming terms are the same under rotation
+at::Tensor SAPSet::rotation(const std::vector<at::Tensor> & U) const {return rotation(U, * this);}
+
+// Consider coordinate translation y = x - a
+// so the SAP set transforms as {SAP(x)} = T . {SAP(y)}
+// Assuming:
+//     1. All 0th and 1st order terms are present
+// Return transformation matrix T
+at::Tensor SAPSet::translation(const std::vector<at::Tensor> & a, const SAPSet & q_set) const {
+    
+}
+// Assuming terms are the same under translation
+at::Tensor SAPSet::translation(const std::vector<at::Tensor> & a) const {return translation(a, * this);}
 
 } // namespace polynomial
 } // namespace tchem

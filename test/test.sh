@@ -1,5 +1,6 @@
-for directory in linalg polynomial SApolynomial phaser \
-intcoord SASintcoord gaussian chemistry; do
+for directory in linalg polynomial SApolynomial \
+gaussian intcoord SASintcoord \
+chemistry phaser normal_mode; do
     echo
     echo "Entre "$directory
     cd $directory/build

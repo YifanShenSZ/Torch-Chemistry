@@ -1,5 +1,6 @@
 #include <torch/torch.h>
 
+#include <CppLibrary/utility.hpp>
 #include <CppLibrary/math.hpp>
 
 #include <tchem/polynomial.hpp>
@@ -34,8 +35,8 @@ at::Tensor Gaussian::operator()(const at::Tensor & r) const {
     "tchem::Gaussian::operator(): r must be a vector");
     if (r.size(0) != miu_.size(0)) throw std::invalid_argument(
     "tchem::Gaussian::operator(): r & miu must share a same dimension");
-    at::Tensor cholesky_var = var_.cholesky(true);
-    at::Tensor inv_var = at::cholesky_inverse(cholesky_var, true);
+    at::Tensor cholesky_var = var_.cholesky();
+    at::Tensor inv_var = at::cholesky_inverse(cholesky_var);
     at::Tensor sqrtdet_var = cholesky_var.diag().prod();
     at::Tensor r_disp = r - miu_;
     at::Tensor value = pow(6.283185307179586, -r.size(0) / 2.0) / sqrtdet_var
@@ -48,17 +49,17 @@ std::tuple<at::Tensor, Gaussian> Gaussian::operator*(const Gaussian & g2) const 
     // Prepare
     at::Tensor miu1 =    miu(), var1 =    var(),
                miu2 = g2.miu(), var2 = g2.var();
-    at::Tensor cholesky_var1 = var1.cholesky(true),
-               cholesky_var2 = var2.cholesky(true);
+    at::Tensor cholesky_var1 = var1.cholesky(),
+               cholesky_var2 = var2.cholesky();
     at::Tensor sqrtdet_var1 = cholesky_var1.diag().prod(),
                sqrtdet_var2 = cholesky_var2.diag().prod(),
-               inv_var1 = at::cholesky_inverse(cholesky_var1, true),
-               inv_var2 = at::cholesky_inverse(cholesky_var2, true);
+               inv_var1 = at::cholesky_inverse(cholesky_var1),
+               inv_var2 = at::cholesky_inverse(cholesky_var2);
     // var3
     at::Tensor inv_var3 = inv_var1 + inv_var2;
-    at::Tensor cholesky_inv_var3 = inv_var3.cholesky(true);
+    at::Tensor cholesky_inv_var3 = inv_var3.cholesky();
     at::Tensor sqrtdet_inv_var3 = cholesky_inv_var3.diag().prod(),
-               var3 = at::cholesky_inverse(cholesky_inv_var3, true);
+               var3 = at::cholesky_inverse(cholesky_inv_var3);
     // miu3
     at::Tensor temp = inv_var1.mv(miu1) + inv_var2.mv(miu2);
     at::Tensor miu3 = var3.mv(temp);
@@ -136,8 +137,7 @@ void Gaussian::rand_init() {
 }
 // Return a gaussian random tensor
 at::Tensor Gaussian::rand(std::default_random_engine & generator) {
-    if (! random_ready_) throw std::invalid_argument(
-    "tchem::Gaussian::rand: Must initialize before generating random tensor");
+    if (! random_ready_) throw CL::utility::not_ready("tchem::Gaussian::rand");
     at::Tensor rand = miu_.new_empty(miu_.sizes());
     // Generate a random vector in the miu-centred && `var`-diagonalized (normal) coordinate
     for (size_t i = 0; i < rand.size(0); i++)

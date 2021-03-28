@@ -1,11 +1,9 @@
 #include <tchem/linalg.hpp>
 
-#include <tchem/phaser.hpp>
-
 #include <tchem/chemistry.hpp>
 
 void alter_states() {
-    tchem::Phaser phaser(3);
+    tchem::chem::Phaser phaser(3);
     c10::TensorOptions top = at::TensorOptions().dtype(torch::kFloat64);
     at::Tensor Hd = at::rand({3, 3}, top);
     at::Tensor energy, states;
@@ -37,7 +35,7 @@ void alter_states() {
 }
 
 void fix_ob() {
-    tchem::Phaser phaser(3);
+    tchem::chem::Phaser phaser(3);
     c10::TensorOptions top = at::TensorOptions().dtype(torch::kFloat64);
     at::Tensor  Hd = at::rand({3, 3}, top),
                dHd = at::rand({3, 3, 5}, top);
@@ -61,7 +59,7 @@ void fix_ob() {
 }
 
 void fix_ob2() {
-    tchem::Phaser phaser(4);
+    tchem::chem::Phaser phaser(4);
     at::Tensor  Hd = at::rand({4, 4}),
                dHd = at::rand({4, 4, 5});
     // Adiabatic representation

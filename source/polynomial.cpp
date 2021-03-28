@@ -63,24 +63,23 @@ at::Tensor Polynomial::gradient(const at::Tensor & x) const {
 
 
 
-// Construct `orders_` based on constructed `polynomials_`
+// Construct `max_order_` and `orders_` based on constructed `polynomials_`
 void PolynomialSet::construct_orders_() {
     assert(("`polynomials_` must have been constructed", ! polynomials_.empty()));
     // Find out the highest order among the polynomials
-    size_t order_ = 0;
+    max_order_ = 0;
     for (const Polynomial & polynomial : polynomials_)
-    if (polynomial.order() > order_)
-    order_ = polynomial.order();
+    if (polynomial.order() > max_order_)
+    max_order_ = polynomial.order();
     // Construct a view to `polynomials_` grouped by order
-    orders_.clear();
-    orders_.resize(order_ + 1);
+    orders_.resize(max_order_ + 1);
     for (const Polynomial & polynomial : polynomials_)
     orders_[polynomial.order()].push_back(& polynomial);
 }
 
 // Given a set of coordiantes constituting a polynomial,
 // try to locate its index within [lower, upper]
-void PolynomialSet::bisect_(const std::vector<size_t> coords, const size_t & lower, const size_t & upper, int & index) const {
+void PolynomialSet::bisect_(const std::vector<size_t> coords, const size_t & lower, const size_t & upper, int64_t & index) const {
     // Final round
     if (upper - lower == 1) {
         // Try lower
@@ -117,6 +116,8 @@ void PolynomialSet::bisect_(const std::vector<size_t> coords, const size_t & low
         bool match = true;
         std::vector<size_t> ref_coords = polynomials_[bisection].coords();
         size_t i;
+        // Although the comparison should be made from the last coordinate to the first,
+        // we can still start from the first since Polynomial has its coordinates sorted descendingly
         for (i = 0; i < coords.size(); i++)
         if (coords[i] != ref_coords[i]) {
             match = false;
@@ -134,12 +135,12 @@ void PolynomialSet::bisect_(const std::vector<size_t> coords, const size_t & low
 // Given a set of coordiantes constituting a polynomial,
 // find its index in this polynomial set
 // If not found, return -1
-int PolynomialSet::index_polynomial_(const std::vector<size_t> coords) const {
+int64_t PolynomialSet::index_polynomial_(const std::vector<size_t> coords) const {
     size_t order = coords.size();
     size_t lower = 0;
     for (size_t i = 0; i < order; i++) lower += orders_[i].size();
     size_t upper = lower + orders_[order].size() - 1;
-    int index;
+    int64_t index;
     bisect_(coords, lower, upper, index);
     return index;
 }
@@ -149,7 +150,7 @@ PolynomialSet::PolynomialSet(const std::vector<Polynomial> & _polynomials, const
 : polynomials_(_polynomials), dimension_(_dimension) {this->construct_orders_();}
 // Generate all possible terms up to `order`-th order constituting of all `dimension` coordinates
 PolynomialSet::PolynomialSet(const size_t & _dimension, const size_t & _order)
-: dimension_(_dimension), order_(_order) {
+: dimension_(_dimension), max_order_(_order) {
     // 0th order term only
     if (dimension_ == 0) {
         polynomials_.resize(1);
@@ -159,14 +160,14 @@ PolynomialSet::PolynomialSet(const size_t & _dimension, const size_t & _order)
     }
     // Count number of terms
     size_t count = 0;
-    for (size_t i = 0; i <= order_; i++) count += CL::math::iCombination(dimension_ + i - 1, i);
+    for (size_t i = 0; i <= max_order_; i++) count += CL::math::iCombination(dimension_ + i - 1, i);
     polynomials_.resize(count);
     // Generate 0th order term
     std::vector<size_t> coords;
     polynomials_[0] = Polynomial(coords);
     // Generate 1st and higher orders
     count = 1;
-    for (size_t iorder = 1; iorder <= order_; iorder++) {
+    for (size_t iorder = 1; iorder <= max_order_; iorder++) {
         // The 1st term: r0^iorder
         coords.resize(iorder);
         fill(coords.begin(), coords.end(), 0);
@@ -183,7 +184,7 @@ PolynomialSet::PolynomialSet(const size_t & _dimension, const size_t & _order)
                 coords[i + 1] += 1;
             }
             // Guarantee former digit >= latter digit
-            for (int i = iorder - 2; i > -1; i--)
+            for (int64_t i = iorder - 2; i > -1; i--)
             if (coords[i] < coords[i + 1]) {
                 coords[i] = coords[i + 1];
             }
@@ -198,18 +199,18 @@ PolynomialSet::PolynomialSet(const size_t & _dimension, const size_t & _order)
 }
 PolynomialSet::~PolynomialSet() {}
 
-std::vector<Polynomial> PolynomialSet::polynomials() const {return polynomials_;}
-size_t PolynomialSet::dimension() const {return dimension_;}
-size_t PolynomialSet::order() const {return order_;}
-std::vector<std::vector<const Polynomial *>> PolynomialSet::orders() const {return orders_;}
+const std::vector<Polynomial> & PolynomialSet::polynomials() const {return polynomials_;}
+const size_t & PolynomialSet::dimension() const {return dimension_;}
+const size_t & PolynomialSet::max_order() const {return max_order_;}
+const std::vector<std::vector<const Polynomial *>> & PolynomialSet::orders() const {return orders_;}
 
 // Given `x`, the value of each term in {P(x)} as a vector
 // Return views to `x` grouped by order
 std::vector<at::Tensor> PolynomialSet::views(const at::Tensor & x) const {
     assert(("x must be a vector", x.sizes().size() == 1));
-    std::vector<at::Tensor> views(order_ + 1);
+    std::vector<at::Tensor> views(max_order_ + 1);
     size_t start = 0, stop;
-    for (size_t i = 0; i < order_ + 1; i++) {
+    for (size_t i = 0; i < max_order_ + 1; i++) {
         stop = start + orders_[i].size();
         views[i] = x.slice(0, start, stop);
         start = stop;
@@ -239,93 +240,96 @@ at::Tensor PolynomialSet::Jacobian(const at::Tensor & x) const {
     return J;
 }
 
-// Consider coordinate rotation y = U^T . x
+// Consider coordinate rotation y = U^-1 . x
 // so the polynomial set rotates as {P(x)} = T . {P(y)}
 // Assuming:
 //     1. All 0th and 1st order terms are present
 //     2. Polynomial.coords are sorted
 // Return rotation matrix T
-at::Tensor PolynomialSet::rotation(const at::Tensor & U, const PolynomialSet & q_set) const {
-    assert(("U must be a matrix", U.sizes().size() == 2));
-    assert(("U must be a square matrix", U.size(0) == U.size(1)));
-    assert(("U must have a same dimension as the coordinates", U.size(0) == dimension_));
-    assert(("The 2 polynomial sets must share same order", order_ == q_set.order_));
+at::Tensor PolynomialSet::rotation(const at::Tensor & U, const PolynomialSet & y_set) const {
+    if (U.sizes().size() != 2) throw std::invalid_argument(
+    "tchem::PolynomialSet::rotation: U must be a matrix");
+    if (U.size(0) != U.size(1)) throw std::invalid_argument(
+    "tchem::PolynomialSet::rotation: U must be a square matrix");
+    if (U.size(0) != dimension_) throw std::invalid_argument(
+    "tchem::PolynomialSet::rotation: U must share a same dimension with the coordinates");
+    if (max_order_ != y_set.max_order_) throw std::invalid_argument(
+    "tchem::PolynomialSet::rotation: The 2 polynomial sets must share a same order");
     // 0 and 1 dimensional coordinates do not rotate at all
     if (dimension_ < 2) return at::eye(polynomials_.size(), U.options());
     // Allocate memory
-    at::Tensor T = U.new_zeros({(int)polynomials_.size(), (int)q_set.polynomials_.size()});
+    at::Tensor T = U.new_zeros({(int64_t)polynomials_.size(), (int64_t)y_set.polynomials_.size()});
     // 0th order term does not rotate
     T[0][0] = 1.0;
     // 1st order terms rotate as x = U . y
-    if (order_ >= 1) {
+    if (max_order_ >= 1) {
         at::Tensor T_block = T.slice(0, 1, dimension_ + 1);
         T_block.slice(1, 1, dimension_ + 1) = U;
     }
     // 2nd and higher order terms rotate as
-    // ri1 ri2 ... rin = (Ui1j1 qj1) (Ui2j2 qj2) ... (Uinjn qjn)
-    //                 = (Ui1j1 Ui2j2 ... Uinjn) (qj1 qj2 ... qjn)
-    // equivalent (qj1 qj2 ... qjn)s have their (Ui1j1 Ui2j2 ... Uinjn)s merged
-    size_t start_r = dimension_ + 1;
-    size_t start_q = dimension_ + 1;
-    for (size_t iorder = 2; iorder <= order_; iorder++) {
-        size_t NTerms_r = orders_[iorder].size();
-        size_t stop_r   = start_r + NTerms_r;
-        size_t NTerms_q = q_set.orders_[iorder].size();
-        size_t stop_q   = start_q + NTerms_q;
-        at::Tensor T_block = T.slice(0, start_r, stop_r);
-        T_block = T_block.slice(1, start_q, stop_q);
-        for (size_t i = 0; i < NTerms_r; i++) {
-            auto r_coords = orders_[iorder][i]->coords();
-            for (size_t j = 0; j < NTerms_q; j++) {
-                auto q_coords = q_set.orders_[iorder][j]->coords();
+    // xi1 xi2 ... xin = (Ui1j1 yj1) (Ui2j2 yj2) ... (Uinjn yjn)
+    //                 = (Ui1j1 Ui2j2 ... Uinjn) (yj1 yj2 ... yjn)
+    // equivalent (yj1 yj2 ... yjn)s have their (Ui1j1 Ui2j2 ... Uinjn)s merged
+    size_t start_x = dimension_ + 1;
+    size_t start_y = dimension_ + 1;
+    for (size_t iorder = 2; iorder <= max_order_; iorder++) {
+        size_t NTerms_x = orders_[iorder].size();
+        size_t   stop_x = start_x + NTerms_x;
+        size_t NTerms_y = y_set.orders_[iorder].size();
+        size_t   stop_y = start_y + NTerms_y;
+        at::Tensor T_block = T.slice(0, start_x, stop_x).slice(1, start_y, stop_y);
+        for (size_t i = 0; i < NTerms_x; i++) {
+            auto x_coords = orders_[iorder][i]->coords();
+            for (size_t j = 0; j < NTerms_y; j++) {
+                auto y_coords = y_set.orders_[iorder][j]->coords();
                 // Get  the unique coordinates and their number of repeats
                 // i.e. the unique coordinates and their orders
                 std::vector<size_t> uniques, repeats;
-                std::tie(uniques, repeats) = q_set.orders_[iorder][j]->uniques_orders();
+                std::tie(uniques, repeats) = y_set.orders_[iorder][j]->uniques_orders();
                 // Only 1 permutation when all coordinates are the same
                 if (uniques.size() == 1) {
-                    T_block[i][j] = U[r_coords[0]][q_coords[0]];
-                    for (size_t k = 1; k < iorder; k++) T_block[i][j] *= U[r_coords[k]][q_coords[k]];
+                    T_block[i][j] = U[x_coords[0]][y_coords[0]];
+                    for (size_t k = 1; k < iorder; k++) T_block[i][j] *= U[x_coords[k]][y_coords[k]];
                 }
                 // Sum over all permutations of the unique coordinates
+                // Reference: https://www.geeksforgeeks.org/print-all-permutations-of-a-string-with-duplicates-allowed-in-input-string
                 else {
                     // The 1st permutation: all coordinates sorted ascendingly
-                    std::sort(q_coords.begin(), q_coords.end());
+                    std::sort(y_coords.begin(), y_coords.end());
                     // The following permutations
-                    bool done = false;
-                    while (! done) {
+                    while (true) {
                         // Sum the current permutation
-                        at::Tensor current = U.new_zeros(1);
-                        current[0] = U[r_coords[0]][q_coords[0]];
-                        for (size_t k = 1; k < iorder; k++) current[0] *= U[r_coords[k]][q_coords[k]];
-                        T_block[i][j] += current[0];
+                        at::Tensor current = U.new_empty({});
+                        current.copy_(U[x_coords[0]][y_coords[0]]);
+                        for (size_t k = 1; k < iorder; k++) current *= U[x_coords[k]][y_coords[k]];
+                        T_block[i][j] += current;
                         // Find the rightmost element which is smaller than its next
                         // Let us call it "edge element"
-                        int edge_index;
+                        int64_t edge_index;
                         for (edge_index = iorder - 2; edge_index > -1; edge_index--)
-                        if (q_coords[edge_index] < q_coords[edge_index + 1]) break;
+                        if (y_coords[edge_index] < y_coords[edge_index + 1]) break;
                         // No such element, all sorted descendingly, done
-                        if (edge_index == -1) done = true; 
+                        if (edge_index == -1) break;
                         else {
                             // Find the ceil of "edge element" in the right of it
                             // Ceil of an element is the smallest element greater than it
                             size_t ceil_index = edge_index + 1;
                             for (size_t k = edge_index + 2; k < iorder; k++)
-                            if (q_coords[k] > q_coords[edge_index]
-                            &&  q_coords[k] < q_coords[ceil_index]) ceil_index = k;
+                            if (y_coords[k] > y_coords[edge_index]
+                            &&  y_coords[k] < y_coords[ceil_index]) ceil_index = k;
                             // Swap edge and ceil
-                            size_t save = q_coords[edge_index];
-                            q_coords[edge_index] = q_coords[ceil_index];
-                            q_coords[ceil_index] = save;
+                            size_t save = y_coords[edge_index];
+                            y_coords[edge_index] = y_coords[ceil_index];
+                            y_coords[ceil_index] = save;
                             // Sort the sub vector on the right of edge
-                            std::sort(q_coords.begin() + edge_index + 1, q_coords.end());
+                            std::sort(y_coords.begin() + edge_index + 1, y_coords.end());
                         }
                     }
                 }
             }
         }
-        start_r = stop_r;
-        start_q = stop_q;
+        start_x = stop_x;
+        start_y = stop_y;
     }
     return T;
 }
@@ -337,32 +341,35 @@ at::Tensor PolynomialSet::rotation(const at::Tensor & U) const {return rotation(
 // Assuming:
 //     1. All 0th and 1st order terms are present
 // Return transformation matrix T
-at::Tensor PolynomialSet::translation(const at::Tensor & a, const PolynomialSet & q_set) const {
-    assert(("a must be a vector", a.sizes().size() == 1));
-    assert(("a must have a same dimension as the coordinates", a.size(0) == dimension_));
-    assert(("The 2 polynomial sets must share same order", order_ == q_set.order_));
+at::Tensor PolynomialSet::translation(const at::Tensor & a, const PolynomialSet & y_set) const {
+    if (a.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::PolynomialSet::translation: a must be a vector");
+    if (a.size(0) != dimension_) throw std::invalid_argument(
+    "tchem::PolynomialSet::translation: a must share a same dimension with the coordinates");
+    if (max_order_ != y_set.max_order_) throw std::invalid_argument(
+    "tchem::PolynomialSet::translation: The 2 polynomial sets must share a same order");
     // Allocate memory
-    at::Tensor T = a.new_zeros({(int)polynomials_.size(), (int)q_set.polynomials_.size()});
+    at::Tensor T = a.new_zeros({(int64_t)polynomials_.size(), (int64_t)y_set.polynomials_.size()});
     // 0th order term does not shift
     T[0][0] = 1.0;
     // 1st order terms shift as x = y + a
-    if (order_ >= 1) for (size_t i = 1; i < dimension_ + 1; i++) {
+    if (max_order_ >= 1) for (size_t i = 1; i < dimension_ + 1; i++) {
         T[i][0] = a[i - 1];
         T[i][i] = 1.0;
     }
     // 2nd and higher order terms shift as
-    // ri1 ri2 ... rin = (qi1 + ai1) (qi2 + ai2) ... (qin + ain)
-    //                 = ai1 ai2 ... ain + qi1 ai2 ... ain + ... + qi1 qi2 ... qin
-    size_t start_r = dimension_ + 1;
-    for (size_t iorder = 2; iorder <= order_; iorder++) {
-        size_t NTerms_r = orders_[iorder].size();
-        size_t stop_r   = start_r + NTerms_r;
-        at::Tensor T_block = T.slice(0, start_r, stop_r);
-        for (size_t i = 0; i < NTerms_r; i++) {
-            auto r_coords = orders_[iorder][i]->coords();
+    // xi1 xi2 ... xin = (yi1 + ai1) (yi2 + ai2) ... (yin + ain)
+    //                 = ai1 ai2 ... ain + yi1 ai2 ... ain + ... + yi1 yi2 ... yin
+    size_t start_x = dimension_ + 1;
+    for (size_t iorder = 2; iorder <= max_order_; iorder++) {
+        size_t NTerms_x = orders_[iorder].size();
+        size_t   stop_x = start_x + NTerms_x;
+        at::Tensor T_block = T.slice(0, start_x, stop_x);
+        for (size_t i = 0; i < NTerms_x; i++) {
+            auto x_coords = orders_[iorder][i]->coords();
             // The 1st term: ai1 ai2 ... ain
-            T_block[i][0] = a[r_coords[0]];
-            for (size_t j = 1; j < iorder; j++) T_block[i][0] *= a[r_coords[j]];
+            T_block[i][0] = a[x_coords[0]];
+            for (size_t j = 1; j < iorder; j++) T_block[i][0] *= a[x_coords[j]];
             // The other terms: as a binary counter
             // when a bit == 1, place y there
             std::vector<size_t> use_var(iorder, 0);
@@ -374,32 +381,33 @@ at::Tensor PolynomialSet::translation(const at::Tensor & a, const PolynomialSet 
                     use_var[j] = 0;
                     use_var[j + 1] += 1;
                 }
+                // Binary counter overflows, done
                 if (use_var.back() == 2) break;
                 // Build the coordinates for y and a
                 size_t NVars = std::accumulate(use_var.begin(), use_var.end(), 0);
                 size_t NCons = iorder - NVars;
-                std::vector<size_t> q_coords(NVars), a_coords(NCons);
+                std::vector<size_t> y_coords(NVars), a_coords(NCons);
                 size_t count_q = 0, count_a = 0;
                 for (size_t j = 0; j < iorder; j++)
                 if (use_var[j] == 1) {
-                    q_coords[count_q] = r_coords[j];
+                    y_coords[count_q] = x_coords[j];
                     count_q++;
                 }
                 else {
-                    a_coords[count_a] = r_coords[j];
+                    a_coords[count_a] = x_coords[j];
                     count_a++;
                 }
                 // Determine T block element
-                int index = index_polynomial_(q_coords);
+                int64_t index = y_set.index_polynomial_(y_coords);
                 if (index >= 0) {
-                    at::Tensor current = a.new_zeros(1);
-                    current[0] = 1.0;
-                    for (size_t & coord : a_coords) current[0] *= a[coord];
-                    T_block[i][index] += current[0];
+                    at::Tensor current = a.new_empty({});
+                    current.fill_(1.0);
+                    for (size_t & coord : a_coords) current *= a[coord];
+                    T_block[i][index] += current;
                 }
             }
         }
-        start_r = stop_r;
+        start_x = stop_x;
     }
     return T;
 }

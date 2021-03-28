@@ -1,6 +1,6 @@
-#include <tchem/phaser.hpp>
+#include <tchem/chem/phaser.hpp>
 
-namespace tchem {
+namespace tchem { namespace chem {
 
 Phaser::Phaser() {}
 Phaser::Phaser(const size_t & _NStates) : NStates_(_NStates) {
@@ -229,4 +229,5 @@ const at::Tensor & ref1, const at::Tensor & ref2, const double & weight) const {
     alter_ob_(M2, iphase);
 }
 
+} // namespace chem
 } // namespace tchem

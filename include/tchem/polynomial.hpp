@@ -41,20 +41,20 @@ class PolynomialSet {
         size_t dimension_;
 
         // Highest order among the polynomials
-        size_t order_;
+        size_t max_order_;
         // A view to `polynomials_` grouped by order
         std::vector<std::vector<const Polynomial *>> orders_;
 
-        // Construct `order_` and `orders_` based on constructed `polynomials_`
+        // Construct `max_order_` and `orders_` based on constructed `polynomials_`
         void construct_orders_();
 
         // Given a set of coordiantes constituting a polynomial,
-        // try to locate its index within [lower, upper)
-        void bisect_(const std::vector<size_t> coords, const size_t & lower, const size_t & upper, int & index) const;
+        // try to locate its index within [lower, upper]
+        void bisect_(const std::vector<size_t> coords, const size_t & lower, const size_t & upper, int64_t & index) const;
         // Given a set of coordiantes constituting a polynomial,
         // find its index in this polynomial set
         // If not found, return -1
-        int index_polynomial_(const std::vector<size_t> coords) const;
+        int64_t index_polynomial_(const std::vector<size_t> coords) const;
     public:
         PolynomialSet();
         // `_polynomials` must meet the requirements of `polynomials_`
@@ -63,10 +63,10 @@ class PolynomialSet {
         PolynomialSet(const size_t & _dimension, const size_t & _order);
         ~PolynomialSet();
 
-        std::vector<Polynomial> polynomials() const;
-        size_t dimension() const;
-        size_t order() const;
-        std::vector<std::vector<const Polynomial *>> orders() const;
+        const std::vector<Polynomial> & polynomials() const;
+        const size_t & dimension() const;
+        const size_t & max_order() const;
+        const std::vector<std::vector<const Polynomial *>> & orders() const;
 
         // Given `x`, the value of each term in {P(x)} as a vector
         // Return views to `x` grouped by order
@@ -77,7 +77,7 @@ class PolynomialSet {
         // Return d{P(x)} / dx given x
         at::Tensor Jacobian(const at::Tensor & x) const;
 
-        // Consider coordinate rotation y = U^T . x
+        // Consider coordinate rotation y = U^-1 . x
         // so the polynomial set transforms as {P(x)} = T . {P(y)}
         // Assuming:
         //     1. All 0th and 1st order terms are present

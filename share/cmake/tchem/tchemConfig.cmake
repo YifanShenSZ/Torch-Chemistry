@@ -26,7 +26,10 @@ set(tchem_INCLUDE_DIRS ${tchemROOT}/include)
 add_library(tchem STATIC IMPORTED)
 set(tchem_LIBRARIES tchem)
 
-# dependency 1: libtorch
+# dependency 1: ifort
+list(APPEND tchem_LIBRARIES ifcore iomp5 pthread m dl mkl_intel_lp64 mkl_intel_thread mkl_core)
+
+# dependency 2: libtorch
 if(NOT TORCH_FOUND)
     find_package(Torch REQUIRED PATHS ~/Software/Programming/libtorch-cuda10.1-1.7.1) 
     list(APPEND tchem_INCLUDE_DIRS ${TORCH_INCLUDE_DIRS})
@@ -34,7 +37,7 @@ if(NOT TORCH_FOUND)
     set(tchem_CXX_FLAGS "${TORCH_CXX_FLAGS}")
 endif()
 
-# dependency 2: Cpp-Library
+# dependency 3: Cpp-Library
 if(NOT CL_FOUND)
     find_package(CL REQUIRED PATHS ~/Library/Cpp-Library)
     list(APPEND tchem_INCLUDE_DIRS ${CL_INCLUDE_DIRS})

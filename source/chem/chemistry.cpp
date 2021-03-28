@@ -1,4 +1,4 @@
-#include <torch/torch.h>
+#include <CppLibrary/utility.hpp>
 
 #include <tchem/linalg.hpp>
 
@@ -70,7 +70,7 @@ std::tuple<at::Tensor, at::Tensor> composite_representation(const at::Tensor & H
     if (S.sizes().size() != 2) throw std::invalid_argument(
     "tchem::chem::composite_representation: S must be a matrix");
     if (S.size(0) != S.size(1)) throw std::invalid_argument(
-    "tchem::chem::composite_representation: S must be a square matrix");   
+    "tchem::chem::composite_representation: S must be a square matrix");
     at::Tensor dHdH = tchem::linalg::sy3matdotmul(dH, dH, S);
     at::Tensor eigval, eigvec;
     std::tie(eigval, eigvec) = dHdH.symeig(true);
@@ -98,11 +98,6 @@ void composite_representation_(at::Tensor & H, at::Tensor & dH, const at::Tensor
     else                       H = tchem::linalg::UT_sy_U(H.diag(), eigvec);
     tchem::linalg::UT_sy_U_(dH, eigvec);
 }
-
-
-
-
-
 
 } // namespace chem
 } // namespace tchem

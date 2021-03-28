@@ -546,8 +546,8 @@ at::Tensor IntCoordSet::gradient_cart2int(const at::Tensor & r, const at::Tensor
     at::Tensor q, J;
     std::tie(q, J) = this->compute_IC_J(r);
     at::Tensor JJT = J.mm(J.transpose(0, 1));
-    at::Tensor cholesky = JJT.cholesky(true);
-    at::Tensor inverse = at::cholesky_inverse(cholesky, true);
+    at::Tensor cholesky = JJT.cholesky();
+    at::Tensor inverse = at::cholesky_inverse(cholesky);
     at::Tensor cart2int = inverse.mm(J);
     at::Tensor intgrad = cart2int.mv(cartgrad);
     return intgrad;
@@ -583,8 +583,8 @@ at::Tensor IntCoordSet::Hessian_cart2int(const at::Tensor & r, const at::Tensor 
     at::Tensor q, J, K;
     std::tie(q, J, K) = this->compute_IC_J_K(r);
     at::Tensor JJT = J.mm(J.transpose(0, 1));
-    at::Tensor cholesky = JJT.cholesky(true);
-    at::Tensor inverse = at::cholesky_inverse(cholesky, true);
+    at::Tensor cholesky = JJT.cholesky();
+    at::Tensor inverse = at::cholesky_inverse(cholesky);
     at::Tensor AT = inverse.mm(J);
     at::Tensor A  = AT.transpose(0, 1);
     at::Tensor C = at::matmul(AT, at::matmul(K, A));

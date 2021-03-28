@@ -48,6 +48,22 @@ class SAPSet {
         std::vector<SAP> SAPs_;
         // Dimensions per irreducible of the coordinate system constituting the polynomial set
         std::vector<size_t> dimensions_;
+
+        // Highest order among the polynomials
+        size_t order_;
+        // A view to `polynomials_` grouped by order
+        std::vector<std::vector<const SAP *>> orders_;
+
+        // Construct `order_` and `orders_` based on constructed `polynomials_`
+        void construct_orders_();
+
+        // Given a set of coordinates constituting a SAP,
+        // try to locate its index within [lower, upper)
+        void bisect_(const std::vector<std::pair<size_t, size_t>> coords, const size_t & lower, const size_t & upper, int64_t & index) const;
+        // Given a set of coordiantes constituting a SAP,
+        // find its index in this SAP set
+        // If not found, return -1
+        int64_t index_SAP_(const std::vector<std::pair<size_t, size_t>> coords) const;
     public:
         SAPSet();
         // `sapoly_file` contains one SAP per line, who must meet the requirements of `SAPs_`
@@ -62,6 +78,25 @@ class SAPSet {
         at::Tensor operator()(const std::vector<at::Tensor> & xs) const;
         // Return d{P(x)} / dx given x
         std::vector<at::Tensor> Jacobian(const std::vector<at::Tensor> & xs) const;
+
+        // Consider coordinate rotation y = U^-1 . x
+        // so the SAP set transforms as {SAP(x)} = T . {SAP(y)}
+        // Assuming:
+        //     1. All 0th and 1st order terms are present
+        //     2. Polynomial.coords are sorted
+        // Return transformation matrix T
+        at::Tensor rotation(const std::vector<at::Tensor> & U, const SAPSet & q_set) const;
+        // Assuming terms are the same under rotation
+        at::Tensor rotation(const std::vector<at::Tensor> & U) const;
+
+        // Consider coordinate translation y = x - a
+        // so the SAP set transforms as {SAP(x)} = T . {SAP(y)}
+        // Assuming:
+        //     1. All 0th and 1st order terms are present
+        // Return transformation matrix T
+        at::Tensor translation(const std::vector<at::Tensor> & a, const SAPSet & q_set) const;
+        // Assuming terms are the same under translation
+        at::Tensor translation(const std::vector<at::Tensor> & a) const;
 };
 
 } // namespace polynomial

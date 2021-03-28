@@ -2,35 +2,46 @@
 Chemical routines based on libtorch
 
 ## Featured utilities
+Gaussian:
+* value of gaussian functions
+* product of gaussian functions
+* gaussian integrals
+* multivariate gaussian random number
+
+Polynomial:
+* value of polynomials
+* Jacobian of polynomials
+* transformation of polynomials under coordinate rotation
+* transformation of polynomials under coordinate trasnlation
+* symmetry adaptation
+
+Chemistry:
+* alternative representation near electronic degeneracy
+* phase fixing for quantum observable matrices
+* normal mode analysis
+
 Internal coordinate:
 * Cartesian -> internal coordinate
 * Jacobian of internal coordinate over Cartesian coordinate
+* 2nd order Jacobian of internal coordinate over Cartesian coordinate
 * Cartesian coordinate gradient <-> internal coordinate gradient
 * Cartesian coordinate Hessian <-> internal coordinate Hessian
-* For more details see `intcoord.md`
-* For symmetry adaptation and scale see `SASintcoord.md`
-
-Gaussian:
-* Merge gaussian functions
-* Gaussian integrals
-
-Chemistry:
-* Alternative representation near electronic degeneracy
-* Vibration analysis
-
-Utility:
-* Some general basic routine
+* for more details see `intcoord.md`
+* for symmetry adaptation and scale see `SASintcoord.md`
 
 Linear algebra:
-* Triple product
-* 3rd-order tensor operation
+* outer product for general tensors
+* map a vector to a symmetric tensor
+* matrix dot multiplication between 3rd-order tensors
+* matrix dot multiplication between 4-th and 3rd-order tensors
+* matrix outer multiplication for general tensors
+* unitary transformation
 
-Polynomial:
-* Polynomial operation
-* symmetry adaptation
+FORTRAN:
+* generalized eigenvalue problem solver (dsygv)
 
-Phaser:
-* Phase fixing
+Utility:
+* some general basic routines
 
 ## Installation
 1. `mkdir build lib`
@@ -43,11 +54,6 @@ Phaser:
 ## Usage
 `#include <tchem/tchem.hpp>`
 
-## Source
-Source code level from bottom to top:
-1. utility, linalg, polynomial, SApolynomial, phaser
-2. intcoord, SASintcoord, gaussian, chemistry
-
 ## Dependency
 1. libtorch
-2. My Cpp-Library
+2. [Cpp-Library](https://github.com/YifanShenSZ/Cpp-Library)
