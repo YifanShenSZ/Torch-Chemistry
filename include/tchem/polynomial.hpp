@@ -5,17 +5,17 @@
 
 namespace tchem { namespace polynomial {
 
-// Polynomial P(x) = x[coords_[0]] * x[coords_[1]] * ... * x[coords_.back()]
+// polynomial P(x) = x[coords_[0]] * x[coords_[1]] * ... * x[coords_.back()]
 class Polynomial {
     private:
-        // The indices of the coordinates constituting the polynomial, sorted descendingly
+        // the indices of the coordinates constituting the polynomial, sorted descendingly
         std::vector<size_t> coords_;
     public:
         Polynomial();
         Polynomial(const std::vector<size_t> & _coords, const bool & sorted = false);
         ~Polynomial();
 
-        std::vector<size_t> coords() const;
+        const std::vector<size_t> & coords() const;
 
         size_t order() const;
 
@@ -28,32 +28,30 @@ class Polynomial {
         at::Tensor gradient(const at::Tensor & x) const;
 };
 
-// Polynomial set {P(x)}
+// polynomial set {P(x)}
 class PolynomialSet {
     private:
-        // Polynomials constituting the set, requirements:
+        // polynomials constituting the set, requirements:
         //     1. orders are sorted ascendingly
         //     2. same order terms are sorted ascendingly, 
         //        where the comparison is made from the last coordinate to the first
         // e.g. 2-dimensional 2nd-order: 1, x0, x1, x0 x0, x1 x0, x1 x1
         std::vector<Polynomial> polynomials_;
-        // Dimension of the coordinate system constituting the polynomial set
+        // dimension of the coordinate system constituting the polynomial set
         size_t dimension_;
 
-        // Highest order among the polynomials
+        // highest order among the polynomials
         size_t max_order_;
-        // A view to `polynomials_` grouped by order
+        // a view to `polynomials_` grouped by order
         std::vector<std::vector<const Polynomial *>> orders_;
 
         // Construct `max_order_` and `orders_` based on constructed `polynomials_`
         void construct_orders_();
 
-        // Given a set of coordiantes constituting a polynomial,
-        // try to locate its index within [lower, upper]
+        // Given a set of coordiantes constituting a polynomial, try to locate its index within [lower, upper]
         void bisect_(const std::vector<size_t> coords, const size_t & lower, const size_t & upper, int64_t & index) const;
-        // Given a set of coordiantes constituting a polynomial,
-        // find its index in this polynomial set
-        // If not found, return -1
+        // Given a set of coordiantes constituting a polynomial, return its index in this polynomial set
+        // Return -1 if not found
         int64_t index_polynomial_(const std::vector<size_t> coords) const;
     public:
         PolynomialSet();
@@ -78,21 +76,21 @@ class PolynomialSet {
         at::Tensor Jacobian(const at::Tensor & x) const;
 
         // Consider coordinate rotation y = U^-1 . x
-        // so the polynomial set transforms as {P(x)} = T . {P(y)}
+        // so the polynomial set rotates as {P(x)} = T . {P(y)}
         // Assuming:
         //     1. All 0th and 1st order terms are present
         //     2. Polynomial.coords are sorted
-        // Return transformation matrix T
-        at::Tensor rotation(const at::Tensor & U, const PolynomialSet & q_set) const;
+        // Return rotation matrix T
+        at::Tensor rotation(const at::Tensor & U, const PolynomialSet & y_set) const;
         // Assuming terms are the same under rotation
         at::Tensor rotation(const at::Tensor & U) const;
 
         // Consider coordinate translation y = x - a
-        // so the polynomial set transforms as {P(x)} = T . {P(y)}
+        // so the polynomial set translates as {P(x)} = T . {P(y)}
         // Assuming:
         //     1. All 0th and 1st order terms are present
-        // Return transformation matrix T
-        at::Tensor translation(const at::Tensor & a, const PolynomialSet & q_set) const;
+        // Return translation matrix T
+        at::Tensor translation(const at::Tensor & a, const PolynomialSet & y_set) const;
         // Assuming terms are the same under translation
         at::Tensor translation(const at::Tensor & a) const;
 };

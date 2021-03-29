@@ -14,7 +14,7 @@ Polynomial::Polynomial(const std::vector<size_t> & _coords, const bool & sorted)
 }
 Polynomial::~Polynomial() {}
 
-std::vector<size_t> Polynomial::coords() const {return coords_;}
+const std::vector<size_t> & Polynomial::coords() const {return coords_;}
 
 size_t Polynomial::order() const {return coords_.size();}
 
@@ -77,8 +77,7 @@ void PolynomialSet::construct_orders_() {
     orders_[polynomial.order()].push_back(& polynomial);
 }
 
-// Given a set of coordiantes constituting a polynomial,
-// try to locate its index within [lower, upper]
+// Given a set of coordiantes constituting a polynomial, try to locate its index within [lower, upper]
 void PolynomialSet::bisect_(const std::vector<size_t> coords, const size_t & lower, const size_t & upper, int64_t & index) const {
     // Final round
     if (upper - lower == 1) {
@@ -132,9 +131,8 @@ void PolynomialSet::bisect_(const std::vector<size_t> coords, const size_t & low
         else                           bisect_(coords, lower, bisection, index);
     }
 }
-// Given a set of coordiantes constituting a polynomial,
-// find its index in this polynomial set
-// If not found, return -1
+// Given a set of coordiantes constituting a polynomial, return its index in this polynomial set
+// Return -1 if not found
 int64_t PolynomialSet::index_polynomial_(const std::vector<size_t> coords) const {
     size_t order = coords.size();
     size_t lower = 0;
@@ -248,13 +246,13 @@ at::Tensor PolynomialSet::Jacobian(const at::Tensor & x) const {
 // Return rotation matrix T
 at::Tensor PolynomialSet::rotation(const at::Tensor & U, const PolynomialSet & y_set) const {
     if (U.sizes().size() != 2) throw std::invalid_argument(
-    "tchem::PolynomialSet::rotation: U must be a matrix");
+    "tchem::polynomial::PolynomialSet::rotation: U must be a matrix");
     if (U.size(0) != U.size(1)) throw std::invalid_argument(
-    "tchem::PolynomialSet::rotation: U must be a square matrix");
+    "tchem::polynomial::PolynomialSet::rotation: U must be a square matrix");
     if (U.size(0) != dimension_) throw std::invalid_argument(
-    "tchem::PolynomialSet::rotation: U must share a same dimension with the coordinates");
+    "tchem::polynomial::PolynomialSet::rotation: U must share a same dimension with the coordinates");
     if (max_order_ != y_set.max_order_) throw std::invalid_argument(
-    "tchem::PolynomialSet::rotation: The 2 polynomial sets must share a same order");
+    "tchem::polynomial::PolynomialSet::rotation: The 2 polynomial sets must share a same order");
     // 0 and 1 dimensional coordinates do not rotate at all
     if (dimension_ < 2) return at::eye(polynomials_.size(), U.options());
     // Allocate memory
@@ -262,10 +260,8 @@ at::Tensor PolynomialSet::rotation(const at::Tensor & U, const PolynomialSet & y
     // 0th order term does not rotate
     T[0][0] = 1.0;
     // 1st order terms rotate as x = U . y
-    if (max_order_ >= 1) {
-        at::Tensor T_block = T.slice(0, 1, dimension_ + 1);
-        T_block.slice(1, 1, dimension_ + 1) = U;
-    }
+    if (max_order_ >= 1)
+    T.slice(0, 1, dimension_ + 1).slice(1, 1, dimension_ + 1).copy_(U);
     // 2nd and higher order terms rotate as
     // xi1 xi2 ... xin = (Ui1j1 yj1) (Ui2j2 yj2) ... (Uinjn yjn)
     //                 = (Ui1j1 Ui2j2 ... Uinjn) (yj1 yj2 ... yjn)
@@ -310,20 +306,18 @@ at::Tensor PolynomialSet::rotation(const at::Tensor & U, const PolynomialSet & y
                         if (y_coords[edge_index] < y_coords[edge_index + 1]) break;
                         // No such element, all sorted descendingly, done
                         if (edge_index == -1) break;
-                        else {
-                            // Find the ceil of "edge element" in the right of it
-                            // Ceil of an element is the smallest element greater than it
-                            size_t ceil_index = edge_index + 1;
-                            for (size_t k = edge_index + 2; k < iorder; k++)
-                            if (y_coords[k] > y_coords[edge_index]
-                            &&  y_coords[k] < y_coords[ceil_index]) ceil_index = k;
-                            // Swap edge and ceil
-                            size_t save = y_coords[edge_index];
-                            y_coords[edge_index] = y_coords[ceil_index];
-                            y_coords[ceil_index] = save;
-                            // Sort the sub vector on the right of edge
-                            std::sort(y_coords.begin() + edge_index + 1, y_coords.end());
-                        }
+                        // Find the ceil of "edge element" in the right of it
+                        // Ceil of an element is the smallest element greater than it
+                        size_t ceil_index = edge_index + 1;
+                        for (size_t k = edge_index + 2; k < iorder; k++)
+                        if (y_coords[k] > y_coords[edge_index]
+                        &&  y_coords[k] < y_coords[ceil_index]) ceil_index = k;
+                        // Swap edge and ceil
+                        size_t save = y_coords[edge_index];
+                        y_coords[edge_index] = y_coords[ceil_index];
+                        y_coords[ceil_index] = save;
+                        // Sort the sub vector on the right of edge
+                        std::sort(y_coords.begin() + edge_index + 1, y_coords.end());
                     }
                 }
             }
@@ -337,17 +331,17 @@ at::Tensor PolynomialSet::rotation(const at::Tensor & U, const PolynomialSet & y
 at::Tensor PolynomialSet::rotation(const at::Tensor & U) const {return rotation(U, * this);}
 
 // Consider coordinate translation y = x - a
-// so the polynomial set transforms as {P(x)} = T . {P(y)}
+// so the polynomial set translates as {P(x)} = T . {P(y)}
 // Assuming:
 //     1. All 0th and 1st order terms are present
-// Return transformation matrix T
+// Return translation matrix T
 at::Tensor PolynomialSet::translation(const at::Tensor & a, const PolynomialSet & y_set) const {
     if (a.sizes().size() != 1) throw std::invalid_argument(
-    "tchem::PolynomialSet::translation: a must be a vector");
+    "tchem::polynomial::PolynomialSet::translation: a must be a vector");
     if (a.size(0) != dimension_) throw std::invalid_argument(
-    "tchem::PolynomialSet::translation: a must share a same dimension with the coordinates");
+    "tchem::polynomial::PolynomialSet::translation: a must share a same dimension with the coordinates");
     if (max_order_ != y_set.max_order_) throw std::invalid_argument(
-    "tchem::PolynomialSet::translation: The 2 polynomial sets must share a same order");
+    "tchem::polynomial::PolynomialSet::translation: The 2 polynomial sets must share a same order");
     // Allocate memory
     at::Tensor T = a.new_zeros({(int64_t)polynomials_.size(), (int64_t)y_set.polynomials_.size()});
     // 0th order term does not shift

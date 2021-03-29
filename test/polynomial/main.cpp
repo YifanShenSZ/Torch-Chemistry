@@ -15,16 +15,18 @@ int main() {
     std::cout << "\nValue of polynomial set: "
               << at::norm(set(x) - answer).item<double>() << '\n';
 
-    at::Tensor U = at::tensor({1.0,  1.0,
-                               1.0, -1.0});
-    U.resize_({2, 2});
-    U /= sqrt(2.0);
+    at::Tensor U, Uinv;
+    while (true) {
+        U = at::rand({2, 2}, x.options());
+        Uinv = U.inverse();
+        if ((U.mm(Uinv) - at::eye(2)).norm().item<double>() < 1e-12) break;
+    }
     at::Tensor T = set.rotation(U);
-    at::Tensor q = U.transpose(0, 1).mv(x);
+    at::Tensor q = Uinv.mv(x);
     std::cout << "\nValue of polynomial set after rotation: "
               << at::norm(T.mv(set(q)) - answer).item<double>() << '\n';
 
-    at::Tensor a = at::tensor({3.0, 5.0});
+    at::Tensor a = at::rand(2, x.options());
     at::Tensor S = set.translation(a);
     at::Tensor p = x - a;
     std::cout << "\nValue of polynomial set after translation: "
