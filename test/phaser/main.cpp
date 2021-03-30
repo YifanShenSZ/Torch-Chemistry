@@ -62,6 +62,11 @@ void fix_ob2() {
     tchem::chem::Phaser phaser(4);
     at::Tensor  Hd = at::rand({4, 4}),
                dHd = at::rand({4, 4, 5});
+    for (size_t i = 0; i < Hd.size(0); i++)
+    for (size_t j = i + 1; j < Hd.size(1); j++) {
+         Hd[j][i].copy_( Hd[i][j]);
+        dHd[j][i].copy_(dHd[i][j]);
+    }
     // Adiabatic representation
     at::Tensor energy, states;
     std::tie(energy, states) = Hd.symeig(true);

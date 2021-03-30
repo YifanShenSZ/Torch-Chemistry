@@ -1,22 +1,8 @@
-/*
-The procedure to get symmetry adapted and scaled internal coordinate (SASIC) is:
-    1. Get internal coordinate (IC), which is taken care of by module `intcoord`
-    2. Nondimensionalize the IC to get dimensionless internal coordinate (DIC):
-       for length, DIC = (IC - origin) / origin
-       for angle , DIC =  IC - origin
-    3. Scale the DIC to get scaled dimensionless internal coordinate (SDIC):
-       if no scaler      : SDIC = DIC
-       elif scaler = self: SDIC = pi * erf(DIC)
-       else              : SDIC = DIC * exp(-alpha * scaler DIC)
-    4. Symmetry adapted linear combinate the SDIC to get SASIC
-*/
+#ifndef tchem_IC_SASICSet_hpp
+#define tchem_IC_SASICSet_hpp
 
-#ifndef tchem_SASintcoord_hpp
-#define tchem_SASintcoord_hpp
-
-#include <torch/torch.h>
-
-#include <tchem/intcoord.hpp>
+#include <tchem/intcoord/IntCoordSet.hpp>
+#include <tchem/intcoord/SASIC.hpp>
 
 namespace tchem { namespace IC {
 
@@ -26,31 +12,13 @@ struct OthScalRul {
     size_t self, scaler;
     double alpha;
 
-    OthScalRul();
-    OthScalRul(const std::vector<std::string> & input_strs);
-    ~OthScalRul();
-};
-
-// A symmetry adapted and scaled internal coordinate
-class SASIC {
-    private:
-        std::vector<double> coeffs_;
-        std::vector<size_t> indices_;
-    public:
-        SASIC();
-        ~SASIC();
-
-        std::vector<double> coeffs() const;
-        std::vector<size_t> indices() const;
-
-        // Append a linear combination coefficient - index of scaled internal coordinate pair
-        void append(const double & coeff, const size_t & index);
-        // Normalize linear combination coefficients
-        void normalize();
-
-        // Return the symmetry adapted and scaled internal coordinate
-        // given the scaled internal coordinate vector
-        at::Tensor operator()(const at::Tensor & SIC) const;
+    inline OthScalRul() {}
+    inline OthScalRul(const std::vector<std::string> & input_strs) {
+        self   = std::stoul(input_strs[0]) - 1;
+        scaler = std::stoul(input_strs[1]) - 1;
+        alpha  = std::stod (input_strs[2]);
+    }
+    inline ~OthScalRul() {}
 };
 
 // A set of symmetry adapted and scaled internal coordinates
@@ -74,7 +42,7 @@ class SASICSet : public tchem::IC::IntCoordSet {
         SASICSet(const std::string & format, const std::string & IC_file, const std::string & SAS_file);
         ~SASICSet();
 
-        at::Tensor origin() const;
+        const at::Tensor & origin() const;
 
         // Return number of irreducible representations
         size_t NIrreds() const;

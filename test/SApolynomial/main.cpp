@@ -1,6 +1,6 @@
 #include <CppLibrary/linalg.hpp>
 
-#include <tchem/SApolynomial.hpp>
+#include <tchem/polynomial.hpp>
 
 int main() {
     std::cout << "This is a test program on Torch-Chemistry module 'SApolynomial'\n"
@@ -47,11 +47,10 @@ int main() {
     std::vector<at::Tensor> as = {at::rand(2, xs[0].options()), at::rand(2, xs[0].options())};
     at::Tensor S1 = set1.translation(as), S2 = set2.translation(as);
     std::vector<at::Tensor> ps = xs - as;
-    std::cout << "\nValue of polynomial set after translation: "
+    std::cout << "\nValue of symmetry adapted polynomial set after translation: "
               << at::norm(S1.mv(set1(ps)) - answer1).item<double>() << ' '
               << at::norm(S2.mv(set2(ps)) - answer2).item<double>() << '\n';
-
-std::cerr << S1.mv(set1(ps)) << '\n';
+    std::cerr << "See issue #3\n" << S1.mv(set1(ps)) << '\n';
 
     for (at::Tensor & el : xs) el.set_requires_grad(true);
     at::Tensor value1 = set1(xs), value2 = set2(xs);

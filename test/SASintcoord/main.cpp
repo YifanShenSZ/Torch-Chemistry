@@ -1,6 +1,6 @@
 #include <CppLibrary/chemistry.hpp>
 
-#include <tchem/SASintcoord.hpp>
+#include <tchem/intcoord.hpp>
 
 int main() {
     std::cout << "This is a test program on Torch-Chemistry module 'SASintcoord'\n"

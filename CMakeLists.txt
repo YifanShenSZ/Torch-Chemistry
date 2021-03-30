@@ -22,17 +22,22 @@ add_library(tchem STATIC
     source/FORTRAN/My_dsygv.f90
     source/utility.cpp
     source/linalg.cpp
-    source/polynomial.cpp
-    source/SApolynomial.cpp
-    source/gaussian.cpp
-    source/intcoord.cpp
-    source/SASintcoord.cpp
+    source/intcoord/InvDisp.cpp
+    source/intcoord/IntCoord.cpp
+    source/intcoord/IntCoordSet.cpp
+    source/intcoord/SASIC.cpp
+    source/intcoord/SASICSet.cpp
     source/chem/chemistry.cpp
     source/chem/phaser.cpp
     source/chem/normal_mode.cpp
+    source/polynomial/Polynomial.cpp
+    source/polynomial/PolynomialSet.cpp
+    source/polynomial/SAP.cpp
+    source/polynomial/SAPSet.cpp
+    source/gaussian.cpp
 )
 
 target_link_libraries(tchem
     ifcore iomp5 pthread m dl mkl_intel_lp64 mkl_intel_thread mkl_core
-    "${CL_LIBRARIES}" "${TORCH_LIBRARIES}"
+    ${CL_LIBRARIES} ${TORCH_LIBRARIES}
 )

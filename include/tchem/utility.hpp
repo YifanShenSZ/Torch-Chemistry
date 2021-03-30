@@ -5,7 +5,15 @@
 
 #include <torch/torch.h>
 
+#include <CppLibrary/utility.hpp>
+
 namespace tchem { namespace utility {
+
+// Convert an at::Tensor to a std::vector<double>
+std::vector<double> tensor2vector(const at::Tensor & tensor);
+
+// Convert an at::Tensor to CL::utility::matrix<double>
+CL::utility::matrix<double> tensor2matrix(const at::Tensor & tensor);
 
 // Read a vector from file
 at::Tensor read_vector(const std::string & file);

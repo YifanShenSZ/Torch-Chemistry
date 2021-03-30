@@ -1,56 +1,11 @@
 #include <regex>
-#include <torch/torch.h>
 
 #include <CppLibrary/utility.hpp>
-#include <CppLibrary/linalg.hpp>
 #include <CppLibrary/chemistry.hpp>
 
-#include <tchem/intcoord.hpp>
-
-#include <tchem/SASintcoord.hpp>
+#include <tchem/intcoord/SASICSet.hpp>
 
 namespace tchem { namespace IC {
-
-OthScalRul::OthScalRul() {}
-OthScalRul::OthScalRul(const std::vector<std::string> & input_strs) {
-    self   = std::stoul(input_strs[0]) - 1;
-    scaler = std::stoul(input_strs[1]) - 1;
-    alpha  = std::stod (input_strs[2]);
-}
-OthScalRul::~OthScalRul() {}
-
-
-
-
-
-SASIC::SASIC() {}
-SASIC::~SASIC() {}
-
-std::vector<double> SASIC::coeffs() const {return coeffs_;}
-std::vector<size_t> SASIC::indices() const {return indices_;}
-
-// Append a linear combination coefficient - index of scaled internal coordinate pair
-void SASIC::append(const double & coeff, const size_t & index) {
-    coeffs_.push_back(coeff);
-    indices_.push_back(index);
-}
-// Normalize linear combination coefficients
-void SASIC::normalize() {
-    double norm2 = CL::linalg::norm2(coeffs_);
-    for (double & coeff : coeffs_) coeff /= norm2;
-}
-
-// Return the symmetry adapted and scaled internal coordinate
-// given the scaled internal coordinate vector
-at::Tensor SASIC::operator()(const at::Tensor & SIC) const {
-    at::Tensor sasic = coeffs_[0] * SIC[indices_[0]];
-    for (size_t i = 1; i < coeffs_.size(); i++) sasic = sasic + coeffs_[i] * SIC[indices_[i]];
-    return sasic;
-}
-
-
-
-
 
 SASICSet::SASICSet() {}
 // internal coordinate definition format (Columbus7, default)
@@ -119,7 +74,7 @@ SASICSet::SASICSet(const std::string & format, const std::string & IC_file, cons
 }
 SASICSet::~SASICSet() {}
 
-at::Tensor SASICSet::origin() const {return origin_;}
+const at::Tensor & SASICSet::origin() const {return origin_;}
 
 // Return number of irreducible representations
 size_t SASICSet::NIrreds() const {return sasicss_.size();}
@@ -137,11 +92,14 @@ size_t SASICSet::intdim() const {
 }
 
 std::vector<at::Tensor> SASICSet::operator()(const at::Tensor & q) {
+    if (q.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::IC::SASICSet::operator(): q must be a vector");
+    if (q.size(0) != this->size()) throw std::invalid_argument(
+    "tchem::IC::SASICSet::operator(): inconsisten dimension between q and this internal coordinate system");
     // Nondimensionalize
     at::Tensor DIC = q - origin_;
-    std::vector<tchem::IC::IntCoord> IntCoordDef = intcoords();
-    for (size_t i = 0; i < IntCoordDef.size(); i++)
-    if (IntCoordDef[i].invdisps()[0].type() == "stretching")
+    for (size_t i = 0; i < this->size(); i++)
+    if ((*this)[i][0].second.type() == "stretching")
     DIC[i] = DIC[i] / origin_[i];
     // Scale
     at::Tensor SDIC = DIC.clone();

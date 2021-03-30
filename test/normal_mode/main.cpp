@@ -1,5 +1,6 @@
 #include <CppLibrary/chemistry.hpp>
 
+#include <tchem/utility.hpp>
 #include <tchem/intcoord.hpp>
 
 #include <tchem/chem/normal_mode.hpp>
@@ -73,10 +74,14 @@ int main() {
               << (cartvib.frequency() - intvib.frequency()).norm().item<double>() << ' '
               << (cartvib.frequency() - SAfreq).norm().item<double>() << '\n';
 
-    std::cout << "\nNormal modes: "
-              << (at::abs(intvib.cartmode()) - at::abs(SAcartmode)).norm().item<double>() << '\n';
-
     // Although not far, normal modes produced by Cartesian analysis differ from internal ones
     // However, other kinds of tests (e.g. normalization to mass metric) are passed
     // So maybe they are fine to differ?
+    std::cout << "\nNormal modes: "
+              << (at::abs(intvib.cartmode()) - at::abs(SAcartmode)).norm().item<double>() << '\n';
+
+    auto freqs = tchem::utility::tensor2vector(intvib.frequency());
+    auto modes = tchem::utility::tensor2matrix(intvib.cartmode());
+    CL::chem::xyz_vib<double> avogadro(geom.symbols(), geom.coords(), freqs, modes, true);
+    avogadro.print("avogadro.log");
 }

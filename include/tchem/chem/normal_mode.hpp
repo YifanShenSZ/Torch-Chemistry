@@ -1,5 +1,5 @@
-#ifndef tchem_normal_mode_hpp
-#define tchem_normal_mode_hpp
+#ifndef tchem_chem_normal_mode_hpp
+#define tchem_chem_normal_mode_hpp
 
 #include <torch/torch.h>
 

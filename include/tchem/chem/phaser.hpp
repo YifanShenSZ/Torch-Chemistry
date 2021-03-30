@@ -1,5 +1,5 @@
-#ifndef tchem_phaser_hpp
-#define tchem_phaser_hpp
+#ifndef tchem_chem_phaser_hpp
+#define tchem_chem_phaser_hpp
 
 #include <torch/torch.h>
 
