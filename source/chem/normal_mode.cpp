@@ -138,12 +138,12 @@ void IntNormalMode::kernel() {
     // Reference: https://en.wikipedia.org/wiki/GF_method
 }
 
-// Internal coordinate normal modes (normalized by G^-1 metric)
+// Internal coordinate normal modes in each row (normalized by (J . M^-1 . J^T)^-1 metric)
 const at::Tensor & IntNormalMode::intmode() const {
     if (ready_) return intmode_;
     else throw CL::utility::not_ready("tchem::chem::IntNormalMode::intmode");
 }
-// intmode_^-1
+// L^-1 = (intmode_^T)^-1
 const at::Tensor & IntNormalMode::Linv() const {
     if (ready_) return Linv_;
     else throw CL::utility::not_ready("tchem::chem::IntNormalMode::Linv");
@@ -226,12 +226,12 @@ const std::vector<at::Tensor> & SANormalMode::frequencies() const {
     if (ready_) return frequencies_;
     else throw CL::utility::not_ready("tchem::chem::SANormalMode::frequencies");
 }
-// Internal coordinate normal modes (normalized by (J . M^-1 . J^T)^-1 metric)
+// Internal coordinate normal modes in each row (normalized by (J . M^-1 . J^T)^-1 metric)
 const std::vector<at::Tensor> & SANormalMode::intmodes() const {
     if (ready_) return intmodes_;
     else throw CL::utility::not_ready("tchem::chem::SANormalMode::intmodes");
 }
-// intmode_^-1
+// L^-1 = (intmode_^T)^-1
 const std::vector<at::Tensor> & SANormalMode::Linvs() const {
     if (ready_) return Linvs_;
     else throw CL::utility::not_ready("tchem::chem::SANormalMode::Linvs");

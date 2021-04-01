@@ -51,9 +51,9 @@ class IntNormalMode : public CartNormalMode {
         // Perform normal mode analysis, then observables are ready for fetching
         void kernel();
 
-        // Internal coordinate normal modes (normalized by G^-1 metric)
+        // Internal coordinate normal modes in each row (normalized by (J . M^-1 . J^T)^-1 metric)
         const at::Tensor & intmode() const;
-        // intmode_^-1
+        // L^-1 = (intmode_^T)^-1
         const at::Tensor & Linv   () const;
 };
 
@@ -84,9 +84,9 @@ class SANormalMode {
 
         // Harmonic frequencies (negative if imaginary)
         const std::vector<at::Tensor> & frequencies() const;
-        // Internal coordinate normal modes (normalized by (J . M^-1 . J^T)^-1 metric)
+        // Internal coordinate normal modes in each row (normalized by (J . M^-1 . J^T)^-1 metric)
         const std::vector<at::Tensor> & intmodes   () const;
-        // intmode_^-1
+        // L^-1 = (intmode_^T)^-1
         const std::vector<at::Tensor> & Linvs      () const;
         // Cartesian coordinate normal modes
         const std::vector<at::Tensor> & cartmodes  () const;

@@ -28,6 +28,8 @@ SAP::~SAP() {}
 
 const std::vector<std::pair<size_t, size_t>> & SAP::coords() const {return coords_;}
 
+const std::pair<size_t, size_t> & SAP::operator[](const size_t & index) const {return coords_[index];}
+
 size_t SAP::order() const {return coords_.size();}
 void SAP::pretty_print(std::ostream & stream) const {
     stream << coords_.size() << "    ";

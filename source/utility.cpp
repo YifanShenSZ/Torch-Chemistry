@@ -26,6 +26,14 @@ CL::utility::matrix<double> tensor2matrix(const at::Tensor & tensor) {
 }
 
 // Read a vector from file
+at::Tensor read_vector(std::ifstream & ifs) {
+    std::vector<double> data = CL::utility::read_vector(ifs);
+    at::Tensor vector = at::from_blob(data.data(), data.size(), at::TensorOptions().dtype(torch::kFloat64));
+    // Q: Why clone?
+    // A: Because of from_blob, `vector` shares memory with `data`,
+    //    who goes out of scope after this function call
+    return vector.clone();
+}
 at::Tensor read_vector(const std::string & file) {
     std::vector<double> data = CL::utility::read_vector(file);
     at::Tensor vector = at::from_blob(data.data(), data.size(), at::TensorOptions().dtype(torch::kFloat64));

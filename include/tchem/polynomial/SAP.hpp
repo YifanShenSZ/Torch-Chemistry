@@ -25,6 +25,8 @@ class SAP {
 
         const std::vector<std::pair<size_t, size_t>> & coords() const;
 
+        const std::pair<size_t, size_t> & operator[](const size_t & index) const;
+
         size_t order() const;
         void pretty_print(std::ostream & stream) const;
 

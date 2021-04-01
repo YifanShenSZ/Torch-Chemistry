@@ -43,6 +43,9 @@ class PolynomialSet {
         const size_t & max_order() const;
         const std::vector<std::vector<const Polynomial *>> & orders() const;
 
+        // Read-only reference to a polynomial
+        const Polynomial & operator[](const size_t & index) const;
+
         // Given `x`, the value of each term in {P(x)} as a vector
         // Return views to `x` grouped by order
         std::vector<at::Tensor> views(const at::Tensor & x) const;

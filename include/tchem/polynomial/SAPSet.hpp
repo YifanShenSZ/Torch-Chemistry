@@ -40,6 +40,9 @@ class SAPSet {
 
         const std::vector<SAP> & SAPs() const;
 
+        // Read-only reference to a symmetry adapted polynomial
+        const SAP & operator[](const size_t & index) const;
+
         void pretty_print(std::ostream & stream) const;
 
         // Return the value of each term in {P(x)} as a vector
@@ -50,7 +53,7 @@ class SAPSet {
         // Consider coordinate rotation y[irred] = U[irred]^-1 . x[irred]
         // so the SAP set rotates as {SAP(x)} = T . {SAP(y)}
         // Assuming:
-        //     1. All 0th and 1st order terms are present
+        //     1. If there are 1st order terms, all are present
         //     2. SAP.coords are sorted
         // Return rotation matrix T
         at::Tensor rotation(const std::vector<at::Tensor> & U, const SAPSet & y_set) const;

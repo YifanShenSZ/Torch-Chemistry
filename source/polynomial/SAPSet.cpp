@@ -118,6 +118,9 @@ SAPSet::~SAPSet() {}
 
 const std::vector<SAP> & SAPSet::SAPs() const {return SAPs_;}
 
+// Read-only reference to a symmetry adapted polynomial
+const SAP & SAPSet::operator[](const size_t & index) const {return SAPs_[index];}
+
 void SAPSet::pretty_print(std::ostream & stream) const {
     for (const SAP & sap : SAPs_) sap.pretty_print(stream);
 }
@@ -158,7 +161,7 @@ std::vector<at::Tensor> SAPSet::Jacobian(const std::vector<at::Tensor> & xs) con
 // Consider coordinate rotation y[irred] = U[irred]^-1 . x[irred]
 // so the SAP set rotates as {SAP(x)} = T . {SAP(y)}
 // Assuming:
-//     1. All 0th and 1st order terms are present
+//     1. If there are 1st order terms, all are present
 //     2. SAP.coords are sorted
 // Return rotation matrix T
 at::Tensor SAPSet::rotation(const std::vector<at::Tensor> & U, const SAPSet & y_set) const {
@@ -179,24 +182,20 @@ at::Tensor SAPSet::rotation(const std::vector<at::Tensor> & U, const SAPSet & y_
     // Allocate memory
     at::Tensor T = U[0].new_zeros({(int64_t)SAPs_.size(), (int64_t)y_set.SAPs_.size()});
     // Start filling in T
-    size_t start_x, start_y;
-    // Totally symmetric irreducible has 0th order term
-    if (irreducible_ == 0) {
-        // 0th order term does not rotate
+    size_t start_x = 0, start_y = 0;
+    // 0th order term does not rotate
+    if (! orders_[0].empty()) {
         T[0][0] = 1.0;
-        // 1st order terms rotate as x[irred] = U[irred] . y[irred]
-        if (max_order_ >= 1)
-        T.slice(0, 1, dimensions_[irreducible_] + 1).slice(1, 1, dimensions_[irreducible_] + 1).copy_(U[irreducible_]);
-        start_x = dimensions_[irreducible_] + 1;
-        start_y = dimensions_[irreducible_] + 1;
+        start_x++;
+        start_y++;
     }
-    // Other irreducibles starts from 1st order
-    else {
-        // 1st order terms rotate as x[irred] = U[irred] . y[irred]
-        if (max_order_ >= 1)
-        T.slice(0, 0, dimensions_[irreducible_]).slice(1, 0, dimensions_[irreducible_]).copy_(U[irreducible_]);
-        start_x = dimensions_[irreducible_];
-        start_y = dimensions_[irreducible_];
+    // 1st order terms rotate as x[irred] = U[irred] . y[irred]
+    if (max_order_ >= 1) if (! orders_[1].empty()) {
+        T.slice(0, start_x, start_x + dimensions_[irreducible_])
+         .slice(1, start_y, start_y + dimensions_[irreducible_])
+         .copy_(U[irreducible_]);
+        start_x += dimensions_[irreducible_];
+        start_y += dimensions_[irreducible_];
     }
     // 2nd and higher order terms rotate as
     // x[irred1]i1 x[irred2]i2 ... x[irredn]in

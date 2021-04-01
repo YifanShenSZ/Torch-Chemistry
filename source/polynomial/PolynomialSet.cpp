@@ -143,6 +143,9 @@ const size_t & PolynomialSet::dimension() const {return dimension_;}
 const size_t & PolynomialSet::max_order() const {return max_order_;}
 const std::vector<std::vector<const Polynomial *>> & PolynomialSet::orders() const {return orders_;}
 
+// Read-only reference to a polynomial
+const Polynomial & PolynomialSet::operator[](const size_t & index) const {return polynomials_[index];}
+
 // Given `x`, the value of each term in {P(x)} as a vector
 // Return views to `x` grouped by order
 std::vector<at::Tensor> PolynomialSet::views(const at::Tensor & x) const {
