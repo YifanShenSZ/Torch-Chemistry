@@ -242,5 +242,8 @@ const std::vector<at::Tensor> & SANormalMode::cartmodes() const {
     else throw CL::utility::not_ready("tchem::chem::SANormalMode::cartmodes");
 }
 
+// Number of irreducible representations
+size_t SANormalMode::NIrreds() const {return Jacobians_.size();}
+
 } // namespace chem
 } // namespace tchem

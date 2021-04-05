@@ -90,6 +90,9 @@ class SANormalMode {
         const std::vector<at::Tensor> & Linvs      () const;
         // Cartesian coordinate normal modes
         const std::vector<at::Tensor> & cartmodes  () const;
+
+        // Number of irreducible representations
+        size_t NIrreds() const;
 };
 
 } // namespace chem
