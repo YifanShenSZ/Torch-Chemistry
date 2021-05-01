@@ -60,14 +60,16 @@ class SAPSet {
         // Assuming terms are the same under rotation
         at::Tensor rotation(const std::vector<at::Tensor> & U) const;
 
-        // Consider coordinate translation y[irred] = x[irred] - a[irred]
+        // Consider coordinate translation y[0] = x[0] - a
+        // i.e. only the totally symmetric irreducible translates so that symmetry preserves
         // so the SAP set translates as {SAP(x)} = T . {SAP(y)}
         // Assuming:
-        //     1. All 0th and 1st order terms are present
+        //     1. The totally symmetric irreducible must have the 0th order term
+        //     1. If the totally symmetric irreducible has 1st order terms, all are present
         // Return translation matrix T
-        at::Tensor translation(const std::vector<at::Tensor> & a, const SAPSet & y_set) const;
+        at::Tensor translation(const at::Tensor & a, const SAPSet & y_set) const;
         // Assuming terms are the same under translation
-        at::Tensor translation(const std::vector<at::Tensor> & a) const;
+        at::Tensor translation(const at::Tensor & a) const;
 };
 
 } // namespace polynomial

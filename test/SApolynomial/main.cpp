@@ -44,13 +44,13 @@ int main() {
               << at::norm(T1.mv(set1(qs)) - answer1).item<double>() << ' '
               << at::norm(T2.mv(set2(qs)) - answer2).item<double>() << '\n';
 
-    std::vector<at::Tensor> as = {at::rand(2, xs[0].options()), at::rand(2, xs[0].options())};
-    at::Tensor S1 = set1.translation(as), S2 = set2.translation(as);
-    std::vector<at::Tensor> ps = xs - as;
+    at::Tensor a = at::rand(2, xs[0].options());
+    at::Tensor S1 = set1.translation(a), S2 = set2.translation(a);
+    std::vector<at::Tensor> ps = xs;
+    ps[0] -= a;
     std::cout << "\nValue of symmetry adapted polynomial set after translation: "
               << at::norm(S1.mv(set1(ps)) - answer1).item<double>() << ' '
               << at::norm(S2.mv(set2(ps)) - answer2).item<double>() << '\n';
-    std::cerr << "See issue #3\n" << S1.mv(set1(ps)) << '\n';
 
     for (at::Tensor & el : xs) el.set_requires_grad(true);
     at::Tensor value1 = set1(xs), value2 = set2(xs);

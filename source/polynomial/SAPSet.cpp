@@ -5,6 +5,7 @@
 #include <tchem/polynomial/SAPSet.hpp>
 
 namespace {
+    // Support SAPSet::rotation
     bool match_irred(const std::vector<std::pair<size_t, size_t>> & x, const std::vector<std::pair<size_t, size_t>> & y) {
         assert(("x and y have a same size", x.size() == y.size()));
         bool match = true;
@@ -14,6 +15,16 @@ namespace {
             break;
         }
         return match;
+    }
+
+    // Support SAPSet::translation
+    bool all_zero(const std::vector<std::pair<size_t, size_t>> & x) {
+        bool all_zero = true;
+        for (const auto & el : x) if (el.first != 0) {
+            all_zero = false;
+            break;
+        }
+        return all_zero;
     }
 }
 
@@ -32,6 +43,9 @@ void SAPSet::construct_orders_() {
     orders_.resize(max_order_ + 1);
     for (const SAP & sap : SAPs_)
     orders_[sap.order()].push_back(& sap);
+    // Sanity check
+    if (irreducible_ != 0 && (! orders_[0].empty())) throw std::invalid_argument(
+    "tchem::SAPSet::construct_orders_: Only the totally symmetric irreducible can have 0th order term");
 }
 
 // Given a set of coordiantes constituting a SAP, try to locate its index within [lower, upper]
@@ -71,8 +85,8 @@ void SAPSet::bisect_(const std::vector<std::pair<size_t, size_t>> coords, const 
         size_t bisection = (lower + upper) / 2;
         bool match = true;
         std::vector<std::pair<size_t, size_t>> ref_coords = SAPs_[bisection].coords();
-        size_t i;
-        for (i = 0; i < coords.size(); i++)
+        int64_t i;
+        for (i = coords.size() - 1; i > -1 ; i--)
         if (coords[i] != ref_coords[i]) {
             match = false;
             break;
@@ -271,47 +285,43 @@ at::Tensor SAPSet::rotation(const std::vector<at::Tensor> & U, const SAPSet & y_
 // Assuming terms are the same under rotation
 at::Tensor SAPSet::rotation(const std::vector<at::Tensor> & U) const {return rotation(U, * this);}
 
-// Consider coordinate translation y[irred] = x[irred] - a[irred]
+// Consider coordinate translation y[0] = x[0] - a
+// i.e. only the totally symmetric irreducible translates so that symmetry preserves
 // so the SAP set translates as {SAP(x)} = T . {SAP(y)}
 // Assuming:
-//     1. All 0th and 1st order terms are present
+//     1. The totally symmetric irreducible must have the 0th order term
+//     1. If the totally symmetric irreducible has 1st order terms, all are present
 // Return translation matrix T
-at::Tensor SAPSet::translation(const std::vector<at::Tensor> & a, const SAPSet & y_set) const {
-    if (dimensions_.size() != a.size()) throw std::invalid_argument(
-    "tchem::polynomial::SAPSet::translation: inconsistent number of irreducibles between a and the coordinate system");
-    for (size_t irred = 0; irred < a.size(); irred++) {
-        if (a[irred].sizes().size() != 1) throw std::invalid_argument(
-        "tchem::polynomial::SAPSet::translation: a must be a vector");
-        if (a[irred].size(0) != dimensions_[irred]) throw std::invalid_argument(
-        "tchem::polynomial::SAPSet::translation: a must share a same dimension with the coordinates");
-    }
+at::Tensor SAPSet::translation(const at::Tensor & a, const SAPSet & y_set) const {
+    if (a.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::polynomial::SAPSet::translation: a must be a vector");
+    if (a.size(0) != dimensions_[0]) throw std::invalid_argument(
+    "tchem::polynomial::SAPSet::translation: a must share a same dimension with the coordinates");
     if (max_order_ != y_set.max_order_) throw std::invalid_argument(
     "tchem::polynomial::SAPSet::translation: The 2 polynomial sets must share a same order");
     // Allocate memory
-    at::Tensor T = a[0].new_zeros({(int64_t)SAPs_.size(), (int64_t)y_set.SAPs_.size()});
+    at::Tensor T = a.new_zeros({(int64_t)SAPs_.size(), (int64_t)y_set.SAPs_.size()});
     // Start filling in T
-    size_t start_x;
-    // Totally symmetric irreducible has 0th order term
+    size_t start_x = 0;
+    // Totally symmetric irreducible must have 0th order term and may translate 1st order terms
     if (irreducible_ == 0) {
+        if (orders_[0].empty()) throw std::invalid_argument(
+        "tchem::polynomial::SAPSet::translation: The totally symmetric irreducible must have the 0th order term");
         // 0th order term does not shift
         T[0][0] = 1.0;
-        // 1st order terms shift as x[irred] = y[irred] + a[irred]
-        if (max_order_ >= 1)
-        for (size_t i = 0; i < dimensions_[irreducible_]; i++) {
-            T[i + 1][0    ] = a[irreducible_][i];
-            T[i + 1][i + 1] = 1.0;
+        start_x++;
+        // 1st order terms shift as x[0] = y[0] + a
+        if (max_order_ >= 1) if (! orders_[1].empty())
+        for (size_t i = 0; i < dimensions_[0]; i++) {
+            T[start_x][0      ] = a[i];
+            T[start_x][start_x] = 1.0;
+            start_x++;
         }
-        start_x = dimensions_[irreducible_] + 1;
     }
-    // Other irreducibles starts from 1st order
-    else {
-        // 1st order terms shift as x[irred] = y[irred] + a[irred]
-        if (max_order_ >= 1)
-        for (size_t i = 0; i < dimensions_[irreducible_]; i++) {
-            T[i][0] = a[irreducible_][i];
-            T[i][i] = 1.0;
-        }
+    // Other irreducibles does not translate 1st order terms
+    else if (max_order_ >= 1) if (! orders_[1].empty()) {
         start_x = dimensions_[irreducible_];
+        T.slice(0, 0, start_x).slice(1, 0, start_x).fill_diagonal_(1.0);
     }
     // 2nd and higher order terms shift as
     // x[irred1]i1 x[irred2]i2 ... x[irredn]in
@@ -320,6 +330,7 @@ at::Tensor SAPSet::translation(const std::vector<at::Tensor> & a, const SAPSet &
     //     + y[irred1]i1 a[irred2]i2 ... a[irredn]in
     //     + ...
     //     + y[irred1]i1 y[irred2]i2 ... y[irredn]in
+    // if irred != 0: a[irred]i = 0
     for (size_t iorder = 2; iorder <= max_order_; iorder++) {
         size_t NTerms_x = orders_[iorder].size();
         size_t   stop_x = start_x + NTerms_x;
@@ -327,8 +338,11 @@ at::Tensor SAPSet::translation(const std::vector<at::Tensor> & a, const SAPSet &
         for (size_t i = 0; i < NTerms_x; i++) {
             auto x_coords = orders_[iorder][i]->coords();
             // The 1st term: a[irred1]i1 a[irred2]i2 ... a[irredn]in
-            T_block[i][0] = a[x_coords[0].first][x_coords[0].second];
-            for (size_t j = 1; j < iorder; j++) T_block[i][0] *= a[x_coords[j].first][x_coords[j].second];
+            if (all_zero(x_coords)) {
+                T_block[i][0] = a[x_coords[0].second];
+                for (size_t j = 1; j < iorder; j++) T_block[i][0] *= a[x_coords[j].second];
+            }
+            else T_block[i][0] = 0.0;
             // The other terms: as a binary counter
             // when a bit == 1, place y there
             std::vector<size_t> use_var(iorder, 0);
@@ -357,12 +371,14 @@ at::Tensor SAPSet::translation(const std::vector<at::Tensor> & a, const SAPSet &
                     count_a++;
                 }
                 // Determine T block element
-                int64_t index = y_set.index_SAP_(y_coords);
-                if (index >= 0) {
-                    at::Tensor current = a[0].new_empty({});
-                    current.fill_(1.0);
-                    for (auto & coord : a_coords) current *= a[coord.first][coord.second];
-                    T_block[i][index] += current;
+                if (all_zero(a_coords)) {
+                    int64_t index = y_set.index_SAP_(y_coords);
+                    if (index >= 0) {
+                        at::Tensor current = a.new_empty({});
+                        current.fill_(1.0);
+                        for (auto & coord : a_coords) current *= a[coord.second];
+                        T_block[i][index] += current;
+                    }
                 }
             }
         }
@@ -371,7 +387,7 @@ at::Tensor SAPSet::translation(const std::vector<at::Tensor> & a, const SAPSet &
     return T;
 }
 // Assuming terms are the same under translation
-at::Tensor SAPSet::translation(const std::vector<at::Tensor> & a) const {return translation(a, * this);}
+at::Tensor SAPSet::translation(const at::Tensor & a) const {return translation(a, * this);}
 
 } // namespace polynomial
 } // namespace tchem

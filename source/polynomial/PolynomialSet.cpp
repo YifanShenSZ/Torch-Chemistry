@@ -55,10 +55,8 @@ void PolynomialSet::bisect_(const std::vector<size_t> coords, const size_t & low
         size_t bisection = (lower + upper) / 2;
         bool match = true;
         std::vector<size_t> ref_coords = polynomials_[bisection].coords();
-        size_t i;
-        // Although the comparison should be made from the last coordinate to the first,
-        // we can still start from the first since Polynomial has its coordinates sorted descendingly
-        for (i = 0; i < coords.size(); i++)
+        int64_t i;
+        for (i = coords.size() - 1; i > -1 ; i--)
         if (coords[i] != ref_coords[i]) {
             match = false;
             break;
