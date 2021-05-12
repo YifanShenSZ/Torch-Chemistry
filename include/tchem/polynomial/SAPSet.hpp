@@ -38,6 +38,9 @@ class SAPSet {
         SAPSet(const std::string & sapoly_file, const size_t & _irreducible, const std::vector<size_t> & _dimensions);
         ~SAPSet();
 
+        // Insert a 0th order (const) term if the set is totally symmetic and does not have const yet
+        void insert_const();
+
         const std::vector<SAP> & SAPs() const;
 
         // Read-only reference to a symmetry adapted polynomial

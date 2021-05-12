@@ -130,6 +130,18 @@ SAPSet::SAPSet(const std::string & sapoly_file, const size_t & _irreducible, con
 }
 SAPSet::~SAPSet() {}
 
+// Insert a 0th order (const) term if the set is totally symmetic and does not have const yet
+void SAPSet::insert_const() {
+    if (irreducible_ == 0 & orders_[0].empty()) {
+        auto copy = SAPs_;
+        SAPs_.clear();
+        SAPs_.resize(1 + copy.size());
+        SAPs_[0] = SAP();
+        for (size_t i = 0; i < copy.size(); i++) SAPs_[i + 1] = copy[i];
+        this->construct_orders_();
+    }
+}
+
 const std::vector<SAP> & SAPSet::SAPs() const {return SAPs_;}
 
 // Read-only reference to a symmetry adapted polynomial

@@ -54,6 +54,8 @@ class PolynomialSet {
         at::Tensor operator()(const at::Tensor & x) const;
         // Return d{P(x)} / dx given x
         at::Tensor Jacobian(const at::Tensor & x) const;
+        // Return dd{P(x)} / dx^2 given x
+        at::Tensor Jacobian2nd(const at::Tensor & x) const;
 
         // Consider coordinate rotation y = U^-1 . x
         // so the polynomial set rotates as {P(x)} = T . {P(y)}

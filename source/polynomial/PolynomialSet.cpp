@@ -179,6 +179,16 @@ at::Tensor PolynomialSet::Jacobian(const at::Tensor & x) const {
     for (size_t i = 0; i < polynomials_.size(); i++) J[i] = polynomials_[i].gradient(x);
     return J;
 }
+// Return dd{P(x)} / dx^2 given x
+at::Tensor PolynomialSet::Jacobian2nd(const at::Tensor & x) const {
+    if (x.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::polynomial::PolynomialSet::Jacobian: x must be a vector");
+    if (x.size(0) != dimension_) throw std::invalid_argument(
+    "tchem::polynomial::PolynomialSet::Jacobian: x must have a same dimension as the coordinates");
+    at::Tensor K = x.new_empty({(int64_t)polynomials_.size(), x.size(0), x.size(0)});
+    for (size_t i = 0; i < polynomials_.size(); i++) K[i] = polynomials_[i].Hessian(x);
+    return K;
+}
 
 // Consider coordinate rotation y = U^-1 . x
 // so the polynomial set rotates as {P(x)} = T . {P(y)}
