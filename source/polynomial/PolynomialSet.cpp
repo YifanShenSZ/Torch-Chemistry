@@ -179,14 +179,32 @@ at::Tensor PolynomialSet::Jacobian(const at::Tensor & x) const {
     for (size_t i = 0; i < polynomials_.size(); i++) J[i] = polynomials_[i].gradient(x);
     return J;
 }
+at::Tensor PolynomialSet::Jacobian_(const at::Tensor & x) const {
+    if (x.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::polynomial::PolynomialSet::Jacobian_: x must be a vector");
+    if (x.size(0) != dimension_) throw std::invalid_argument(
+    "tchem::polynomial::PolynomialSet::Jacobian_: x must have a same dimension as the coordinates");
+    at::Tensor J = x.new_empty({(int64_t)polynomials_.size(), x.size(0)});
+    for (size_t i = 0; i < polynomials_.size(); i++) J[i].copy_(polynomials_[i].gradient_(x));
+    return J;
+}
 // Return dd{P(x)} / dx^2 given x
 at::Tensor PolynomialSet::Jacobian2nd(const at::Tensor & x) const {
     if (x.sizes().size() != 1) throw std::invalid_argument(
-    "tchem::polynomial::PolynomialSet::Jacobian: x must be a vector");
+    "tchem::polynomial::PolynomialSet::Jacobian2nd: x must be a vector");
     if (x.size(0) != dimension_) throw std::invalid_argument(
-    "tchem::polynomial::PolynomialSet::Jacobian: x must have a same dimension as the coordinates");
+    "tchem::polynomial::PolynomialSet::Jacobian2nd: x must have a same dimension as the coordinates");
     at::Tensor K = x.new_empty({(int64_t)polynomials_.size(), x.size(0), x.size(0)});
     for (size_t i = 0; i < polynomials_.size(); i++) K[i] = polynomials_[i].Hessian(x);
+    return K;
+}
+at::Tensor PolynomialSet::Jacobian2nd_(const at::Tensor & x) const {
+    if (x.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::polynomial::PolynomialSet::Jacobian2nd_: x must be a vector");
+    if (x.size(0) != dimension_) throw std::invalid_argument(
+    "tchem::polynomial::PolynomialSet::Jacobian2nd_: x must have a same dimension as the coordinates");
+    at::Tensor K = x.new_empty({(int64_t)polynomials_.size(), x.size(0), x.size(0)});
+    for (size_t i = 0; i < polynomials_.size(); i++) K[i].copy_(polynomials_[i].Hessian_(x));
     return K;
 }
 

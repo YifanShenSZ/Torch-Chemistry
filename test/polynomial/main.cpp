@@ -32,7 +32,8 @@ int main() {
     std::cout << "\nValue of polynomial set after translation: "
               << at::norm(S.mv(set(p)) - answer).item<double>() << '\n';
 
-    at::Tensor J = set.Jacobian(x), K = set.Jacobian2nd(x);
+    at::Tensor J = set.Jacobian(x), J_ = set.Jacobian_(x),
+               K = set.Jacobian2nd(x), K_ = set.Jacobian2nd_(x);
 
     x.set_requires_grad(true);
     at::Tensor values = set(x);
@@ -47,7 +48,9 @@ int main() {
         }
     }
     std::cout << "\nAnalytical Jacobian vs backward propagation: "
-              << (J - JB).norm().item<double>() << '\n';
+              << (J  - JB).norm().item<double>() << ' '
+              << (J_ - JB).norm().item<double>() << '\n';
     std::cout << "\nAnalytical 2nd-order Jacobian vs backward propagation: "
-              << (K - KB).norm().item<double>() << '\n';
+              << (K  - KB).norm().item<double>() << ' '
+              << (K_ - KB).norm().item<double>() << '\n';
 }

@@ -26,8 +26,10 @@ class Polynomial {
         at::Tensor operator()(const at::Tensor & x) const;
         // Return dP(x) / dx given x
         at::Tensor gradient(const at::Tensor & x) const;
+        at::Tensor gradient_(const at::Tensor & x) const;
         // Return ddP(x) / dx^2 given x
         at::Tensor Hessian(const at::Tensor & x) const;
+        at::Tensor Hessian_(const at::Tensor & x) const;
 };
 
 } // namespace polynomial
