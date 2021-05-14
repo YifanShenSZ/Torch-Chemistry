@@ -57,8 +57,7 @@ std::tuple<std::vector<std::pair<size_t, size_t>>, std::vector<size_t>> SAP::uni
 
 // Return the symmetry adapted polynomial value SAP(x) given x
 at::Tensor SAP::operator()(const std::vector<at::Tensor> & xs) const {
-    for (const at::Tensor & x : xs)
-    if (x.sizes().size() != 1) throw std::invalid_argument(
+    for (const at::Tensor & x : xs) if (x.sizes().size() != 1) throw std::invalid_argument(
     "tchem::polynomial::SAP::operator(): x must be a vector");
     at::Tensor value = xs[0].new_full({}, 1.0);
     for (size_t i = 0; i < coords_.size(); i++)
@@ -67,24 +66,211 @@ at::Tensor SAP::operator()(const std::vector<at::Tensor> & xs) const {
 }
 // Return dP(x) / dx given x
 std::vector<at::Tensor> SAP::gradient(const std::vector<at::Tensor> & xs) const {
-    for (const at::Tensor & x : xs)
-    if (x.sizes().size() != 1) throw std::invalid_argument(
+    for (const at::Tensor & x : xs) if (x.sizes().size() != 1) throw std::invalid_argument(
     "tchem::polynomial::SAP::gradient: x must be a vector");
     std::vector<std::pair<size_t, size_t>> uniques;
     std::vector<size_t> orders;
     std::tie(uniques, orders) = this->uniques_orders();
-    std::vector<at::Tensor> grad(xs.size());
-    for (size_t i = 0; i < xs.size(); i++) grad[i] = xs[i].new_zeros(xs[i].sizes());
+    std::vector<at::Tensor> grads(xs.size());
+    for (size_t i = 0; i < xs.size(); i++) grads[i] = xs[i].new_zeros(xs[i].sizes());
     for (size_t i = 0; i < uniques.size(); i++) {
-        grad[uniques[i].first][uniques[i].second] = (double)orders[i] * at::pow(xs[uniques[i].first][uniques[i].second], (double)(orders[i] - 1));
+        grads[uniques[i].first][uniques[i].second] = (double)orders[i] * at::pow(xs[uniques[i].first][uniques[i].second], (double)(orders[i] - 1));
         for (size_t j = 0; j < i; j++)
-        grad[uniques[i].first][uniques[i].second] = grad[uniques[i].first][uniques[i].second]
-                                                  * at::pow(xs[uniques[j].first][uniques[j].second], (double)orders[j]);
+        grads[uniques[i].first][uniques[i].second] = grads[uniques[i].first][uniques[i].second]
+                                                   * at::pow(xs[uniques[j].first][uniques[j].second], (double)orders[j]);
         for (size_t j = i + 1; j < uniques.size(); j++)
-        grad[uniques[i].first][uniques[i].second] = grad[uniques[i].first][uniques[i].second]
-                                                  * at::pow(xs[uniques[j].first][uniques[j].second], (double)orders[j]);
+        grads[uniques[i].first][uniques[i].second] = grads[uniques[i].first][uniques[i].second]
+                                                   * at::pow(xs[uniques[j].first][uniques[j].second], (double)orders[j]);
     }
-    return grad;
+    return grads;
+}
+std::vector<at::Tensor> SAP::gradient_(const std::vector<at::Tensor> & xs) const {
+    for (const at::Tensor & x : xs) if (x.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::polynomial::SAP::gradient_: x must be a vector");
+    std::vector<std::pair<size_t, size_t>> uniques;
+    std::vector<size_t> orders;
+    std::tie(uniques, orders) = this->uniques_orders();
+    std::vector<at::Tensor> grads(xs.size());
+    std::vector<const double *> pxs(xs.size());
+    for (size_t i = 0; i < xs.size(); i++) {
+        grads[i] = xs[i].new_zeros(xs[i].sizes());
+        pxs[i] = xs[i].data_ptr<double>();
+    }
+    for (size_t i = 0; i < uniques.size(); i++) {
+        const at::Tensor & el = grads[uniques[i].first][uniques[i].second];
+        el.fill_(orders[i] * pow(pxs[uniques[i].first][uniques[i].second], orders[i] - 1));
+        for (size_t j = 0; j < i; j++)
+        el.mul_(pow(pxs[uniques[j].first][uniques[j].second], orders[j]));
+        for (size_t j = i + 1; j < uniques.size(); j++)
+        el.mul_(pow(pxs[uniques[j].first][uniques[j].second], orders[j]));
+    }
+    return grads;
+}
+// Return dP(x) / dx given x
+// `result` harvests the concatenated symmetry adapted gradients
+std::vector<at::Tensor> SAP::gradient_(const std::vector<at::Tensor> & xs, at::Tensor & grad) const {
+    for (const at::Tensor & x : xs) if (x.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::polynomial::SAP::gradient_: x must be a vector");
+    std::vector<std::pair<size_t, size_t>> uniques;
+    std::vector<size_t> orders;
+    std::tie(uniques, orders) = this->uniques_orders();
+    int64_t dimension = 0;
+    for (const at::Tensor & x : xs) dimension += x.size(0);
+    grad = xs[0].new_zeros(dimension);
+    int64_t start = 0, stop;
+    std::vector<at::Tensor> grads(xs.size());
+    std::vector<const double *> pxs(xs.size());
+    for (size_t i = 0; i < xs.size(); i++) {
+        stop = start + xs[i].size(0);
+        grads[i] = grad.slice(0, start, stop);
+        start = stop;
+        pxs[i] = xs[i].data_ptr<double>();
+    }
+    for (size_t i = 0; i < uniques.size(); i++) {
+        const at::Tensor & el = grads[uniques[i].first][uniques[i].second];
+        el.fill_(orders[i] * pow(pxs[uniques[i].first][uniques[i].second], orders[i] - 1));
+        for (size_t j = 0; j < i; j++)
+        el.mul_(pow(pxs[uniques[j].first][uniques[j].second], orders[j]));
+        for (size_t j = i + 1; j < uniques.size(); j++)
+        el.mul_(pow(pxs[uniques[j].first][uniques[j].second], orders[j]));
+    }
+    return grads;
+}
+// Return ddP(x) / dx^2 given x
+CL::utility::matrix<at::Tensor> SAP::Hessian(const std::vector<at::Tensor> & xs) const {
+    for (const at::Tensor & x : xs) if (x.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::polynomial::SAP::Hessian: x must be a vector");
+    std::vector<std::pair<size_t, size_t>> uniques;
+    std::vector<size_t> orders;
+    std::tie(uniques, orders) = this->uniques_orders();
+    CL::utility::matrix<at::Tensor> hesses(xs.size());
+    for (size_t i = 0; i < xs.size(); i++)
+    for (size_t j = i; j < xs.size(); j++)
+    hesses[i][j] = xs[i].new_zeros({xs[i].size(0), xs[j].size(0)});
+    for (size_t i = 0; i < uniques.size(); i++) {
+        at::Tensor & hess_ii = hesses[uniques[i].first][uniques[i].first];
+        if (orders[i] < 2) hess_ii[uniques[i].second][uniques[i].second] = 0.0;
+        else {
+            hess_ii[uniques[i].second][uniques[i].second]
+                = (double)(orders[i] * (orders[i] - 1))
+                * at::pow(xs[uniques[i].first][uniques[i].second], (double)(orders[i] - 2));
+            for (size_t k = 0; k < i; k++)
+            hess_ii[uniques[i].second][uniques[i].second]
+                = hess_ii[uniques[i].second][uniques[i].second]
+                * at::pow(xs[uniques[k].first][uniques[k].second], (double)orders[k]);
+            for (size_t k = i + 1; k < uniques.size(); k++)
+            hess_ii[uniques[i].second][uniques[i].second]
+                = hess_ii[uniques[i].second][uniques[i].second]
+                * at::pow(xs[uniques[k].first][uniques[k].second], (double)orders[k]);
+        }
+        for (size_t j = i + 1; j < uniques.size(); j++) {
+            at::Tensor & hess_ji = hesses[uniques[j].first][uniques[i].first];
+            hess_ji[uniques[j].second][uniques[i].second]
+                = (double)(orders[i] * orders[j])
+                * at::pow(xs[uniques[i].first][uniques[i].second], (double)(orders[i] - 1))
+                * at::pow(xs[uniques[j].first][uniques[j].second], (double)(orders[j] - 1));
+            for (size_t k = 0; k < i; k++)
+            hess_ji[uniques[j].second][uniques[i].second]
+                = hess_ji[uniques[j].second][uniques[i].second]
+                * at::pow(xs[uniques[k].first][uniques[k].second], (double)orders[k]);
+            for (size_t k = i + 1; k < j; k++)
+            hess_ji[uniques[j].second][uniques[i].second]
+                = hess_ji[uniques[j].second][uniques[i].second]
+                * at::pow(xs[uniques[k].first][uniques[k].second], (double)orders[k]);
+            for (size_t k = j + 1; k < uniques.size(); k++)
+            hess_ji[uniques[j].second][uniques[i].second]
+                = hess_ji[uniques[j].second][uniques[i].second]
+                * at::pow(xs[uniques[k].first][uniques[k].second], (double)orders[k]);
+        }
+    }
+    return hesses;
+}
+CL::utility::matrix<at::Tensor> SAP::Hessian_(const std::vector<at::Tensor> & xs) const {
+    for (const at::Tensor & x : xs) if (x.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::polynomial::SAP::Hessian_: x must be a vector");
+    std::vector<std::pair<size_t, size_t>> uniques;
+    std::vector<size_t> orders;
+    std::tie(uniques, orders) = this->uniques_orders();
+    CL::utility::matrix<at::Tensor> hesses(xs.size());
+    std::vector<const double *> pxs(xs.size());
+    for (size_t i = 0; i < xs.size(); i++) {
+        pxs[i] = xs[i].data_ptr<double>();
+        for (size_t j = i; j < xs.size(); j++) hesses[i][j] = xs[i].new_zeros({xs[i].size(0), xs[j].size(0)});
+    }
+    for (size_t i = 0; i < uniques.size(); i++) {
+        const at::Tensor & el = hesses[uniques[i].first][uniques[i].first][uniques[i].second][uniques[i].second];
+        if (orders[i] < 2) el.zero_();
+        else {
+            el.fill_((orders[i] * (orders[i] - 1))* pow(pxs[uniques[i].first][uniques[i].second], orders[i] - 2));
+            for (size_t k = 0; k < i; k++)
+            el.mul_(pow(pxs[uniques[k].first][uniques[k].second], orders[k]));
+            for (size_t k = i + 1; k < uniques.size(); k++)
+            el.mul_(pow(pxs[uniques[k].first][uniques[k].second], orders[k]));
+        }
+        for (size_t j = i + 1; j < uniques.size(); j++) {
+            const at::Tensor & el = hesses[uniques[j].first][uniques[i].first][uniques[j].second][uniques[i].second];
+            el.fill_((orders[i] * orders[j])
+                     * pow(pxs[uniques[i].first][uniques[i].second], orders[i] - 1)
+                     * pow(pxs[uniques[j].first][uniques[j].second], orders[j] - 1));
+            for (size_t k = 0; k < i; k++)
+            el.mul_(pow(pxs[uniques[k].first][uniques[k].second], orders[k]));
+            for (size_t k = i + 1; k < j; k++)
+            el.mul_(pow(pxs[uniques[k].first][uniques[k].second], orders[k]));
+            for (size_t k = j + 1; k < uniques.size(); k++)
+            el.mul_(pow(pxs[uniques[k].first][uniques[k].second], orders[k]));
+        }
+    }
+    return hesses;
+}
+// Return ddP(x) / dx^2 given x
+// `hess` harvests the concatenated symmetry adapted Hessians
+CL::utility::matrix<at::Tensor> SAP::Hessian_(const std::vector<at::Tensor> & xs, at::Tensor & hess) const {
+    for (const at::Tensor & x : xs) if (x.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::polynomial::SAP::Hessian_: x must be a vector");
+    std::vector<std::pair<size_t, size_t>> uniques;
+    std::vector<size_t> orders;
+    std::tie(uniques, orders) = this->uniques_orders();
+    int64_t dimension = 0;
+    for (const at::Tensor & x : xs) dimension += x.size(0);
+    hess = xs[0].new_zeros({dimension, dimension});
+    int64_t start_row = 0, stop_row;
+    CL::utility::matrix<at::Tensor> hesses(xs.size());
+    std::vector<const double *> pxs(xs.size());
+    for (size_t i = 0; i < xs.size(); i++) {
+        pxs[i] = xs[i].data_ptr<double>();
+        stop_row = start_row + xs[i].size(0);
+        int64_t start_col = start_row, stop_col;
+        for (size_t j = i; j < xs.size(); j++) {
+            stop_col = start_col + xs[j].size(0);
+            hesses[i][j] = hess.slice(0, start_row, stop_row).slice(1, start_col, stop_col);
+            start_col = stop_col;
+        }
+        start_row = stop_row;
+    }
+    for (size_t i = 0; i < uniques.size(); i++) {
+        const at::Tensor & el = hesses[uniques[i].first][uniques[i].first][uniques[i].second][uniques[i].second];
+        if (orders[i] < 2) el.zero_();
+        else {
+            el.fill_((orders[i] * (orders[i] - 1))* pow(pxs[uniques[i].first][uniques[i].second], orders[i] - 2));
+            for (size_t k = 0; k < i; k++)
+            el.mul_(pow(pxs[uniques[k].first][uniques[k].second], orders[k]));
+            for (size_t k = i + 1; k < uniques.size(); k++)
+            el.mul_(pow(pxs[uniques[k].first][uniques[k].second], orders[k]));
+        }
+        for (size_t j = i + 1; j < uniques.size(); j++) {
+            const at::Tensor & el = hesses[uniques[j].first][uniques[i].first][uniques[j].second][uniques[i].second];
+            el.fill_((orders[i] * orders[j])
+                     * pow(pxs[uniques[i].first][uniques[i].second], orders[i] - 1)
+                     * pow(pxs[uniques[j].first][uniques[j].second], orders[j] - 1));
+            for (size_t k = 0; k < i; k++)
+            el.mul_(pow(pxs[uniques[k].first][uniques[k].second], orders[k]));
+            for (size_t k = i + 1; k < j; k++)
+            el.mul_(pow(pxs[uniques[k].first][uniques[k].second], orders[k]));
+            for (size_t k = j + 1; k < uniques.size(); k++)
+            el.mul_(pow(pxs[uniques[k].first][uniques[k].second], orders[k]));
+        }
+    }
+    return hesses;
 }
 
 } // namespace polynomial

@@ -153,28 +153,24 @@ void SAPSet::pretty_print(std::ostream & stream) const {
 
 // Return the value of each term in {P(x)} as a vector of vectors
 at::Tensor SAPSet::operator()(const std::vector<at::Tensor> & xs) const {
-    for (const at::Tensor & x : xs)
-    if (x.sizes().size() != 1) throw std::invalid_argument(
-    "tchem::polynomial::SAP::operator(): x must be a vector");
+    for (const at::Tensor & x : xs) if (x.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::polynomial::SAPSet::operator(): x must be a vector");
     if (xs.size() != dimensions_.size()) throw std::invalid_argument(
-    "tchem::polynomial::SAP::operator(): x must share a same number of irreducibles as the coordinate system");
-    for (size_t i = 0; i < xs.size(); i++)
-    if (xs[i].size(0) != dimensions_[i]) throw std::invalid_argument(
-    "tchem::polynomial::SAP::operator(): x must have a same dimension as the coordinates");
+    "tchem::polynomial::SAPSet::operator(): x must share a same number of irreducibles as the coordinate system");
+    for (size_t i = 0; i < xs.size(); i++) if (xs[i].size(0) != dimensions_[i]) throw std::invalid_argument(
+    "tchem::polynomial::SAPSet::operator(): x must have a same dimension as the coordinates");
     at::Tensor y = xs[0].new_empty(SAPs_.size());
     for (size_t i = 0; i < SAPs_.size(); i++) y[i] = SAPs_[i](xs);
     return y;
 }
 // Return d{P(x)} / dx given x
 std::vector<at::Tensor> SAPSet::Jacobian(const std::vector<at::Tensor> & xs) const {
-    for (const at::Tensor & x : xs)
-    if (x.sizes().size() != 1) throw std::invalid_argument(
-    "tchem::polynomial::SAP::Jacobian: x must be a vector");
+    for (const at::Tensor & x : xs) if (x.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::polynomial::SAPSet::Jacobian: x must be a vector");
     if (xs.size() != dimensions_.size()) throw std::invalid_argument(
-    "tchem::polynomial::SAP::Jacobian: x must share a same number of irreducibles as the coordinate system");
-    for (size_t i = 0; i < xs.size(); i++)
-    if (xs[i].size(0) != dimensions_[i]) throw std::invalid_argument(
-    "tchem::polynomial::SAP::Jacobian: x must have a same dimension as the coordinates");
+    "tchem::polynomial::SAPSet::Jacobian: x must share a same number of irreducibles as the coordinate system");
+    for (size_t i = 0; i < xs.size(); i++) if (xs[i].size(0) != dimensions_[i]) throw std::invalid_argument(
+    "tchem::polynomial::SAPSet::Jacobian: x must have a same dimension as the coordinates");
     std::vector<at::Tensor> Js(xs.size());
     for (size_t i = 0; i < xs.size(); i++) Js[i] = xs[i].new_empty({(int64_t)SAPs_.size(), xs[i].size(0)});
     for (size_t i = 0; i < SAPs_.size(); i++) {
@@ -182,6 +178,122 @@ std::vector<at::Tensor> SAPSet::Jacobian(const std::vector<at::Tensor> & xs) con
         for (size_t j = 0; j < xs.size(); j++) Js[j][i] = rows[j];
     }
     return Js;
+}
+std::vector<at::Tensor> SAPSet::Jacobian_(const std::vector<at::Tensor> & xs) const {
+    for (const at::Tensor & x : xs) if (x.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::polynomial::SAPSet::Jacobian_: x must be a vector");
+    if (xs.size() != dimensions_.size()) throw std::invalid_argument(
+    "tchem::polynomial::SAPSet::Jacobian_: x must share a same number of irreducibles as the coordinate system");
+    for (size_t i = 0; i < xs.size(); i++) if (xs[i].size(0) != dimensions_[i]) throw std::invalid_argument(
+    "tchem::polynomial::SAPSet::Jacobian_: x must have a same dimension as the coordinates");
+    std::vector<at::Tensor> Js(xs.size());
+    for (size_t i = 0; i < xs.size(); i++) Js[i] = xs[i].new_empty({(int64_t)SAPs_.size(), xs[i].size(0)});
+    for (size_t j = 0; j < SAPs_.size(); j++) {
+        std::vector<at::Tensor> rows = SAPs_[j].gradient_(xs);
+        for (size_t i = 0; i < xs.size(); i++) Js[i][j].copy_(rows[i]);
+    }
+    return Js;
+}
+// Return d{P(x)} / dx given x
+// `J` harvests the concatenated symmetry adapted gradients
+std::vector<at::Tensor> SAPSet::Jacobian_(const std::vector<at::Tensor> & xs, at::Tensor & J) const {
+    for (const at::Tensor & x : xs) if (x.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::polynomial::SAPSet::Jacobian_: x must be a vector");
+    if (xs.size() != dimensions_.size()) throw std::invalid_argument(
+    "tchem::polynomial::SAPSet::Jacobian_: x must share a same number of irreducibles as the coordinate system");
+    for (size_t i = 0; i < xs.size(); i++) if (xs[i].size(0) != dimensions_[i]) throw std::invalid_argument(
+    "tchem::polynomial::SAPSet::Jacobian_: x must have a same dimension as the coordinates");
+    int64_t dimension = 0;
+    for (const at::Tensor & x : xs) dimension += x.size(0);
+    J = xs[0].new_empty({(int64_t)SAPs_.size(), dimension});
+    int64_t start = 0, stop;
+    std::vector<at::Tensor> Js(xs.size());
+    for (size_t i = 0; i < xs.size(); i++) {
+        stop = start + xs[i].size(0);
+        Js[i] = J.slice(1, start, stop);
+        start = stop;
+    }
+    for (size_t i = 0; i < SAPs_.size(); i++) {
+        at::Tensor grad;
+        std::vector<at::Tensor> rows = SAPs_[i].gradient_(xs, grad);
+        J[i].copy_(grad);
+    }
+    return Js;
+}
+// Return dd{P(x)} / dx^2 given x
+CL::utility::matrix<at::Tensor> SAPSet::Jacobian2nd(const std::vector<at::Tensor> & xs) const {
+    for (const at::Tensor & x : xs) if (x.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::polynomial::SAPSet::Jacobian2nd: x must be a vector");
+    if (xs.size() != dimensions_.size()) throw std::invalid_argument(
+    "tchem::polynomial::SAPSet::Jacobian2nd: x must share a same number of irreducibles as the coordinate system");
+    for (size_t i = 0; i < xs.size(); i++) if (xs[i].size(0) != dimensions_[i]) throw std::invalid_argument(
+    "tchem::polynomial::SAPSet::Jacobian2nd: x must have a same dimension as the coordinates");
+    CL::utility::matrix<at::Tensor> Ks(xs.size());
+    for (size_t i = 0; i < xs.size(); i++)
+    for (size_t j = i; j < xs.size(); j++)
+    Ks[i][j] = xs[i].new_zeros({(int64_t)SAPs_.size(), xs[i].size(0), xs[j].size(0)});
+    for (size_t k = 0; k < SAPs_.size(); k++) {
+        CL::utility::matrix<at::Tensor> rows = SAPs_[k].Hessian(xs);
+        for (size_t i = 0; i < xs.size(); i++)
+        for (size_t j = i; j < xs.size(); j++)
+        Ks[i][j][k] = rows[i][j];
+    }
+    return Ks;
+}
+CL::utility::matrix<at::Tensor> SAPSet::Jacobian2nd_(const std::vector<at::Tensor> & xs) const {
+    for (const at::Tensor & x : xs) if (x.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::polynomial::SAPSet::Jacobian2nd_: x must be a vector");
+    if (xs.size() != dimensions_.size()) throw std::invalid_argument(
+    "tchem::polynomial::SAPSet::Jacobian2nd_: x must share a same number of irreducibles as the coordinate system");
+    for (size_t i = 0; i < xs.size(); i++) if (xs[i].size(0) != dimensions_[i]) throw std::invalid_argument(
+    "tchem::polynomial::SAPSet::Jacobian2nd_: x must have a same dimension as the coordinates");
+    CL::utility::matrix<at::Tensor> Ks(xs.size());
+    for (size_t i = 0; i < xs.size(); i++)
+    for (size_t j = i; j < xs.size(); j++)
+    Ks[i][j] = xs[i].new_zeros({(int64_t)SAPs_.size(), xs[i].size(0), xs[j].size(0)});
+    for (size_t k = 0; k < SAPs_.size(); k++) {
+        CL::utility::matrix<at::Tensor> rows = SAPs_[k].Hessian_(xs);
+        for (size_t i = 0; i < xs.size(); i++)
+        for (size_t j = i; j < xs.size(); j++)
+        Ks[i][j][k].copy_(rows[i][j]);
+    }
+    return Ks;
+}
+// Return dd{P(x)} / dx^2 given x
+// `K` harvests the concatenated symmetry adapted 2nd-order Jacobians
+CL::utility::matrix<at::Tensor> SAPSet::Jacobian2nd_(const std::vector<at::Tensor> & xs, at::Tensor & K) const {
+    for (const at::Tensor & x : xs) if (x.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::polynomial::SAPSet::Jacobian2nd_: x must be a vector");
+    if (xs.size() != dimensions_.size()) throw std::invalid_argument(
+    "tchem::polynomial::SAPSet::Jacobian2nd_: x must share a same number of irreducibles as the coordinate system");
+    for (size_t i = 0; i < xs.size(); i++) if (xs[i].size(0) != dimensions_[i]) throw std::invalid_argument(
+    "tchem::polynomial::SAPSet::Jacobian2nd_: x must have a same dimension as the coordinates");
+    int64_t dimension = 0;
+    for (const at::Tensor & x : xs) dimension += x.size(0);
+    K = xs[0].new_empty({(int64_t)SAPs_.size(), dimension, dimension});
+    int64_t start_row = 0, stop_row;
+    CL::utility::matrix<at::Tensor> Ks(xs.size());
+    for (size_t i = 0; i < xs.size(); i++) {
+        stop_row = start_row + xs[i].size(0);
+        int64_t start_col = start_row, stop_col;
+        for (size_t j = i; j < xs.size(); j++) {
+            stop_col = start_col + xs[j].size(0);
+            Ks[i][j] = K.slice(1, start_row, stop_row).slice(2, start_col, stop_col);
+            start_col = stop_col;
+        }
+        start_row = stop_row;
+    }
+    for (size_t k = 0; k < SAPs_.size(); k++) {
+        CL::utility::matrix<at::Tensor> rows = SAPs_[k].Hessian_(xs);
+        for (size_t i = 0; i < xs.size(); i++)
+        for (size_t j = i; j < xs.size(); j++)
+        Ks[i][j][k].copy_(rows[i][j]);
+    }
+    // Copy the upper triangle to the lower triangle
+    for (size_t i = 0; i < dimension; i++)
+    for (size_t j = i + 1; j < dimension; j++)
+    K.select(1, j).select(-1, i).copy_(K.select(1, i).select(-1, j));
+    return Ks;
 }
 
 // Consider coordinate rotation y[irred] = U[irred]^-1 . x[irred]

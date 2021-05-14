@@ -3,6 +3,8 @@
 
 #include <torch/torch.h>
 
+#include <CppLibrary/utility.hpp>
+
 namespace tchem { namespace polynomial {
 
 // symmetry adapted polynomial SAP(x) =
@@ -37,6 +39,16 @@ class SAP {
         at::Tensor operator()(const std::vector<at::Tensor> & xs) const;
         // Return dP(x) / dx given x
         std::vector<at::Tensor> gradient(const std::vector<at::Tensor> & xs) const;
+        std::vector<at::Tensor> gradient_(const std::vector<at::Tensor> & xs) const;
+        // Return dP(x) / dx given x
+        // `grad` harvests the concatenated symmetry adapted gradients
+        std::vector<at::Tensor> gradient_(const std::vector<at::Tensor> & xs, at::Tensor & grad) const;
+        // Return ddP(x) / dx^2 given x
+        CL::utility::matrix<at::Tensor> Hessian(const std::vector<at::Tensor> & xs) const;
+        CL::utility::matrix<at::Tensor> Hessian_(const std::vector<at::Tensor> & xs) const;
+        // Return ddP(x) / dx^2 given x
+        // `hess` harvests the concatenated symmetry adapted Hessians
+        CL::utility::matrix<at::Tensor> Hessian_(const std::vector<at::Tensor> & xs, at::Tensor & hess) const;
 };
 
 } // namespace polynomial

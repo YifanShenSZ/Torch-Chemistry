@@ -18,8 +18,7 @@ void alter_states() {
                  +  (states - states1.neg()).select(1, 1).norm()
                  +  (states - states1      ).select(1, 2).norm()).item<double>();
     std::cout << "\nFixing phase of eigenstates: "
-              << diff0 << "    "
-              << diff1 << '\n';
+              << diff0 << ' ' << diff1 << '\n';
     at::Tensor Hd4 = at::rand({4, 4}, top);
     at::Tensor energy4, states4;
     std::tie(energy4, states4) = Hd4.symeig(true);
@@ -54,7 +53,7 @@ void fix_ob() {
     at::Tensor dH_ca_ = dH_c.clone();
     phaser.fix_ob_(dH_ca_, dH_a);
     std::cout << "\nFixing phase of an observable: "
-              << (dH_ca - dH_ca_).norm().item<double>() << "    "
+              << (dH_ca - dH_ca_).norm().item<double>() << ' '
               << (dH_ca - dH_a  ).norm().item<double>() << '\n';
 }
 
@@ -98,7 +97,7 @@ void fix_ob2() {
         dH_fixed_[j][i].zero_();
     }
     std::cout << "\nFixing phase of 2 observables: "
-              << ((H_fixed - H_fixed_).norm() + (dH_fixed - dH_fixed_).norm()).item<double>() << "    "
+              << ((H_fixed - H_fixed_).norm() + (dH_fixed - dH_fixed_).norm()).item<double>() << ' '
               << ((H_fixed - H_c_).norm() + (dH_fixed - dH_c_).norm()).item<double>() << '\n';
 }
 

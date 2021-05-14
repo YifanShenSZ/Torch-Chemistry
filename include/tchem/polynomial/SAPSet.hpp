@@ -52,6 +52,16 @@ class SAPSet {
         at::Tensor operator()(const std::vector<at::Tensor> & xs) const;
         // Return d{P(x)} / dx given x
         std::vector<at::Tensor> Jacobian(const std::vector<at::Tensor> & xs) const;
+        std::vector<at::Tensor> Jacobian_(const std::vector<at::Tensor> & xs) const;
+        // Return d{P(x)} / dx given x
+        // `J` harvests the concatenated symmetry adapted Jacobians
+        std::vector<at::Tensor> Jacobian_(const std::vector<at::Tensor> & xs, at::Tensor & J) const;
+        // Return dd{P(x)} / dx^2 given x
+        CL::utility::matrix<at::Tensor> Jacobian2nd(const std::vector<at::Tensor> & xs) const;
+        CL::utility::matrix<at::Tensor> Jacobian2nd_(const std::vector<at::Tensor> & xs) const;
+        // Return dd{P(x)} / dx^2 given x
+        // `K` harvests the concatenated symmetry adapted 2nd-order Jacobians
+        CL::utility::matrix<at::Tensor> Jacobian2nd_(const std::vector<at::Tensor> & xs, at::Tensor & K) const;
 
         // Consider coordinate rotation y[irred] = U[irred]^-1 . x[irred]
         // so the SAP set rotates as {SAP(x)} = T . {SAP(y)}

@@ -82,10 +82,10 @@ at::Tensor Polynomial::Hessian(const at::Tensor & x) const {
         if (orders[i] < 2) hess[uniques[i]][uniques[i]] = 0.0;
         else {
             hess[uniques[i]][uniques[i]] = (double)(orders[i] * (orders[i] - 1)) * at::pow(x[uniques[i]], (double)(orders[i] - 2));
-            for (size_t j = 0; j < i; j++)
-            hess[uniques[i]][uniques[i]] = hess[uniques[i]][uniques[i]] * at::pow(x[uniques[j]], (double)orders[j]);
-            for (size_t j = i + 1; j < uniques.size(); j++)
-            hess[uniques[i]][uniques[i]] = hess[uniques[i]][uniques[i]] * at::pow(x[uniques[j]], (double)orders[j]);
+            for (size_t k = 0; k < i; k++)
+            hess[uniques[i]][uniques[i]] = hess[uniques[i]][uniques[i]] * at::pow(x[uniques[k]], (double)orders[k]);
+            for (size_t k = i + 1; k < uniques.size(); k++)
+            hess[uniques[i]][uniques[i]] = hess[uniques[i]][uniques[i]] * at::pow(x[uniques[k]], (double)orders[k]);
         }
         for (size_t j = i + 1; j < uniques.size(); j++) {
             hess[uniques[j]][uniques[i]] = (double)(orders[i] * orders[j])
