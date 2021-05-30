@@ -36,6 +36,8 @@ class InvDisp {
         const std::vector<size_t> & atoms() const;
         const double & min() const;
 
+        void print(std::ofstream & ofs, const std::string & format) const;
+
         // Return the displacement given r
         at::Tensor operator()(const at::Tensor & r) const;
         // Return the displacement and its gradient over r given r

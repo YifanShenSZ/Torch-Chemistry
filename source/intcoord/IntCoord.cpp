@@ -30,6 +30,25 @@ void IntCoord::normalize() {
     for (auto & coeff_invdisp : coeff_invdisps_) coeff_invdisp.first /= norm2;
 }
 
+void IntCoord::print(std::ofstream & ofs, const std::string & format) const {
+    if (format == "Columbus7") {
+        ofs << "K   " << std::setw(12) << coeff_invdisps_[0].first;
+        coeff_invdisps_[0].second.print(ofs, format);
+        for (size_t i = 1; i < coeff_invdisps_.size(); i++) {
+            ofs << "    " << std::setw(12) << coeff_invdisps_[i].first;
+            coeff_invdisps_[i].second.print(ofs, format);
+        }
+    }
+    else {
+        ofs << "coord " << std::setw(12) << coeff_invdisps_[0].first;
+        coeff_invdisps_[0].second.print(ofs, format);
+        for (size_t i = 1; i < coeff_invdisps_.size(); i++) {
+            ofs << "      " << std::setw(12) << coeff_invdisps_[i].first;
+            coeff_invdisps_[i].second.print(ofs, format);
+        }
+    }
+}
+
 // Return the internal coordinate given r
 at::Tensor IntCoord::operator()(const at::Tensor & r) const {
     if (r.sizes().size() != 1) throw std::invalid_argument(

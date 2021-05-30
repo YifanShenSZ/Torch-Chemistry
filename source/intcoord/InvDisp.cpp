@@ -13,6 +13,42 @@ const std::string & InvDisp::type() const {return type_;}
 const std::vector<size_t> & InvDisp::atoms() const {return atoms_;}
 const double & InvDisp::min() const {return min_;}
 
+void InvDisp::print(std::ofstream & ofs, const std::string & format) const {
+    if (format == "Columbus7") {
+        if (type_ == "stretching") {
+            ofs << "    STRE"
+                << std::setw(9) << atoms_[0] + 1 << '.'
+                << std::setw(9) << atoms_[1] + 1 << '.';
+        }
+        else if (type_ == "bending") {
+            ofs << "    BEND"
+                << std::setw(10) << atoms_[0] + 1 << '.'
+                << std::setw( 9) << atoms_[2] + 1 << '.'
+                << std::setw( 9) << atoms_[1] + 1 << '.';
+        }
+        else if (type_ == "torsion") {
+            ofs << "    TORS"
+            << std::setw(10) << atoms_[0] + 1 << '.'
+            << std::setw( 9) << atoms_[1] + 1 << '.'
+            << std::setw( 9) << atoms_[2] + 1 << '.'
+            << std::setw( 9) << atoms_[3] + 1 << '.';
+        }
+        else if (type_ == "OutOfPlane") {
+            ofs << "    OUT "
+                << std::setw(10) << atoms_[0] + 1 << '.'
+                << std::setw( 9) << atoms_[2] + 1 << '.'
+                << std::setw( 9) << atoms_[3] + 1 << '.'
+                << std::setw( 9) << atoms_[1] + 1 << '.';
+        }
+        else throw std::invalid_argument("Columbus does not support " + type_);
+    }
+    else {
+        ofs << std::setw(14) << type_;
+        for (const size_t & atom : atoms_) ofs << std::setw(6) << atom + 1;
+    }
+    ofs << '\n';
+}
+
 // Return the displacement given r
 at::Tensor InvDisp::operator()(const at::Tensor & r) const {
     if (r.sizes().size() != 1) throw std::invalid_argument(

@@ -22,6 +22,8 @@ class IntCoordSet {
         // Read-only reference to an internal coordinate
         const IntCoord & operator[](const size_t & index) const;
 
+        void print(std::ofstream & ofs, const std::string & format) const;
+
         // Return q given r
         at::Tensor operator()(const at::Tensor & r) const;
         // Return q and J given r

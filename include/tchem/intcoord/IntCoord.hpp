@@ -27,6 +27,8 @@ class IntCoord {
         // Normalize linear combination coefficients
         void normalize();
 
+        void print(std::ofstream & ofs, const std::string & format) const;
+
         // Return the internal coordinate given r
         at::Tensor operator()(const at::Tensor & r) const;
         // Return the internal coordinate and its gradient over r given r

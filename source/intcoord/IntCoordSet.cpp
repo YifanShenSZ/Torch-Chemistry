@@ -119,6 +119,15 @@ size_t IntCoordSet::size() const {return intcoords_.size();}
 // Read-only reference to an internal coordinate
 const IntCoord & IntCoordSet::operator[](const size_t & index) const {return intcoords_[index];}
 
+void IntCoordSet::print(std::ofstream & ofs, const std::string & format) const {
+    if (format == "Columbus7") {
+        ofs << "TEXAS\n";
+        for (const IntCoord & intcoord : intcoords_) intcoord.print(ofs, format);
+    }
+    else
+    for (const IntCoord & intcoord : intcoords_) intcoord.print(ofs, format);
+}
+
 // Return q given r
 at::Tensor IntCoordSet::operator()(const at::Tensor & r) const {
     if (r.sizes().size() != 1) throw std::invalid_argument(
