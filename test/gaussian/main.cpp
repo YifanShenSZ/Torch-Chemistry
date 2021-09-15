@@ -47,7 +47,7 @@ int main() {
               << integrals.norm().item<double>() << '\n';
 
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
-    std::default_random_engine generator = std::default_random_engine(seed);
+    std::default_random_engine generator(seed);
     g.rand_init();
     at::Tensor average_r  = miu.new_zeros(miu.sizes());
     at::Tensor average_rr = var.new_zeros(var.sizes());
