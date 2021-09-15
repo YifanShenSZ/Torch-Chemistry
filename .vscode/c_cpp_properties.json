@@ -3,7 +3,7 @@
         {
             "name": "Linux",
             "includePath": [
-                "~/Software/Programming/libtorch-cuda10.1-1.7.1/include/**",
+                "~/Software/Programming/libtorch/include/**",
                 "~/Library/Cpp-Library/include",
                 "include"
             ],

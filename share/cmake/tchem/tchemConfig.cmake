@@ -31,7 +31,7 @@ list(APPEND tchem_LIBRARIES ifcore iomp5 pthread m dl mkl_intel_lp64 mkl_intel_t
 
 # dependency 2: libtorch
 if(NOT TORCH_FOUND)
-    find_package(Torch REQUIRED PATHS ~/Software/Programming/libtorch-cuda10.1-1.7.1) 
+    find_package(Torch REQUIRED PATHS ~/Software/Programming/libtorch) 
     list(APPEND tchem_INCLUDE_DIRS ${TORCH_INCLUDE_DIRS})
     list(APPEND tchem_LIBRARIES ${TORCH_LIBRARIES})
     set(tchem_CXX_FLAGS "${TORCH_CXX_FLAGS}")
