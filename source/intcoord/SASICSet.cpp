@@ -17,7 +17,7 @@ SASICSet::SASICSet(const std::string & format, const std::string & IC_file, cons
     std::ifstream ifs; ifs.open(SAS_file);
     if (! ifs.good()) throw CL::utility::file_error(SAS_file);
         std::string line;
-        // Internal coordinate origin
+        // internal coordinate origin
         std::string origin_file;
         std::getline(ifs, line);
         std::getline(ifs, origin_file);
@@ -26,31 +26,59 @@ SASICSet::SASICSet(const std::string & format, const std::string & IC_file, cons
         std::vector<double> origin_vector = molorigin.coords();
         at::Tensor origin_tensor = at::from_blob(origin_vector.data(), origin_vector.size(), top);
         origin_ = this->tchem::IC::IntCoordSet::operator()(origin_tensor);
-        // Internal coordinates who are scaled by others
+        // internal coordinates who are scaled by others
         std::getline(ifs, line);
         while (true) {
             std::getline(ifs, line);
             std::vector<std::string> strs = CL::utility::split(line);
             if (! std::regex_match(strs[0], std::regex("\\d+"))) break;
-            other_scaling_.push_back(OthScalRul(strs));
+            // self & scaler are specified, alpha is not
+            if (strs.size() == 2) {
+                size_t self   = std::stoul(strs[0]) - 1,
+                       scaler = std::stoul(strs[1]) - 1;
+                other_scaling_.push_back(OthScalRul(self, scaler));
+            }
+            // self & scaler & alpha are specified
+            else if (strs.size() == 3) {
+                size_t self   = std::stoul(strs[0]) - 1,
+                       scaler = std::stoul(strs[1]) - 1;
+                double alpha  = std::stod (strs[2]);
+                other_scaling_.push_back(OthScalRul(self, scaler, alpha));
+            }
+            // wrong input format
+            else throw CL::utility::file_error(SAS_file);
         }
-        // Internal coordinates who are scaled by themselves
-        std::vector<size_t> self_vector;
+        // internal coordinates who are scaled by themselves
+        std::vector<std::pair<size_t, double>> self_vector;
         while (true) {
             std::getline(ifs, line);
-            if (! std::regex_match(line, std::regex("\\ *\\d+\\ *"))) break;
-            self_vector.push_back(std::stoul(line) - 1);
+            std::vector<std::string> strs = CL::utility::split(line);
+            if (! std::regex_match(strs[0], std::regex("\\d+"))) break;
+            // self is specified, alpha is not so default it to 1.0
+            if (strs.size() == 1) {
+                size_t self = std::stoul(strs[0]) - 1;
+                self_vector.push_back({self, 1.0});
+            }
+            // self & alpha are specified
+            else if (strs.size() == 2) {
+                size_t self  = std::stoul(strs[0]) - 1;
+                double alpha = std::stod (strs[1]);
+                self_vector.push_back({self, alpha});
+            }
+            else throw CL::utility::file_error(SAS_file);
         }
         int64_t intdim = this->intcoords().size();
-        self_scaling_ = at::zeros({intdim, intdim}, top);
+        self_alpha_    = at::zeros(intdim, top);
+        self_scaling_  = at::zeros({intdim, intdim}, top);
         self_complete_ = at::eye(intdim, top);
-        for (size_t & self : self_vector) {
+        for (const auto & coord_alpha : self_vector) {
+            const size_t & self = coord_alpha.first;
+            self_alpha_[self] = coord_alpha.second;
             self_scaling_ [self][self] = 1.0;
             self_complete_[self][self] = 0.0;
         }
-        // Symmetry adapted linear combinations of each irreducible
-        while (true) {
-            if (! ifs.good()) break;
+        // symmetry adapted linear combinations of each irreducible
+        while (ifs.good()) {
             sasicss_.push_back(std::vector<SASIC>());
             std::vector<SASIC> & sasics = sasicss_.back();
             while (true) {
@@ -103,9 +131,8 @@ std::vector<at::Tensor> SASICSet::operator()(const at::Tensor & q) {
     DIC[i] = DIC[i] / origin_[i];
     // Scale
     at::Tensor SDIC = DIC.clone();
-    for (OthScalRul & scaling : other_scaling_)
-    SDIC[scaling.self] = DIC[scaling.self] * at::exp(-scaling.alpha * DIC[scaling.scaler]);
-    SDIC = M_PI * at::erf(self_scaling_.mv(SDIC)) + self_complete_.mv(SDIC);
+    for (const OthScalRul & osr : other_scaling_) SDIC[osr.self] = DIC[osr.self] * at::exp(-osr.alpha * DIC[osr.scaler]);
+    SDIC = M_PI * at::erf(self_alpha_ * self_scaling_.mv(SDIC)) + self_complete_.mv(SDIC);
     // Symmetrize
     std::vector<at::Tensor> SASgeom(NIrreds());
     for (size_t i = 0; i < NIrreds(); i++) {

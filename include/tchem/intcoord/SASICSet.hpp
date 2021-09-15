@@ -13,24 +13,21 @@ struct OthScalRul {
     double alpha;
 
     inline OthScalRul() {}
-    inline OthScalRul(const std::vector<std::string> & input_strs) {
-        self   = std::stoul(input_strs[0]) - 1;
-        scaler = std::stoul(input_strs[1]) - 1;
-        alpha  = std::stod (input_strs[2]);
-    }
+    inline OthScalRul(const size_t & _self, const size_t & _scaler, const double & _alpha = 1.0) : self(_self), scaler(_scaler), alpha(_alpha) {}
     inline ~OthScalRul() {}
 };
 
 // A set of symmetry adapted and scaled internal coordinates
 class SASICSet : public tchem::IC::IntCoordSet {
     private:
-        // Internal coordinate origin
+        // internal coordinate origin
         at::Tensor origin_;
-        // Internal coordinates who are scaled by others
+        // internal coordinates who are scaled by others
         std::vector<OthScalRul> other_scaling_;
         // Internal coordinates who are scaled by themselves are picked out by self_scaling_ matrix
-        // The self scaled internal coordinate vector is q = erf(self_scaling_.mv(q)) + self_complete_.mv(q)
-        at::Tensor self_scaling_, self_complete_;
+        // The self scaled internal coordinate vector is
+        //     q = pi * erf(self_alpha_ * self_scaling_.mv(q)) + self_complete_.mv(q)
+        at::Tensor self_alpha_, self_scaling_, self_complete_;
         // sasicss_[i][j] contains the definition of
         // j-th symmetry adapted internal coordinate in i-th irreducible
         std::vector<std::vector<SASIC>> sasicss_;
