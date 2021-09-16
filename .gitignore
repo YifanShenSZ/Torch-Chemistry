@@ -36,5 +36,8 @@ lib/
 # Back up
 BAK/
 
+# Output
+test/normal_mode/input/avogadro.log
+
 # Reading materials
 *.pdf
