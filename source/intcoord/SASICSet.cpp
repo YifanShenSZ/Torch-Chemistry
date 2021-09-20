@@ -132,7 +132,8 @@ std::vector<at::Tensor> SASICSet::operator()(const at::Tensor & q) {
     // Scale
     at::Tensor SDIC = DIC.clone();
     for (const OthScalRul & osr : other_scaling_) SDIC[osr.self] = DIC[osr.self] * at::exp(-osr.alpha * DIC[osr.scaler]);
-    SDIC = M_PI * at::erf(self_alpha_ * self_scaling_.mv(SDIC)) + self_complete_.mv(SDIC);
+    SDIC = M_PI * (1.0 - at::exp(-self_alpha_ * self_scaling_.mv(SDIC)))
+         + self_complete_.mv(SDIC);
     // Symmetrize
     std::vector<at::Tensor> SASgeom(NIrreds());
     for (size_t i = 0; i < NIrreds(); i++) {
