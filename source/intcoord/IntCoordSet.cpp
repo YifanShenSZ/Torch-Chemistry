@@ -79,7 +79,7 @@ IntCoordSet::IntCoordSet(const std::string & format, const std::string & file) {
                 atom[0] = std::stoul(strs.front()) - 1; strs.pop_front();
                 atom[1] = std::stoul(strs.front()) - 1; strs.pop_front();
             }
-            else if (type == "bending") {
+            else if (type == "bending" || type == "cosbend") {
                 atom.resize(3);
                 atom[0] = std::stoul(strs.front()) - 1; strs.pop_front();
                 atom[1] = std::stoul(strs.front()) - 1; strs.pop_front();

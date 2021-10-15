@@ -12,6 +12,7 @@ class InvDisp {
         // stretching: bond length atom1_atom2
         // bending   : bond angle atom1_atom2_atom3, range [0,pi]
         //             singular derivative at 0 and pi
+        // cosbend   : cos(bending)
         // OutOfPlane: out of plane angle atom1_atom2_atom3_atom4, range [-pi/2, pi/2]
         //             specifically, bond 12 out of plane 234
         //             singular derivative at +-pi/2

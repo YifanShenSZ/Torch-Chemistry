@@ -70,6 +70,15 @@ at::Tensor InvDisp::operator()(const at::Tensor & r) const {
         //    exactly where you should avoid bending
         return at::acos(r21.dot(r23));
     }
+    else if (type_ == "cosbend") {
+        at::Tensor r21 = r.slice(0, 3 * atoms_[0], 3 * atoms_[0] + 3)
+                       - r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3);
+        r21 = r21 / r21.norm();
+        at::Tensor r23 = r.slice(0, 3 * atoms_[2], 3 * atoms_[2] + 3)
+                       - r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3);
+        r23 = r23 / r23.norm();
+        return r21.dot(r23);
+    }
     else if (type_ == "OutOfPlane") {
         at::Tensor r21 = r.slice(0, 3 * atoms_[0], 3 * atoms_[0] + 3)
                        - r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3);
@@ -181,6 +190,26 @@ std::tuple<at::Tensor, at::Tensor> InvDisp::compute_IC_J(const at::Tensor & r) c
         J.slice(0, 3 * atoms_[2], 3 * atoms_[2] + 3) = J2;
         J.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3) = (- J0 - J2);
         return std::make_tuple(theta, J);
+    }
+    else if (type_ == "cosbend") {
+        // Prepare
+        at::Tensor runit21 = r.slice(0, 3 * atoms_[0], 3 * atoms_[0] + 3)
+                           - r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3);
+        at::Tensor r21 = runit21.norm();
+        runit21 = runit21 / r21;
+        at::Tensor runit23 = r.slice(0, 3 * atoms_[2], 3 * atoms_[2] + 3)
+                           - r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3);
+        at::Tensor r23 = runit23.norm();
+        runit23 = runit23 / r23;
+        at::Tensor costheta = runit21.dot(runit23);
+        at::Tensor J0 = (runit23 - costheta * runit21) / r21;
+        at::Tensor J2 = (runit21 - costheta * runit23) / r23;
+        // Output
+        at::Tensor J = r.new_zeros(r.sizes());
+        J.slice(0, 3 * atoms_[0], 3 * atoms_[0] + 3) = J0;
+        J.slice(0, 3 * atoms_[2], 3 * atoms_[2] + 3) = J2;
+        J.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3) = -J0 - J2;
+        return std::make_tuple(costheta, J);
     }
     else if (type_ == "OutOfPlane") {
         // Prepare
@@ -373,6 +402,24 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor> InvDisp::compute_IC_J_K(const at:
         Js[0] = J0;
         Js[2] = J2;
         Js[1] = (- J0 - J2);
+    }
+    else if (type_ == "cosbend") {
+        // Prepare
+        at::Tensor runit21 = rs[0] - rs[1];
+        at::Tensor r21 = runit21.norm();
+        runit21 = runit21 / r21;
+        at::Tensor runit23 = rs[2] - rs[1];
+        at::Tensor r23 = runit23.norm();
+        runit23 = runit23 / r23;
+        at::Tensor costheta = runit21.dot(runit23);
+        at::Tensor J0 = (runit23 - costheta * runit21) / r21;
+        at::Tensor J2 = (runit21 - costheta * runit23) / r23;
+        // q
+        q = costheta;
+        // J
+        Js[0] = J0;
+        Js[2] = J2;
+        Js[1] = -J0 - J2;
     }
     else if (type_ == "OutOfPlane") {
         // Prepare

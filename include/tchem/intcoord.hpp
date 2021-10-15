@@ -35,7 +35,7 @@ The procedure to get symmetry adapted and scaled internal coordinate (SASIC) is:
        for angle , DIC =  IC - origin
     3. Scale the DIC to get scaled dimensionless internal coordinate (SDIC):
        if no scaler      : SDIC = DIC
-       elif scaler = self: SDIC = pi * (1 - exp(-alpha * DIC))
+       elif scaler = self: SDIC = 1 - exp(-alpha * DIC)
        else              : SDIC = DIC * exp(-alpha * scaler DIC)
     4. Symmetry adapted linear combinate the SDIC to get SASIC
 */
