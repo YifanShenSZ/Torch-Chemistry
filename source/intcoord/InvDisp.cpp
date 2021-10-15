@@ -70,7 +70,7 @@ at::Tensor InvDisp::operator()(const at::Tensor & r) const {
         //    exactly where you should avoid bending
         return at::acos(r21.dot(r23));
     }
-    else if (type_ == "cosbend") {
+    else if (type_ == "cosbending") {
         at::Tensor r21 = r.slice(0, 3 * atoms_[0], 3 * atoms_[0] + 3)
                        - r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3);
         r21 = r21 / r21.norm();
@@ -78,20 +78,6 @@ at::Tensor InvDisp::operator()(const at::Tensor & r) const {
                        - r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3);
         r23 = r23 / r23.norm();
         return r21.dot(r23);
-    }
-    else if (type_ == "OutOfPlane") {
-        at::Tensor r21 = r.slice(0, 3 * atoms_[0], 3 * atoms_[0] + 3)
-                       - r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3);
-        r21 = r21 / r21.norm();
-        at::Tensor r23 = r.slice(0, 3 * atoms_[2], 3 * atoms_[2] + 3)
-                       - r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3);
-        at::Tensor r24 = r.slice(0, 3 * atoms_[3], 3 * atoms_[3] + 3)
-                       - r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3);
-        at::Tensor n234 = r23.cross(r24); n234 = n234 / n234.norm();
-        // Q: Why no fail safe for asin?
-        // A: asin is problematic only at +-pi/2
-        //    exactly where you should avoid out of plane
-        return at::asin(n234.dot(r21));
     }
     else if (type_ == "torsion") {
         at::Tensor r12 = r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3)
@@ -119,7 +105,7 @@ at::Tensor InvDisp::operator()(const at::Tensor & r) const {
         else if(theta.item<double>() > min_ + 2.0 * M_PI) theta = theta - 2.0 * M_PI;
         return theta;
     }
-    else if (type_ == "sintors") {
+    else if (type_ == "sintorsion") {
         at::Tensor r12 = r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3)
                        - r.slice(0, 3 * atoms_[0], 3 * atoms_[0] + 3);
         at::Tensor r23 = r.slice(0, 3 * atoms_[2], 3 * atoms_[2] + 3)
@@ -140,7 +126,7 @@ at::Tensor InvDisp::operator()(const at::Tensor & r) const {
         }
         return sintheta;
     }
-    else if (type_ == "costors") {
+    else if (type_ == "costorsion") {
         at::Tensor r12 = r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3)
                        - r.slice(0, 3 * atoms_[0], 3 * atoms_[0] + 3);
         at::Tensor r23 = r.slice(0, 3 * atoms_[2], 3 * atoms_[2] + 3)
@@ -150,6 +136,31 @@ at::Tensor InvDisp::operator()(const at::Tensor & r) const {
         at::Tensor n123 = r12.cross(r23); n123 = n123 / n123.norm();
         at::Tensor n234 = r23.cross(r34); n234 = n234 / n234.norm();
         return n123.dot(n234);
+    }
+    else if (type_ == "OutOfPlane") {
+        at::Tensor r21 = r.slice(0, 3 * atoms_[0], 3 * atoms_[0] + 3)
+                       - r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3);
+        r21 = r21 / r21.norm();
+        at::Tensor r23 = r.slice(0, 3 * atoms_[2], 3 * atoms_[2] + 3)
+                       - r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3);
+        at::Tensor r24 = r.slice(0, 3 * atoms_[3], 3 * atoms_[3] + 3)
+                       - r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3);
+        at::Tensor n234 = r23.cross(r24); n234 = n234 / n234.norm();
+        // Q: Why no fail safe for asin?
+        // A: asin is problematic only at +-pi/2
+        //    exactly where you should avoid out of plane
+        return at::asin(n234.dot(r21));
+    }
+    else if (type_ == "sinoop") {
+        at::Tensor r21 = r.slice(0, 3 * atoms_[0], 3 * atoms_[0] + 3)
+                       - r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3);
+        r21 = r21 / r21.norm();
+        at::Tensor r23 = r.slice(0, 3 * atoms_[2], 3 * atoms_[2] + 3)
+                       - r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3);
+        at::Tensor r24 = r.slice(0, 3 * atoms_[3], 3 * atoms_[3] + 3)
+                       - r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3);
+        at::Tensor n234 = r23.cross(r24); n234 = n234 / n234.norm();
+        return n234.dot(r21);
     }
     else throw std::invalid_argument("Unimplemented internal coordinate type: " + type_);
 }
@@ -188,10 +199,10 @@ std::tuple<at::Tensor, at::Tensor> InvDisp::compute_IC_J(const at::Tensor & r) c
         at::Tensor J = r.new_zeros(r.sizes());
         J.slice(0, 3 * atoms_[0], 3 * atoms_[0] + 3) = J0;
         J.slice(0, 3 * atoms_[2], 3 * atoms_[2] + 3) = J2;
-        J.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3) = (- J0 - J2);
+        J.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3) = - J0 - J2;
         return std::make_tuple(theta, J);
     }
-    else if (type_ == "cosbend") {
+    else if (type_ == "cosbending") {
         // Prepare
         at::Tensor runit21 = r.slice(0, 3 * atoms_[0], 3 * atoms_[0] + 3)
                            - r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3);
@@ -208,40 +219,8 @@ std::tuple<at::Tensor, at::Tensor> InvDisp::compute_IC_J(const at::Tensor & r) c
         at::Tensor J = r.new_zeros(r.sizes());
         J.slice(0, 3 * atoms_[0], 3 * atoms_[0] + 3) = J0;
         J.slice(0, 3 * atoms_[2], 3 * atoms_[2] + 3) = J2;
-        J.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3) = -J0 - J2;
+        J.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3) = - J0 - J2;
         return std::make_tuple(costheta, J);
-    }
-    else if (type_ == "OutOfPlane") {
-        // Prepare
-        at::Tensor runit21 = r.slice(0, 3 * atoms_[0], 3 * atoms_[0] + 3)
-                           - r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3);
-        at::Tensor r21 = runit21.norm();
-        runit21 = runit21 / r21;
-        at::Tensor runit23 = r.slice(0, 3 * atoms_[2], 3 * atoms_[2] + 3)
-                           - r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3);
-        at::Tensor r23 = runit23.norm();
-        runit23 = runit23 / r23;
-        at::Tensor runit24 = r.slice(0, 3 * atoms_[3], 3 * atoms_[3] + 3)
-                           - r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3);
-        at::Tensor r24 = runit24.norm();
-        runit24 = runit24 / r24;
-        at::Tensor cos324 = runit23.dot(runit24);
-        at::Tensor sin324sq = 1.0 - cos324 * cos324;
-        at::Tensor sin324 = at::sqrt(sin324sq);
-        at::Tensor sintheta = runit23.dot(runit24.cross(runit21)) / sin324;
-        at::Tensor costheta = at::sqrt(1.0 - sintheta * sintheta);
-        at::Tensor tantheta = sintheta / costheta;
-        at::Tensor J0 = (runit23.cross(runit24) / costheta / sin324 - tantheta * runit21) / r21;
-        at::Tensor J2 = (runit24.cross(runit21) / costheta / sin324 - tantheta / sin324sq * (runit23 - cos324 * runit24)) / r23;
-        at::Tensor J3 = (runit21.cross(runit23) / costheta / sin324 - tantheta / sin324sq * (runit24 - cos324 * runit23)) / r24;
-        // Output
-        at::Tensor q = at::asin(sintheta);
-        at::Tensor J = r.new_zeros(r.sizes());
-        J.slice(0, 3 * atoms_[0], 3 * atoms_[0] + 3) = J0;
-        J.slice(0, 3 * atoms_[2], 3 * atoms_[2] + 3) = J2;
-        J.slice(0, 3 * atoms_[3], 3 * atoms_[3] + 3) = J3;
-        J.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3) = - J0 - J2 - J3;
-        return std::make_tuple(q, J);
     }
     else if (type_ == "torsion") {
         // Prepare
@@ -285,7 +264,7 @@ std::tuple<at::Tensor, at::Tensor> InvDisp::compute_IC_J(const at::Tensor & r) c
         J.slice(0, 3 * atoms_[3], 3 * atoms_[3] + 3) =  n234 / (r34 * sin234);
         return std::make_tuple(theta, J);
     }
-    else if (type_ == "sintors") {
+    else if (type_ == "sintorsion") {
         // Prepare
         at::Tensor runit12 = r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3)
                            - r.slice(0, 3 * atoms_[0], 3 * atoms_[0] + 3);
@@ -322,7 +301,7 @@ std::tuple<at::Tensor, at::Tensor> InvDisp::compute_IC_J(const at::Tensor & r) c
         J.slice(0, 3 * atoms_[3], 3 * atoms_[3] + 3) =  n234 / (r34 * sin234);
         return std::make_tuple(sintheta, costheta * J);
     }
-    else if (type_ == "costors") {
+    else if (type_ == "costorsion") {
         // Prepare
         at::Tensor runit12 = r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3)
                            - r.slice(0, 3 * atoms_[0], 3 * atoms_[0] + 3);
@@ -358,6 +337,67 @@ std::tuple<at::Tensor, at::Tensor> InvDisp::compute_IC_J(const at::Tensor & r) c
         J.slice(0, 3 * atoms_[2], 3 * atoms_[2] + 3) = (r34 * cos234 - r23) / (r23 * r34 * sin234) * n234 + cos123 / (r23 * sin123) * n123;
         J.slice(0, 3 * atoms_[3], 3 * atoms_[3] + 3) =  n234 / (r34 * sin234);
         return std::make_tuple(costheta, -sintheta * J);
+    }
+    else if (type_ == "OutOfPlane") {
+        // Prepare
+        at::Tensor runit21 = r.slice(0, 3 * atoms_[0], 3 * atoms_[0] + 3)
+                           - r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3);
+        at::Tensor r21 = runit21.norm();
+        runit21 = runit21 / r21;
+        at::Tensor runit23 = r.slice(0, 3 * atoms_[2], 3 * atoms_[2] + 3)
+                           - r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3);
+        at::Tensor r23 = runit23.norm();
+        runit23 = runit23 / r23;
+        at::Tensor runit24 = r.slice(0, 3 * atoms_[3], 3 * atoms_[3] + 3)
+                           - r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3);
+        at::Tensor r24 = runit24.norm();
+        runit24 = runit24 / r24;
+        at::Tensor cos324 = runit23.dot(runit24);
+        at::Tensor sin324sq = 1.0 - cos324 * cos324;
+        at::Tensor sin324 = at::sqrt(sin324sq);
+        at::Tensor sintheta = runit23.dot(runit24.cross(runit21)) / sin324;
+        at::Tensor costheta = at::sqrt(1.0 - sintheta * sintheta);
+        at::Tensor tantheta = sintheta / costheta;
+        at::Tensor J0 = (runit23.cross(runit24) / costheta / sin324 - tantheta * runit21) / r21;
+        at::Tensor J2 = (runit24.cross(runit21) / costheta / sin324 - tantheta / sin324sq * (runit23 - cos324 * runit24)) / r23;
+        at::Tensor J3 = (runit21.cross(runit23) / costheta / sin324 - tantheta / sin324sq * (runit24 - cos324 * runit23)) / r24;
+        // Output
+        at::Tensor q = at::asin(sintheta);
+        at::Tensor J = r.new_zeros(r.sizes());
+        J.slice(0, 3 * atoms_[0], 3 * atoms_[0] + 3) = J0;
+        J.slice(0, 3 * atoms_[2], 3 * atoms_[2] + 3) = J2;
+        J.slice(0, 3 * atoms_[3], 3 * atoms_[3] + 3) = J3;
+        J.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3) = - J0 - J2 - J3;
+        return std::make_tuple(q, J);
+    }
+    else if (type_ == "sinoop") {
+        // Prepare
+        at::Tensor runit21 = r.slice(0, 3 * atoms_[0], 3 * atoms_[0] + 3)
+                           - r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3);
+        at::Tensor r21 = runit21.norm();
+        runit21 = runit21 / r21;
+        at::Tensor runit23 = r.slice(0, 3 * atoms_[2], 3 * atoms_[2] + 3)
+                           - r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3);
+        at::Tensor r23 = runit23.norm();
+        runit23 = runit23 / r23;
+        at::Tensor runit24 = r.slice(0, 3 * atoms_[3], 3 * atoms_[3] + 3)
+                           - r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3);
+        at::Tensor r24 = runit24.norm();
+        runit24 = runit24 / r24;
+        at::Tensor cos324 = runit23.dot(runit24);
+        at::Tensor sin324sq = 1.0 - cos324 * cos324;
+        at::Tensor sin324 = at::sqrt(sin324sq);
+        at::Tensor sintheta = runit23.dot(runit24.cross(runit21)) / sin324;
+        at::Tensor J0 = (runit23.cross(runit24) / sin324 - sintheta * runit21) / r21;
+        at::Tensor J2 = (runit24.cross(runit21) / sin324 - sintheta / sin324sq * (runit23 - cos324 * runit24)) / r23;
+        at::Tensor J3 = (runit21.cross(runit23) / sin324 - sintheta / sin324sq * (runit24 - cos324 * runit23)) / r24;
+        // Output
+        at::Tensor J = r.new_zeros(r.sizes());
+        J.slice(0, 3 * atoms_[0], 3 * atoms_[0] + 3) = J0;
+        J.slice(0, 3 * atoms_[2], 3 * atoms_[2] + 3) = J2;
+        J.slice(0, 3 * atoms_[3], 3 * atoms_[3] + 3) = J3;
+        J.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3) = - J0 - J2 - J3;
+        return std::make_tuple(sintheta, J);
     }
     else throw std::invalid_argument("Unimplemented internal coordinate type: " + type_);
 }
@@ -401,9 +441,9 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor> InvDisp::compute_IC_J_K(const at:
         // J
         Js[0] = J0;
         Js[2] = J2;
-        Js[1] = (- J0 - J2);
+        Js[1] = - J0 - J2;
     }
-    else if (type_ == "cosbend") {
+    else if (type_ == "cosbending") {
         // Prepare
         at::Tensor runit21 = rs[0] - rs[1];
         at::Tensor r21 = runit21.norm();
@@ -419,35 +459,7 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor> InvDisp::compute_IC_J_K(const at:
         // J
         Js[0] = J0;
         Js[2] = J2;
-        Js[1] = -J0 - J2;
-    }
-    else if (type_ == "OutOfPlane") {
-        // Prepare
-        at::Tensor runit21 = rs[0] - rs[1];
-        at::Tensor r21 = runit21.norm();
-        runit21 = runit21 / r21;
-        at::Tensor runit23 = rs[2] - rs[1];
-        at::Tensor r23 = runit23.norm();
-        runit23 = runit23 / r23;
-        at::Tensor runit24 = rs[3] - rs[1];
-        at::Tensor r24 = runit24.norm();
-        runit24 = runit24 / r24;
-        at::Tensor cos324 = runit23.dot(runit24);
-        at::Tensor sin324sq = 1.0 - cos324 * cos324;
-        at::Tensor sin324 = at::sqrt(sin324sq);
-        at::Tensor sintheta = runit23.dot(runit24.cross(runit21)) / sin324;
-        at::Tensor costheta = at::sqrt(1.0 - sintheta * sintheta);
-        at::Tensor tantheta = sintheta / costheta;
-        at::Tensor J0 = (runit23.cross(runit24) / costheta / sin324 - tantheta * runit21) / r21;
-        at::Tensor J2 = (runit24.cross(runit21) / costheta / sin324 - tantheta / sin324sq * (runit23 - cos324 * runit24)) / r23;
-        at::Tensor J3 = (runit21.cross(runit23) / costheta / sin324 - tantheta / sin324sq * (runit24 - cos324 * runit23)) / r24;
-        // q
-        q = at::asin(sintheta);
-        // J
-        Js[0] = J0;
-        Js[2] = J2;
-        Js[3] = J3;
-        Js[1] = - J0 - J2 - J3;
+        Js[1] = - J0 - J2;
     }
     else if (type_ == "torsion") {
         at::Tensor runit12 = rs[1] - rs[0];
@@ -488,7 +500,7 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor> InvDisp::compute_IC_J_K(const at:
         Js[2] = (r34 * cos234 - r23) / (r23 * r34 * sin234) * n234 + cos123 / (r23 * sin123) * n123;
         Js[3] =  n234 / (r34 * sin234);
     }
-    else if (type_ == "sintors") {
+    else if (type_ == "sintorsion") {
         at::Tensor runit12 = rs[1] - rs[0];
         at::Tensor r12 = runit12.norm();
         runit12 = runit12 / r12;
@@ -521,7 +533,7 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor> InvDisp::compute_IC_J_K(const at:
         Js[2] = costheta * ((r34 * cos234 - r23) / (r23 * r34 * sin234) * n234 + cos123 / (r23 * sin123) * n123);
         Js[3] = costheta * ( n234 / (r34 * sin234));
     }
-    else if (type_ == "costors") {
+    else if (type_ == "costorsion") {
         at::Tensor runit12 = rs[1] - rs[0];
         at::Tensor r12 = runit12.norm();
         runit12 = runit12 / r12;
@@ -553,6 +565,60 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor> InvDisp::compute_IC_J_K(const at:
         Js[1] = -sintheta * ((r23 - r12 * cos123) / (r12 * r23 * sin123) * n123 - cos234 / (r23 * sin234) * n234);
         Js[2] = -sintheta * ((r34 * cos234 - r23) / (r23 * r34 * sin234) * n234 + cos123 / (r23 * sin123) * n123);
         Js[3] = -sintheta * ( n234 / (r34 * sin234));
+    }
+    else if (type_ == "OutOfPlane") {
+        // Prepare
+        at::Tensor runit21 = rs[0] - rs[1];
+        at::Tensor r21 = runit21.norm();
+        runit21 = runit21 / r21;
+        at::Tensor runit23 = rs[2] - rs[1];
+        at::Tensor r23 = runit23.norm();
+        runit23 = runit23 / r23;
+        at::Tensor runit24 = rs[3] - rs[1];
+        at::Tensor r24 = runit24.norm();
+        runit24 = runit24 / r24;
+        at::Tensor cos324 = runit23.dot(runit24);
+        at::Tensor sin324sq = 1.0 - cos324 * cos324;
+        at::Tensor sin324 = at::sqrt(sin324sq);
+        at::Tensor sintheta = runit23.dot(runit24.cross(runit21)) / sin324;
+        at::Tensor costheta = at::sqrt(1.0 - sintheta * sintheta);
+        at::Tensor tantheta = sintheta / costheta;
+        at::Tensor J0 = (runit23.cross(runit24) / costheta / sin324 - tantheta * runit21) / r21;
+        at::Tensor J2 = (runit24.cross(runit21) / costheta / sin324 - tantheta / sin324sq * (runit23 - cos324 * runit24)) / r23;
+        at::Tensor J3 = (runit21.cross(runit23) / costheta / sin324 - tantheta / sin324sq * (runit24 - cos324 * runit23)) / r24;
+        // q
+        q = at::asin(sintheta);
+        // J
+        Js[0] = J0;
+        Js[2] = J2;
+        Js[3] = J3;
+        Js[1] = - J0 - J2 - J3;
+    }
+    else if (type_ == "sinoop") {
+        // Prepare
+        at::Tensor runit21 = rs[0] - rs[1];
+        at::Tensor r21 = runit21.norm();
+        runit21 = runit21 / r21;
+        at::Tensor runit23 = rs[2] - rs[1];
+        at::Tensor r23 = runit23.norm();
+        runit23 = runit23 / r23;
+        at::Tensor runit24 = rs[3] - rs[1];
+        at::Tensor r24 = runit24.norm();
+        runit24 = runit24 / r24;
+        at::Tensor cos324 = runit23.dot(runit24);
+        at::Tensor sin324sq = 1.0 - cos324 * cos324;
+        at::Tensor sin324 = at::sqrt(sin324sq);
+        at::Tensor sintheta = runit23.dot(runit24.cross(runit21)) / sin324;
+        at::Tensor J0 = (runit23.cross(runit24) / sin324 - sintheta * runit21) / r21;
+        at::Tensor J2 = (runit24.cross(runit21) / sin324 - sintheta / sin324sq * (runit23 - cos324 * runit24)) / r23;
+        at::Tensor J3 = (runit21.cross(runit23) / sin324 - sintheta / sin324sq * (runit24 - cos324 * runit23)) / r24;
+        // q
+        q = sintheta;
+        // J
+        Js[0] = J0;
+        Js[2] = J2;
+        Js[3] = J3;
+        Js[1] = - J0 - J2 - J3;
     }
     else throw std::invalid_argument("Unimplemented internal coordinate type: " + type_);
     q.detach_();

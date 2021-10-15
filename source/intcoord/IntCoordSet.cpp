@@ -79,20 +79,20 @@ IntCoordSet::IntCoordSet(const std::string & format, const std::string & file) {
                 atom[0] = std::stoul(strs.front()) - 1; strs.pop_front();
                 atom[1] = std::stoul(strs.front()) - 1; strs.pop_front();
             }
-            else if (type == "bending" || type == "cosbend") {
+            else if (type == "bending" || type == "cosbending") {
                 atom.resize(3);
                 atom[0] = std::stoul(strs.front()) - 1; strs.pop_front();
                 atom[1] = std::stoul(strs.front()) - 1; strs.pop_front();
                 atom[2] = std::stoul(strs.front()) - 1; strs.pop_front();
             }
-            else if (type == "OutOfPlane" || type == "torsion" || type == "sintors" || type == "costors") {
+            else if (type == "torsion" || type == "sintorsion" || type == "costorsion" || type == "OutOfPlane" || type == "sinoop") {
                 atom.resize(4);
                 atom[0] = std::stoul(strs.front()) - 1; strs.pop_front();
                 atom[1] = std::stoul(strs.front()) - 1; strs.pop_front();
                 atom[2] = std::stoul(strs.front()) - 1; strs.pop_front();
                 atom[3] = std::stoul(strs.front()) - 1; strs.pop_front();
             }
-            else throw "Error during reading internal coordinate definition: unsupported internal coordinate type: " + type;
+            else throw std::invalid_argument("Error during reading internal coordinate definition: unsupported internal coordinate type: " + type);
             double min = -M_PI;
             if (! strs.empty()) if (std::regex_match(strs.front(), std::regex("-?\\d+\\.?\\d*"))) min = std::stod(strs.front());
             intcoords_.back().append(coeff, InvDisp(type, atom, min));

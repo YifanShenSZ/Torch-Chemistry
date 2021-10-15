@@ -3,6 +3,7 @@
 #include <CppLibrary/utility.hpp>
 #include <CppLibrary/chemistry.hpp>
 
+#include <tchem/utility.hpp>
 #include <tchem/intcoord/SASICSet.hpp>
 
 namespace tchem { namespace IC {
@@ -22,10 +23,7 @@ SASICSet::SASICSet(const std::string & format, const std::string & IC_file, cons
         std::getline(ifs, line);
         std::getline(ifs, origin_file);
         CL::utility::trim(origin_file);
-        CL::chem::xyz<double> molorigin(origin_file, true);
-        std::vector<double> origin_vector = molorigin.coords();
-        at::Tensor origin_tensor = at::from_blob(origin_vector.data(), origin_vector.size(), top);
-        origin_ = this->tchem::IC::IntCoordSet::operator()(origin_tensor);
+        origin_ = tchem::utility::read_vector(origin_file);
         // internal coordinates who are scaled by others
         std::getline(ifs, line);
         while (true) {
@@ -132,7 +130,7 @@ std::vector<at::Tensor> SASICSet::operator()(const at::Tensor & q) {
     // Scale
     at::Tensor SDIC = DIC.clone();
     for (const OthScalRul & osr : other_scaling_) SDIC[osr.self] = DIC[osr.self] * at::exp(-osr.alpha * DIC[osr.scaler]);
-    SDIC = M_PI * (1.0 - at::exp(-self_alpha_ * self_scaling_.mv(SDIC)))
+    SDIC = 1.0 - at::exp(-self_alpha_ * self_scaling_.mv(SDIC))
          + self_complete_.mv(SDIC);
     // Symmetrize
     std::vector<at::Tensor> SASgeom(NIrreds());

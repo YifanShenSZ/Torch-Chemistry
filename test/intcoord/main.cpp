@@ -72,7 +72,7 @@ void q_J_K() {
               << (J1_col - J_def).norm().item<double>() << '\n';
 }
 
-void cosbend_sintors_costors() {
+void advanced_q_J_K() {
     CL::chem::xyz<double> geom("slow-1.5.xyz", true);
     std::vector<double> coords = geom.coords();
     at::Tensor r = at::from_blob(coords.data(), coords.size(), top);
@@ -97,17 +97,19 @@ void cosbend_sintors_costors() {
     at::Tensor qK, JK, K;
     std::tie(qK, JK, K) = set.compute_IC_J_K(r);
 
-    std::cout << "\ncos(bending) and sin(torsion) and cos(torsion): "
+    std::cout << "\nAdvanced internal coordinates: "
               << (at::cos(q[0]) - q[1]).item<double>()
                + (at::cos(q[2]) - q[3]).item<double>()
                + (at::cos(q[4]) - q[5]).item<double>() << ' '
               << (at::sin(q[6]) - q[7 ]).item<double>()
                + (at::sin(q[9]) - q[10]).item<double>() << ' '
               << (at::cos(q[6]) - q[8 ]).item<double>()
-               + (at::cos(q[9]) - q[11]).item<double>() << '\n';
+               + (at::cos(q[9]) - q[11]).item<double>() << ' '
+              << (at::sin(q[12]) - q[13]).item<double>()
+               + (at::sin(q[14]) - q[15]).item<double>() << '\n';
     std::cout << "\nBackward propagation vs analytical Jacobian: "
               << (J - J_back).norm().item<double>() << '\n';
-    std::cout << "\ncos(bending) and sin(torsion) and cos(torsion) calculated with Jacobians: "
+    std::cout << "\nAdvanced internal coordinates calculated with Jacobians: "
               << (q - qJ).norm().item<double>() << ' '
               << (q - qK).norm().item<double>() << '\n';
     std::cout << "\nJacobian calculated with 2nd order Jacobian: "
@@ -146,6 +148,6 @@ int main() {
     std::cout << "This is a test program on Torch-Chemistry module 'intcoord'\n"
               << "Correct routines should print close to 0\n";
     q_J_K();
-    cosbend_sintors_costors();
+    advanced_q_J_K();
     grad_hess();
 }

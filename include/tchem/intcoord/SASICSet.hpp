@@ -26,7 +26,7 @@ class SASICSet : public tchem::IC::IntCoordSet {
         std::vector<OthScalRul> other_scaling_;
         // Internal coordinates who are scaled by themselves are picked out by self_scaling_ matrix
         // The self scaled internal coordinate vector is
-        //     q = pi * (1 - exp(-self_alpha_ * self_scaling_.mv(q)))
+        //     q = 1 - exp(-self_alpha_ * self_scaling_.mv(q))
         //       + self_complete_.mv(q)
         at::Tensor self_alpha_, self_scaling_, self_complete_;
         // sasicss_[i][j] contains the definition of

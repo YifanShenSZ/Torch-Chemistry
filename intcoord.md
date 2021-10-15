@@ -9,12 +9,11 @@ The Jacobian of internal coordinate over Cartesian coordinate can be calculated 
 
 ~~Although in principle the 2nd order Jacobian also has analytical form, since a backward propagation from the Jacobian is always feasible, I'm too lazy to implement it~~ :sleeping:
 
-The supported internal coordinates are:
-* bond stretching
-* bond angle
-* out of plane angle
-* dihedral angle
-* sin(dihedral angle) and cos(dihedral angle)
+Available internal coordinates are:
+* bond length
+* bond angle (and its cos)
+* dihedral angle (and its sin and cos)
+* out of plane angle (and its sin)
 
 ## Why internal coordinate?
 Cartesian coordinate is a convenient but inappropriate representation for molecular properties, who are invariant under translation and rotation. As a result, internal coordinate is adopted to remove the redundancy
@@ -28,7 +27,8 @@ The supported formats are:
 
 An input file in default format obeys:
 * First 6 spaces of a line are reserved to indicate the start of new internal coordinate
-* For a line defining torsion, an additional number at the end of the line defines the minimum of angle (default = -pi), so the angle ranges within (min, min + 2pi). The dihedral angle is discontinuous at min and min + 2pi
+* Internal coordinate type and the involving atoms
+* For a line defining torsion, an additional number at the end of the line defines the minimum of angle (default = -pi), so the angle ranges within [min, min + 2pi]
 * At the end of each line, anything after # is considered as comment
 
 An example of default format input file is available in `test/intcoord/IntCoordDef`

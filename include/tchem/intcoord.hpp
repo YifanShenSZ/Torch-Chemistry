@@ -19,9 +19,9 @@ Warning:
     * Backward propagation through q of torsion may be problematic when q = 0 or +-pi,
       so please use J explicitly in those cases
     * J of bending is singular at 0 and pi,
-      so please avoid using bending in those cases
+      so please use cosbending for large amplitude
     * J of out of plane is singular at +-pi/2,
-      so please avoid using out of plane in those cases
+      so please use sinoop for large amplitude
 */
 #include <tchem/intcoord/InvDisp.hpp>
 #include <tchem/intcoord/IntCoord.hpp>
@@ -34,9 +34,9 @@ The procedure to get symmetry adapted and scaled internal coordinate (SASIC) is:
        for length, DIC = (IC - origin) / origin
        for angle , DIC =  IC - origin
     3. Scale the DIC to get scaled dimensionless internal coordinate (SDIC):
-       if no scaler      : SDIC = DIC
-       elif scaler = self: SDIC = 1 - exp(-alpha * DIC)
-       else              : SDIC = DIC * exp(-alpha * scaler DIC)
+       if no scaler       : SDIC = DIC
+       elif scaler is self: SDIC = 1 - exp(-alpha * DIC)
+       else               : SDIC = DIC * exp(-alpha * scaler DIC)
     4. Symmetry adapted linear combinate the SDIC to get SASIC
 */
 #include <tchem/intcoord/SASIC.hpp>
