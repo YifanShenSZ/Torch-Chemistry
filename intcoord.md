@@ -12,8 +12,9 @@ The Jacobian of internal coordinate over Cartesian coordinate can be calculated 
 The supported internal coordinates are:
 * bond stretching
 * bond angle
-* dihedral angle
 * out of plane angle
+* dihedral angle
+* sin(dihedral angle) and cos(dihedral angle)
 
 ## Why internal coordinate?
 Cartesian coordinate is a convenient but inappropriate representation for molecular properties, who are invariant under translation and rotation. As a result, internal coordinate is adopted to remove the redundancy

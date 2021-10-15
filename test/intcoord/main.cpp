@@ -23,9 +23,6 @@ void q_J_K() {
     r_col.set_requires_grad(true);
     at::Tensor q1_col, J1_col;
     std::tie(q1_col, J1_col) = set_col.compute_IC_J(r_col);
-    std::cout << "\nInternal coordinate calculated with Jacobian: "
-              << (q0_col - q1_col).norm().item<double>() << '\n';
-
     at::Tensor J_col_back = J1_col.new_empty(J1_col.sizes());
     for (size_t i = 0; i < q1_col.size(0); i++) {
         if (r_col.grad().defined()) {
@@ -41,7 +38,8 @@ void q_J_K() {
 
     at::Tensor q2_col, J2_col, K2_col;
     std::tie(q2_col, J2_col, K2_col) = set_col.compute_IC_J_K(r_col);
-    std::cout << "\nInternal coordinate calculated with 1st and 2nd order Jacobian: "
+    std::cout << "\nInternal coordinates calculated with Jacobians: "
+              << (q0_col - q1_col).norm().item<double>() << ' '
               << (q0_col - q2_col).norm().item<double>() << '\n';
     std::cout << "\nJacobian calculated with 2nd order Jacobian: "
               << (J1_col - J2_col).norm().item<double>() << '\n';
@@ -72,6 +70,45 @@ void q_J_K() {
     std::cout << "\nDefault internal coordinate and Jacobian: "
               << (q1_col - q_def).norm().item<double>() << ' '
               << (J1_col - J_def).norm().item<double>() << '\n';
+}
+
+void sintors_costors() {
+    CL::chem::xyz<double> geom("slow-1.5.xyz", true);
+    std::vector<double> coords = geom.coords();
+    at::Tensor r = at::from_blob(coords.data(), coords.size(), top);
+    tchem::IC::IntCoordSet set("whatever", "advanced_IntCoordDef");
+
+    at::Tensor q = set(r);
+
+    r.set_requires_grad(true);
+    at::Tensor qJ, J;
+    std::tie(qJ, J) = set.compute_IC_J(r);
+    at::Tensor J_back = J.new_empty(J.sizes());
+    for (size_t i = 0; i < qJ.size(0); i++) {
+        if (r.grad().defined()) {
+            r.grad().detach_();
+            r.grad().zero_();
+        }
+        qJ[i].backward({}, true);
+        J_back[i].copy_(r.grad());
+    }
+    r.set_requires_grad(false);
+
+    at::Tensor qK, JK, K;
+    std::tie(qK, JK, K) = set.compute_IC_J_K(r);
+
+    std::cout << "\nsin(torsion) and cos(torsion): "
+              << (at::sin(q[0]) - q[1]).item<double>() << ' '
+              << (at::cos(q[0]) - q[2]).item<double>() << ' '
+              << (at::sin(q[3]) - q[4]).item<double>() << ' '
+              << (at::cos(q[3]) - q[5]).item<double>() << '\n';
+    std::cout << "\nBackward propagation vs analytical Jacobian: "
+              << (J - J_back).norm().item<double>() << '\n';
+    std::cout << "\nsin(torsion) and cos(torsion) calculated with Jacobians: "
+              << (q - qJ).norm().item<double>() << ' '
+              << (q - qK).norm().item<double>() << '\n';
+    std::cout << "\nJacobian calculated with 2nd order Jacobian: "
+              << (J - JK).norm().item<double>() << '\n';
 }
 
 void grad_hess() {
@@ -106,5 +143,6 @@ int main() {
     std::cout << "This is a test program on Torch-Chemistry module 'intcoord'\n"
               << "Correct routines should print close to 0\n";
     q_J_K();
+    sintors_costors();
     grad_hess();
 }

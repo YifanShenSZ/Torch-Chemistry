@@ -70,25 +70,6 @@ at::Tensor InvDisp::operator()(const at::Tensor & r) const {
         //    exactly where you should avoid bending
         return at::acos(r21.dot(r23));
     }
-    else if (type_ == "torsion") {
-        at::Tensor r12 = r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3)
-                       - r.slice(0, 3 * atoms_[0], 3 * atoms_[0] + 3);
-        at::Tensor r23 = r.slice(0, 3 * atoms_[2], 3 * atoms_[2] + 3)
-                       - r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3);
-        at::Tensor r34 = r.slice(0, 3 * atoms_[3], 3 * atoms_[3] + 3)
-                       - r.slice(0, 3 * atoms_[2], 3 * atoms_[2] + 3);
-        at::Tensor n123 = r12.cross(r23); n123 = n123 / n123.norm();
-        at::Tensor n234 = r23.cross(r34); n234 = n234 / n234.norm();
-        at::Tensor theta = n123.dot(n234);
-        // Fail safe for 0 and pi, but that breaks backward propagation
-        if (theta.item<double>() > 1.0) theta.fill_(0.0);
-        else if (theta.item<double>() < -1.0) theta.fill_(M_PI);
-        else theta = at::acos(theta);
-        if (n123.dot(n234.cross(r23)).item<double>() < 0.0) theta = -theta;
-        if (theta.item<double>() < min_) theta = theta + 2.0 * M_PI;
-        else if(theta.item<double>() > min_ + 2.0 * M_PI) theta = theta - 2.0 * M_PI;
-        return theta;
-    }
     else if (type_ == "OutOfPlane") {
         at::Tensor r21 = r.slice(0, 3 * atoms_[0], 3 * atoms_[0] + 3)
                        - r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3);
@@ -103,8 +84,65 @@ at::Tensor InvDisp::operator()(const at::Tensor & r) const {
         //    exactly where you should avoid out of plane
         return at::asin(n234.dot(r21));
     }
-    else
-    throw std::invalid_argument("Unimplemented internal coordinate type: " + type_);
+    else if (type_ == "torsion") {
+        at::Tensor r12 = r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3)
+                       - r.slice(0, 3 * atoms_[0], 3 * atoms_[0] + 3);
+        at::Tensor r23 = r.slice(0, 3 * atoms_[2], 3 * atoms_[2] + 3)
+                       - r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3);
+        at::Tensor r34 = r.slice(0, 3 * atoms_[3], 3 * atoms_[3] + 3)
+                       - r.slice(0, 3 * atoms_[2], 3 * atoms_[2] + 3);
+        at::Tensor n123 = r12.cross(r23); n123 = n123 / n123.norm();
+        at::Tensor n234 = r23.cross(r34); n234 = n234 / n234.norm();
+        at::Tensor costheta = n123.dot(n234);
+        at::Tensor theta = costheta.clone();
+        // Fail safe for 0 and pi, but that breaks backward propagation
+        if (costheta.item<double>() > 1.0) {
+            theta.fill_(0.0);
+        }
+        else if (costheta.item<double>() < -1.0) {
+            theta.fill_(M_PI);
+        }
+        else {
+            theta = at::acos(costheta);
+            if (n123.dot(n234.cross(r23)).item<double>() < 0.0) theta = -theta;
+        }
+        if (theta.item<double>() < min_) theta = theta + 2.0 * M_PI;
+        else if(theta.item<double>() > min_ + 2.0 * M_PI) theta = theta - 2.0 * M_PI;
+        return theta;
+    }
+    else if (type_ == "sintors") {
+        at::Tensor r12 = r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3)
+                       - r.slice(0, 3 * atoms_[0], 3 * atoms_[0] + 3);
+        at::Tensor r23 = r.slice(0, 3 * atoms_[2], 3 * atoms_[2] + 3)
+                       - r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3);
+        at::Tensor r34 = r.slice(0, 3 * atoms_[3], 3 * atoms_[3] + 3)
+                       - r.slice(0, 3 * atoms_[2], 3 * atoms_[2] + 3);
+        at::Tensor n123 = r12.cross(r23); n123 = n123 / n123.norm();
+        at::Tensor n234 = r23.cross(r34); n234 = n234 / n234.norm();
+        at::Tensor costheta = n123.dot(n234);
+        at::Tensor sintheta = costheta.clone();
+        // Fail safe for 0 and pi, but that breaks backward propagation
+        if (std::abs(costheta.item<double>()) > 1.0) {
+            sintheta.fill_(0.0);
+        }
+        else {
+            sintheta = at::sqrt(1.0 - costheta * costheta);
+            if (n123.dot(n234.cross(r23)).item<double>() < 0.0) sintheta = -sintheta;
+        }
+        return sintheta;
+    }
+    else if (type_ == "costors") {
+        at::Tensor r12 = r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3)
+                       - r.slice(0, 3 * atoms_[0], 3 * atoms_[0] + 3);
+        at::Tensor r23 = r.slice(0, 3 * atoms_[2], 3 * atoms_[2] + 3)
+                       - r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3);
+        at::Tensor r34 = r.slice(0, 3 * atoms_[3], 3 * atoms_[3] + 3)
+                       - r.slice(0, 3 * atoms_[2], 3 * atoms_[2] + 3);
+        at::Tensor n123 = r12.cross(r23); n123 = n123 / n123.norm();
+        at::Tensor n234 = r23.cross(r34); n234 = n234 / n234.norm();
+        return n123.dot(n234);
+    }
+    else throw std::invalid_argument("Unimplemented internal coordinate type: " + type_);
 }
 // Return the displacement and its gradient over r given r
 std::tuple<at::Tensor, at::Tensor> InvDisp::compute_IC_J(const at::Tensor & r) const {
@@ -117,11 +155,10 @@ std::tuple<at::Tensor, at::Tensor> InvDisp::compute_IC_J(const at::Tensor & r) c
         at::Tensor r12 = runit12.norm();
         runit12 = runit12 / r12;
         // Output
-        at::Tensor q = r12;
         at::Tensor J = r.new_zeros(r.sizes());
         J.slice(0, 3 * atoms_[0], 3 * atoms_[0] + 3) = -runit12;
         J.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3) =  runit12;
-        return std::make_tuple(q, J);
+        return std::make_tuple(r12, J);
     }
     else if (type_ == "bending") {
         // Prepare
@@ -138,48 +175,12 @@ std::tuple<at::Tensor, at::Tensor> InvDisp::compute_IC_J(const at::Tensor & r) c
         at::Tensor J0 = (costheta * runit21 - runit23) / (sintheta * r21);
         at::Tensor J2 = (costheta * runit23 - runit21) / (sintheta * r23);
         // Output
-        at::Tensor q = at::acos(costheta);
+        at::Tensor theta = at::acos(costheta);
         at::Tensor J = r.new_zeros(r.sizes());
         J.slice(0, 3 * atoms_[0], 3 * atoms_[0] + 3) = J0;
         J.slice(0, 3 * atoms_[2], 3 * atoms_[2] + 3) = J2;
         J.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3) = (- J0 - J2);
-        return std::make_tuple(q, J);
-    }
-    else if (type_ == "torsion") {
-        // Prepare
-        at::Tensor runit12 = r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3)
-                           - r.slice(0, 3 * atoms_[0], 3 * atoms_[0] + 3);
-        at::Tensor r12 = runit12.norm();
-        runit12 = runit12 / r12;
-        at::Tensor runit23 = r.slice(0, 3 * atoms_[2], 3 * atoms_[2] + 3)
-                           - r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3);
-        at::Tensor r23 = runit23.norm();
-        runit23 = runit23 / r23;
-        at::Tensor runit34 = r.slice(0, 3 * atoms_[3], 3 * atoms_[3] + 3)
-                           - r.slice(0, 3 * atoms_[2], 3 * atoms_[2] + 3);
-        at::Tensor r34 = runit34.norm();
-        runit34 = runit34 / r34;
-        at::Tensor cos123 = -(runit12.dot(runit23));
-        at::Tensor sin123 = at::sqrt(1.0 - cos123 * cos123);
-        at::Tensor cos234 = -(runit23.dot(runit34));
-        at::Tensor sin234 = at::sqrt(1.0 - cos234 * cos234);
-        at::Tensor n123 = runit12.cross(runit23) / sin123;
-        at::Tensor n234 = runit23.cross(runit34) / sin234;
-        at::Tensor theta = n123.dot(n234);
-        if (theta.item<double>() > 1.0) theta.fill_(0.0);
-        else if (theta.item<double>() < -1.0) theta.fill_(M_PI);
-        else theta = at::acos(theta);
-        if (n123.dot(n234.cross(runit23)).item<double>() < 0.0) theta = -theta;
-        if (theta.item<double>() < min_) theta = theta + 2.0 * M_PI;
-        else if(theta.item<double>() > min_ + 2.0 * M_PI) theta = theta - 2.0 * M_PI;
-        // Output
-        at::Tensor q = theta;
-        at::Tensor J = r.new_zeros(r.sizes());
-        J.slice(0, 3 * atoms_[0], 3 * atoms_[0] + 3) = (-n123 / (r12 * sin123));
-        J.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3) = ((r23 - r12 * cos123) / (r12 * r23 * sin123) * n123 - cos234 / (r23 * sin234) * n234);
-        J.slice(0, 3 * atoms_[2], 3 * atoms_[2] + 3) = ((r34 * cos234 - r23) / (r23 * r34 * sin234) * n234 + cos123 / (r23 * sin123) * n123);
-        J.slice(0, 3 * atoms_[3], 3 * atoms_[3] + 3) = ( n234 / (r34 * sin234));
-        return std::make_tuple(q, J);
+        return std::make_tuple(theta, J);
     }
     else if (type_ == "OutOfPlane") {
         // Prepare
@@ -213,8 +214,123 @@ std::tuple<at::Tensor, at::Tensor> InvDisp::compute_IC_J(const at::Tensor & r) c
         J.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3) = - J0 - J2 - J3;
         return std::make_tuple(q, J);
     }
-    else
-    throw std::invalid_argument("Unimplemented internal coordinate type: " + type_);
+    else if (type_ == "torsion") {
+        // Prepare
+        at::Tensor runit12 = r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3)
+                           - r.slice(0, 3 * atoms_[0], 3 * atoms_[0] + 3);
+        at::Tensor r12 = runit12.norm();
+        runit12 = runit12 / r12;
+        at::Tensor runit23 = r.slice(0, 3 * atoms_[2], 3 * atoms_[2] + 3)
+                           - r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3);
+        at::Tensor r23 = runit23.norm();
+        runit23 = runit23 / r23;
+        at::Tensor runit34 = r.slice(0, 3 * atoms_[3], 3 * atoms_[3] + 3)
+                           - r.slice(0, 3 * atoms_[2], 3 * atoms_[2] + 3);
+        at::Tensor r34 = runit34.norm();
+        runit34 = runit34 / r34;
+        at::Tensor cos123 = -(runit12.dot(runit23));
+        at::Tensor sin123 = at::sqrt(1.0 - cos123 * cos123);
+        at::Tensor cos234 = -(runit23.dot(runit34));
+        at::Tensor sin234 = at::sqrt(1.0 - cos234 * cos234);
+        at::Tensor n123 = runit12.cross(runit23) / sin123;
+        at::Tensor n234 = runit23.cross(runit34) / sin234;
+        at::Tensor costheta = n123.dot(n234);
+        at::Tensor theta = costheta.clone();
+        if (costheta.item<double>() > 1.0) {
+            theta.fill_(0.0);
+        }
+        else if (costheta.item<double>() < -1.0) {
+            theta.fill_(M_PI);
+        }
+        else {
+            theta = at::acos(costheta);
+            if (n123.dot(n234.cross(runit23)).item<double>() < 0.0) theta = -theta;
+        }
+        if (theta.item<double>() < min_) theta = theta + 2.0 * M_PI;
+        else if(theta.item<double>() > min_ + 2.0 * M_PI) theta = theta - 2.0 * M_PI;
+        // Output
+        at::Tensor J = r.new_zeros(r.sizes());
+        J.slice(0, 3 * atoms_[0], 3 * atoms_[0] + 3) = -n123 / (r12 * sin123);
+        J.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3) = (r23 - r12 * cos123) / (r12 * r23 * sin123) * n123 - cos234 / (r23 * sin234) * n234;
+        J.slice(0, 3 * atoms_[2], 3 * atoms_[2] + 3) = (r34 * cos234 - r23) / (r23 * r34 * sin234) * n234 + cos123 / (r23 * sin123) * n123;
+        J.slice(0, 3 * atoms_[3], 3 * atoms_[3] + 3) =  n234 / (r34 * sin234);
+        return std::make_tuple(theta, J);
+    }
+    else if (type_ == "sintors") {
+        // Prepare
+        at::Tensor runit12 = r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3)
+                           - r.slice(0, 3 * atoms_[0], 3 * atoms_[0] + 3);
+        at::Tensor r12 = runit12.norm();
+        runit12 = runit12 / r12;
+        at::Tensor runit23 = r.slice(0, 3 * atoms_[2], 3 * atoms_[2] + 3)
+                           - r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3);
+        at::Tensor r23 = runit23.norm();
+        runit23 = runit23 / r23;
+        at::Tensor runit34 = r.slice(0, 3 * atoms_[3], 3 * atoms_[3] + 3)
+                           - r.slice(0, 3 * atoms_[2], 3 * atoms_[2] + 3);
+        at::Tensor r34 = runit34.norm();
+        runit34 = runit34 / r34;
+        at::Tensor cos123 = -(runit12.dot(runit23));
+        at::Tensor sin123 = at::sqrt(1.0 - cos123 * cos123);
+        at::Tensor cos234 = -(runit23.dot(runit34));
+        at::Tensor sin234 = at::sqrt(1.0 - cos234 * cos234);
+        at::Tensor n123 = runit12.cross(runit23) / sin123;
+        at::Tensor n234 = runit23.cross(runit34) / sin234;
+        at::Tensor costheta = n123.dot(n234);
+        at::Tensor sintheta = costheta.clone();
+        if (std::abs(costheta.item<double>()) > 1.0) {
+            sintheta.fill_(0.0);
+        }
+        else {
+            sintheta = at::sqrt(1.0 - costheta * costheta);
+            if (n123.dot(n234.cross(runit23)).item<double>() < 0.0) sintheta = -sintheta;
+        }
+        // Output
+        at::Tensor J = r.new_zeros(r.sizes());
+        J.slice(0, 3 * atoms_[0], 3 * atoms_[0] + 3) = -n123 / (r12 * sin123);
+        J.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3) = (r23 - r12 * cos123) / (r12 * r23 * sin123) * n123 - cos234 / (r23 * sin234) * n234;
+        J.slice(0, 3 * atoms_[2], 3 * atoms_[2] + 3) = (r34 * cos234 - r23) / (r23 * r34 * sin234) * n234 + cos123 / (r23 * sin123) * n123;
+        J.slice(0, 3 * atoms_[3], 3 * atoms_[3] + 3) =  n234 / (r34 * sin234);
+        return std::make_tuple(sintheta, costheta * J);
+    }
+    else if (type_ == "costors") {
+        // Prepare
+        at::Tensor runit12 = r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3)
+                           - r.slice(0, 3 * atoms_[0], 3 * atoms_[0] + 3);
+        at::Tensor r12 = runit12.norm();
+        runit12 = runit12 / r12;
+        at::Tensor runit23 = r.slice(0, 3 * atoms_[2], 3 * atoms_[2] + 3)
+                           - r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3);
+        at::Tensor r23 = runit23.norm();
+        runit23 = runit23 / r23;
+        at::Tensor runit34 = r.slice(0, 3 * atoms_[3], 3 * atoms_[3] + 3)
+                           - r.slice(0, 3 * atoms_[2], 3 * atoms_[2] + 3);
+        at::Tensor r34 = runit34.norm();
+        runit34 = runit34 / r34;
+        at::Tensor cos123 = -(runit12.dot(runit23));
+        at::Tensor sin123 = at::sqrt(1.0 - cos123 * cos123);
+        at::Tensor cos234 = -(runit23.dot(runit34));
+        at::Tensor sin234 = at::sqrt(1.0 - cos234 * cos234);
+        at::Tensor n123 = runit12.cross(runit23) / sin123;
+        at::Tensor n234 = runit23.cross(runit34) / sin234;
+        at::Tensor costheta = n123.dot(n234);
+        at::Tensor sintheta = costheta.clone();
+        if (std::abs(costheta.item<double>()) > 1.0) {
+            sintheta.fill_(0.0);
+        }
+        else {
+            sintheta = at::sqrt(1.0 - costheta * costheta);
+            if (n123.dot(n234.cross(runit23)).item<double>() < 0.0) sintheta = -sintheta;
+        }
+        // Output
+        at::Tensor J = r.new_zeros(r.sizes());
+        J.slice(0, 3 * atoms_[0], 3 * atoms_[0] + 3) = -n123 / (r12 * sin123);
+        J.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3) = (r23 - r12 * cos123) / (r12 * r23 * sin123) * n123 - cos234 / (r23 * sin234) * n234;
+        J.slice(0, 3 * atoms_[2], 3 * atoms_[2] + 3) = (r34 * cos234 - r23) / (r23 * r34 * sin234) * n234 + cos123 / (r23 * sin123) * n123;
+        J.slice(0, 3 * atoms_[3], 3 * atoms_[3] + 3) =  n234 / (r34 * sin234);
+        return std::make_tuple(costheta, -sintheta * J);
+    }
+    else throw std::invalid_argument("Unimplemented internal coordinate type: " + type_);
 }
 // Return the displacement and its 1st and 2nd order gradient over r given r
 std::tuple<at::Tensor, at::Tensor, at::Tensor> InvDisp::compute_IC_J_K(const at::Tensor & r) const {
@@ -258,38 +374,6 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor> InvDisp::compute_IC_J_K(const at:
         Js[2] = J2;
         Js[1] = (- J0 - J2);
     }
-    else if (type_ == "torsion") {
-        at::Tensor runit12 = rs[1] - rs[0];
-        at::Tensor r12 = runit12.norm();
-        runit12 = runit12 / r12;
-        at::Tensor runit23 = rs[2] - rs[1];
-        at::Tensor r23 = runit23.norm();
-        runit23 = runit23 / r23;
-        at::Tensor runit34 = rs[3] - rs[2];
-        at::Tensor r34 = runit34.norm();
-        runit34 = runit34 / r34;
-        at::Tensor cos123 = -(runit12.dot(runit23));
-        at::Tensor sin123 = at::sqrt(1.0 - cos123 * cos123);
-        at::Tensor cos234 = -(runit23.dot(runit34));
-        at::Tensor sin234 = at::sqrt(1.0 - cos234 * cos234);
-        at::Tensor n123 = runit12.cross(runit23) / sin123;
-        at::Tensor n234 = runit23.cross(runit34) / sin234;
-        at::Tensor theta = n123.dot(n234);
-        theta.detach_();
-        if (theta.item<double>() > 1.0) theta.fill_(0.0);
-        else if (theta.item<double>() < -1.0) theta.fill_(M_PI);
-        else theta = at::acos(theta);
-        if (n123.dot(n234.cross(runit23)).item<double>() < 0.0) theta = -theta;
-        if (theta.item<double>() < min_) theta = theta + 2.0 * M_PI;
-        else if(theta.item<double>() > min_ + 2.0 * M_PI) theta = theta - 2.0 * M_PI;
-        // q
-        q = theta;
-        // J
-        Js[0] = (-n123 / (r12 * sin123));
-        Js[1] = ((r23 - r12 * cos123) / (r12 * r23 * sin123) * n123 - cos234 / (r23 * sin234) * n234);
-        Js[2] = ((r34 * cos234 - r23) / (r23 * r34 * sin234) * n234 + cos123 / (r23 * sin123) * n123);
-        Js[3] = ( n234 / (r34 * sin234));
-    }
     else if (type_ == "OutOfPlane") {
         // Prepare
         at::Tensor runit21 = rs[0] - rs[1];
@@ -318,8 +402,112 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor> InvDisp::compute_IC_J_K(const at:
         Js[3] = J3;
         Js[1] = - J0 - J2 - J3;
     }
-    else
-    throw std::invalid_argument("Unimplemented internal coordinate type: " + type_);
+    else if (type_ == "torsion") {
+        at::Tensor runit12 = rs[1] - rs[0];
+        at::Tensor r12 = runit12.norm();
+        runit12 = runit12 / r12;
+        at::Tensor runit23 = rs[2] - rs[1];
+        at::Tensor r23 = runit23.norm();
+        runit23 = runit23 / r23;
+        at::Tensor runit34 = rs[3] - rs[2];
+        at::Tensor r34 = runit34.norm();
+        runit34 = runit34 / r34;
+        at::Tensor cos123 = -(runit12.dot(runit23));
+        at::Tensor sin123 = at::sqrt(1.0 - cos123 * cos123);
+        at::Tensor cos234 = -(runit23.dot(runit34));
+        at::Tensor sin234 = at::sqrt(1.0 - cos234 * cos234);
+        at::Tensor n123 = runit12.cross(runit23) / sin123;
+        at::Tensor n234 = runit23.cross(runit34) / sin234;
+        at::Tensor costheta = n123.dot(n234);
+        at::Tensor theta = costheta.clone();
+        theta.detach_();
+        if (theta.item<double>() > 1.0) {
+            theta.fill_(0.0);
+        }
+        else if (theta.item<double>() < -1.0) {
+            theta.fill_(M_PI);
+        }
+        else {
+            theta = at::acos(costheta);
+            if (n123.dot(n234.cross(runit23)).item<double>() < 0.0) theta = -theta;
+        }
+        if (theta.item<double>() < min_) theta = theta + 2.0 * M_PI;
+        else if(theta.item<double>() > min_ + 2.0 * M_PI) theta = theta - 2.0 * M_PI;
+        // q
+        q = theta;
+        // J
+        Js[0] = -n123 / (r12 * sin123);
+        Js[1] = (r23 - r12 * cos123) / (r12 * r23 * sin123) * n123 - cos234 / (r23 * sin234) * n234;
+        Js[2] = (r34 * cos234 - r23) / (r23 * r34 * sin234) * n234 + cos123 / (r23 * sin123) * n123;
+        Js[3] =  n234 / (r34 * sin234);
+    }
+    else if (type_ == "sintors") {
+        at::Tensor runit12 = rs[1] - rs[0];
+        at::Tensor r12 = runit12.norm();
+        runit12 = runit12 / r12;
+        at::Tensor runit23 = rs[2] - rs[1];
+        at::Tensor r23 = runit23.norm();
+        runit23 = runit23 / r23;
+        at::Tensor runit34 = rs[3] - rs[2];
+        at::Tensor r34 = runit34.norm();
+        runit34 = runit34 / r34;
+        at::Tensor cos123 = -(runit12.dot(runit23));
+        at::Tensor sin123 = at::sqrt(1.0 - cos123 * cos123);
+        at::Tensor cos234 = -(runit23.dot(runit34));
+        at::Tensor sin234 = at::sqrt(1.0 - cos234 * cos234);
+        at::Tensor n123 = runit12.cross(runit23) / sin123;
+        at::Tensor n234 = runit23.cross(runit34) / sin234;
+        at::Tensor costheta = n123.dot(n234);
+        at::Tensor sintheta = costheta.clone();
+        if (std::abs(costheta.item<double>()) > 1.0) {
+            sintheta.fill_(0.0);
+        }
+        else {
+            sintheta = at::sqrt(1.0 - costheta * costheta);
+            if (n123.dot(n234.cross(runit23)).item<double>() < 0.0) sintheta = -sintheta;
+        }
+        // q
+        q = sintheta;
+        // J
+        Js[0] = costheta * (-n123 / (r12 * sin123));
+        Js[1] = costheta * ((r23 - r12 * cos123) / (r12 * r23 * sin123) * n123 - cos234 / (r23 * sin234) * n234);
+        Js[2] = costheta * ((r34 * cos234 - r23) / (r23 * r34 * sin234) * n234 + cos123 / (r23 * sin123) * n123);
+        Js[3] = costheta * ( n234 / (r34 * sin234));
+    }
+    else if (type_ == "costors") {
+        at::Tensor runit12 = rs[1] - rs[0];
+        at::Tensor r12 = runit12.norm();
+        runit12 = runit12 / r12;
+        at::Tensor runit23 = rs[2] - rs[1];
+        at::Tensor r23 = runit23.norm();
+        runit23 = runit23 / r23;
+        at::Tensor runit34 = rs[3] - rs[2];
+        at::Tensor r34 = runit34.norm();
+        runit34 = runit34 / r34;
+        at::Tensor cos123 = -(runit12.dot(runit23));
+        at::Tensor sin123 = at::sqrt(1.0 - cos123 * cos123);
+        at::Tensor cos234 = -(runit23.dot(runit34));
+        at::Tensor sin234 = at::sqrt(1.0 - cos234 * cos234);
+        at::Tensor n123 = runit12.cross(runit23) / sin123;
+        at::Tensor n234 = runit23.cross(runit34) / sin234;
+        at::Tensor costheta = n123.dot(n234);
+        at::Tensor sintheta = costheta.clone();
+        if (std::abs(costheta.item<double>()) > 1.0) {
+            sintheta.fill_(0.0);
+        }
+        else {
+            sintheta = at::sqrt(1.0 - costheta * costheta);
+            if (n123.dot(n234.cross(runit23)).item<double>() < 0.0) sintheta = -sintheta;
+        }
+        // q
+        q = costheta;
+        // J
+        Js[0] = -sintheta * (-n123 / (r12 * sin123));
+        Js[1] = -sintheta * ((r23 - r12 * cos123) / (r12 * r23 * sin123) * n123 - cos234 / (r23 * sin234) * n234);
+        Js[2] = -sintheta * ((r34 * cos234 - r23) / (r23 * r34 * sin234) * n234 + cos123 / (r23 * sin123) * n123);
+        Js[3] = -sintheta * ( n234 / (r34 * sin234));
+    }
+    else throw std::invalid_argument("Unimplemented internal coordinate type: " + type_);
     q.detach_();
     // J
     at::Tensor J = r.new_zeros(r.size(0));

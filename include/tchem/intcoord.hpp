@@ -14,12 +14,14 @@ Nomenclature:
     K: the gradient of J over r
 
 Warning:
+    * q of torsion is double-valued at min
+      so please use sintors or costors for large amplitude
+    * Backward propagation through q of torsion may be problematic when q = 0 or +-pi,
+      so please use J explicitly in those cases
     * J of bending is singular at 0 and pi,
       so please avoid using bending in those cases
     * J of out of plane is singular at +-pi/2,
       so please avoid using out of plane in those cases
-    * Backward propagation through q may be problematic for torsion when q = 0 or pi,
-      so please use J explicitly in those cases
 */
 #include <tchem/intcoord/InvDisp.hpp>
 #include <tchem/intcoord/IntCoord.hpp>

@@ -35,19 +35,19 @@ IntCoordSet::IntCoordSet(const std::string & format, const std::string & file) {
                         std::stoul(line.substr(45, 9)) - 1,
                         std::stoul(line.substr(35, 9)) - 1};
             }
-            else if (line.substr(20,4) == "TORS") {
-                type = "torsion";
-                atom = {std::stoul(line.substr(28, 6)) - 1,
-                        std::stoul(line.substr(35, 9)) - 1,
-                        std::stoul(line.substr(45, 9)) - 1,
-                        std::stoul(line.substr(55, 9)) - 1};
-            }
             else if (line.substr(20,3) == "OUT") {
                 type = "OutOfPlane";
                 atom = {std::stoul(line.substr(28, 6)) - 1,
                         std::stoul(line.substr(55, 9)) - 1,
                         std::stoul(line.substr(35, 9)) - 1,
                         std::stoul(line.substr(45, 9)) - 1};
+            }
+            else if (line.substr(20,4) == "TORS") {
+                type = "torsion";
+                atom = {std::stoul(line.substr(28, 6)) - 1,
+                        std::stoul(line.substr(35, 9)) - 1,
+                        std::stoul(line.substr(45, 9)) - 1,
+                        std::stoul(line.substr(55, 9)) - 1};
             }
             else break;
             intcoords_.back().append(coeff, InvDisp(type, atom));
@@ -85,23 +85,14 @@ IntCoordSet::IntCoordSet(const std::string & format, const std::string & file) {
                 atom[1] = std::stoul(strs.front()) - 1; strs.pop_front();
                 atom[2] = std::stoul(strs.front()) - 1; strs.pop_front();
             }
-            else if (type == "torsion") {
+            else if (type == "OutOfPlane" || type == "torsion" || type == "sintors" || type == "costors") {
                 atom.resize(4);
                 atom[0] = std::stoul(strs.front()) - 1; strs.pop_front();
                 atom[1] = std::stoul(strs.front()) - 1; strs.pop_front();
                 atom[2] = std::stoul(strs.front()) - 1; strs.pop_front();
                 atom[3] = std::stoul(strs.front()) - 1; strs.pop_front();
             }
-            else if (type == "OutOfPlane") {
-                atom.resize(4);
-                atom[0] = std::stoul(strs.front()) - 1; strs.pop_front();
-                atom[1] = std::stoul(strs.front()) - 1; strs.pop_front();
-                atom[2] = std::stoul(strs.front()) - 1; strs.pop_front();
-                atom[3] = std::stoul(strs.front()) - 1; strs.pop_front();
-            }
-            else {
-                throw "Error during reading internal coordinate definition: unsupported internal coordinate type: " + type;
-            }
+            else throw "Error during reading internal coordinate definition: unsupported internal coordinate type: " + type;
             double min = -M_PI;
             if (! strs.empty()) if (std::regex_match(strs.front(), std::regex("-?\\d+\\.?\\d*"))) min = std::stod(strs.front());
             intcoords_.back().append(coeff, InvDisp(type, atom, min));

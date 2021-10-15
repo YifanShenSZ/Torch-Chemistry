@@ -8,23 +8,26 @@ namespace tchem { namespace IC {
 // A translationally and rotationally invariant displacement
 class InvDisp {
     private:
-        // Currently only support stretching, bending, torsion, OutOfPlane
+        // Currently only support stretching, bending, OutOfPlane, torsion
         // stretching: bond length atom1_atom2
         // bending   : bond angle atom1_atom2_atom3, range [0,pi]
-        //             derivative encounters singularity at pi
+        //             singular derivative at 0 and pi
+        // OutOfPlane: out of plane angle atom1_atom2_atom3_atom4, range [-pi/2, pi/2]
+        //             specifically, bond 12 out of plane 234
+        //             singular derivative at +-pi/2
         // torsion   : dihedral angle atom1_atom2_atom3_atom4, range [min, min + 2pi]
         //             specifically, angle between plane 123 and plane 234
         //             dihedral angle has same sign to n_123 x n_234 . r_23
         //             where n_abc (the normal vector of plane abc) is the unit vector along r_ab x r_bc
-        // OutOfPlane: out of plane angle atom1_atom2_atom3_atom4, range [-pi/2, pi/2]
-        //             specifically, bond 12 out of plane 234
+        // sintors   : sin(torsion)
+        // costors   : cos(torsion)
         std::string type_;
         // involved atoms
         std::vector<size_t> atoms_;
         // for torsion only, deafult = -pi
         // if (the dihedral angle < min)       angle += 2pi
         // if (the dihedral angle > min + 2pi) angle -= 2pi
-        // The dihedral angle is discontinuous at min and min + 2pi
+        // The dihedral angle is double-valued at min and min + 2pi
         double min_ = -M_PI;
     public:
         InvDisp();
