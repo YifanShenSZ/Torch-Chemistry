@@ -1,41 +1,45 @@
-     1    1.000000    stretching     7     5
-     2    1.000000    stretching     7     6
-     3    1.000000    stretching     5     3
-     4    1.000000    stretching     6     4
-     5    1.000000    stretching     2     3
-     6    1.000000    stretching     2     4
-     7    1.000000    stretching     7    14
-     8    1.000000    stretching     5    12
-     9    1.000000    stretching     6    13
-    10    1.000000    stretching     3    10
-    11    1.000000    stretching     4    11
-    12    1.000000    stretching     2     1
-    13    1.000000    stretching     1     8
-    14    1.000000    stretching     1     9
-    15    1.000000       bending     5     7     6
-    16    1.000000       bending     7     5     3
-    17    1.000000       bending     7     6     4
-    18    1.000000       bending    12     5     7
-    19    1.000000       bending    13     6     7
-    20    1.000000       bending    10     3     5
-    21    1.000000       bending    11     4     6
-    22    1.000000       bending     8     1     2
-    23    1.000000       bending     9     1     2
-    24    1.000000       torsion     3     5     7     6
-    25    1.000000       torsion     4     6     7     5
-    26    1.000000    OutOfPlane    14     7     6     5
-    27    1.000000    OutOfPlane    12     5     7     3
-    28    1.000000    OutOfPlane    13     6     7     4
-    29    1.000000    OutOfPlane    10     3     5     7
-    30    1.000000    OutOfPlane    11     4     6     7
-    31    1.000000       torsion     2     3     5     7
-         -1.000000       torsion     2     4     6     7
-    32    1.000000    OutOfPlane     1     2     3     4
-    33    1.000000       torsion     8     1     2     3     -1.57079632679489661923
-          1.000000       torsion     8     1     2     4     -4.71238898038468967400
-    34    1.000000       torsion     9     1     2     3     -1.57079632679489661923
-          1.000000       torsion     9     1     2     4     -4.71238898038468967400
-    35    1.000000       bending    14     7     5
-         -1.000000       bending    14     7     6
-    36    1.000000       bending     1     2     3
-         -1.000000       bending     1     2     4
+     1    1.000000    stretching     2     1                  # no nuclei to permute
+     2    1.000000    stretching     7    14
+     3    1.000000    stretching     1     8                  # NH2 only
+     4    1.000000    stretching     1     9
+     5    1.000000    cosbending     8     1     2
+     6    1.000000    cosbending     9     1     2
+     7    1.000000    stretching     7     5                  # benzene only
+     8    1.000000    stretching     7     6
+     9    1.000000    stretching     5     3
+    10    1.000000    stretching     6     4
+    11    1.000000    stretching     2     3
+    12    1.000000    stretching     2     4
+    13    1.000000    cosbending     5     7     6
+    14    1.000000    cosbending     7     5     3
+    15    1.000000    cosbending     7     6     4
+    16    1.000000       torsion     3     5     7     6
+    17    1.000000       torsion     4     6     7     5
+    18    0.707107       torsion     2     3     5     7
+         -0.707107       torsion     2     4     6     7
+    19    1.000000    stretching     5    12
+    20    1.000000    stretching     6    13
+    21    1.000000    stretching     3    10
+    22    1.000000    stretching     4    11
+    23    0.707107    cosbending    14     7     5
+         -0.707107    cosbending    14     7     6
+    24    1.000000    cosbending    12     5     7
+    25    1.000000    cosbending    13     6     7
+    26    1.000000    cosbending    10     3     5
+    27    1.000000    cosbending    11     4     6
+    28    1.000000        sinoop    14     7     6     5
+    29    1.000000        sinoop    12     5     7     3
+    30    1.000000        sinoop    13     6     7     4
+    31    1.000000        sinoop    10     3     5     7
+    32    1.000000        sinoop    11     4     6     7
+    33    0.707107    cosbending     1     2     3
+         -0.707107    cosbending     1     2     4
+    34    1.000000        sinoop     1     2     3     4
+    35    1.000000    sintorsion     8     1     2     3    # NH2 and benzene
+    36    1.000000    sintorsion     8     1     2     4
+    37    1.000000    sintorsion     9     1     2     3
+    38    1.000000    sintorsion     9     1     2     4
+    39    1.000000    costorsion     8     1     2     3
+    40    1.000000    costorsion     8     1     2     4
+    41    1.000000    costorsion     9     1     2     3
+    42    1.000000    costorsion     9     1     2     4
