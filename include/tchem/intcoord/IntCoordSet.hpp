@@ -31,6 +31,8 @@ class IntCoordSet {
         // Return q and J and K given r
         std::tuple<at::Tensor, at::Tensor, at::Tensor> compute_IC_J_K(const at::Tensor & r) const;
 
+        // Return matrix M who satisfies M . ▽r = ▽q
+        at::Tensor gradient_cart2int_matrix(const at::Tensor & r) const;
         // Return internal coordinate gradient given r and Cartesian coordinate gradient
         at::Tensor gradient_cart2int(const at::Tensor & r, const at::Tensor & cartgrad) const;
         // Return Cartesian coordinate gradient given r and internal coordinate gradient

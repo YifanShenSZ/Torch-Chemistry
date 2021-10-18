@@ -158,6 +158,18 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor> IntCoordSet::compute_IC_J_K(const
     return std::make_tuple(q, J, K);
 }
 
+// Return matrix M who satisfies M . ▽r = ▽q
+at::Tensor IntCoordSet::gradient_cart2int_matrix(const at::Tensor & r) const {
+    if (r.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::IC::IntCoordSet::gradient_cart2int: r must be a vector");
+    at::Tensor q, J;
+    std::tie(q, J) = this->compute_IC_J(r);
+    at::Tensor JJT = J.mm(J.transpose(0, 1));
+    at::Tensor cholesky = JJT.cholesky();
+    at::Tensor inverse = at::cholesky_inverse(cholesky);
+    at::Tensor cart2int = inverse.mm(J);
+    return cart2int;
+}
 // Return internal coordinate gradient given r and Cartesian coordinate gradient
 at::Tensor IntCoordSet::gradient_cart2int(const at::Tensor & r, const at::Tensor & cartgrad) const {
     if (r.sizes().size() != 1) throw std::invalid_argument(

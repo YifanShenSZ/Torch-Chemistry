@@ -133,11 +133,14 @@ void grad_hess() {
     at::Tensor cartgrad = set.gradient_int2cart(r, intgrad);
     at::Tensor cartHess = set.Hessian_int2cart(r, intgrad, intHess);
 
+    at::Tensor intgrad0 = set.gradient_cart2int_matrix(r).mv(intgrad);
+
     at::Tensor  intgrad1 = set.gradient_cart2int(r, cartgrad),
                 intHess1 = set.Hessian_cart2int(r, cartgrad, cartHess);
     at::Tensor cartgrad1 = set.gradient_int2cart(r, intgrad1),
                cartHess1 = set.Hessian_int2cart(r, intgrad1, intHess1);
     std::cout << "\nGradient and Hessian transformations: "
+              << ( intgrad -  intgrad0).norm().item<double>() << ' '
               << ( intgrad -  intgrad1).norm().item<double>() << ' '
               << ( intHess -  intHess1).norm().item<double>() << ' '
               << (cartgrad - cartgrad1).norm().item<double>() << ' '

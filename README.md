@@ -1,6 +1,8 @@
 # Torch-Chemistry
 Chemical routines based on libtorch
 
+We develope this library based on the LTS pytorch build 1.8.2, so using Torch-Chemistry along with libtorch 1.8.2 is recommended
+
 ## Featured utilities
 Gaussian:
 * value of gaussian functions
