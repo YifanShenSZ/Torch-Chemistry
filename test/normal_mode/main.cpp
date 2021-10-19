@@ -11,7 +11,7 @@ int main() {
 
     c10::TensorOptions top = at::TensorOptions().dtype(torch::kFloat64);
 
-    tchem::IC::IntCoordSet set("whatever", "whatever");
+    tchem::IC::IntCoordSet set("default", "IntCoordDef");
     CL::chem::xyz_mass<double> geom("geom");
     std::vector<double> coords = geom.coords();
     at::Tensor r = at::from_blob(coords.data(), coords.size(), top);

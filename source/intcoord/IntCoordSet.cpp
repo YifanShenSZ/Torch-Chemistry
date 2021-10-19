@@ -13,8 +13,7 @@ IntCoordSet::IntCoordSet(const std::string & format, const std::string & file) {
         // First line is always "TEXAS"
         // New internal coordinate line starts with 'K'
         std::ifstream ifs; ifs.open(file);
-        if (! ifs.good()) {ifs.close(); ifs.open("intcfl");}
-        if (! ifs.good()) throw CL::utility::file_error(file + " or intcfl");
+        if (! ifs.good()) throw CL::utility::file_error(file);
         std::string line; std::getline(ifs, line);
         while (true) {
             std::getline(ifs, line);
@@ -59,8 +58,7 @@ IntCoordSet::IntCoordSet(const std::string & format, const std::string & file) {
         // For a line defining torsion, an additional number at the end of the line defines min
         // At the end of each line, anything after # is considered as comment
         std::ifstream ifs; ifs.open(file);
-        if (! ifs.good()) {ifs.close(); ifs.open("IntCoordDef");}
-        if (! ifs.good()) throw CL::utility::file_error(file + " or IntCoordDef");
+        if (! ifs.good()) throw CL::utility::file_error(file);
         while (true) {
             std::string line;
             std::getline(ifs, line);

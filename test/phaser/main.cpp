@@ -29,7 +29,7 @@ void alter_states() {
                  +  (states4 - states40      ).select(1, 1).norm()
                  +  (states4 - states40      ).select(1, 2).norm()
                  +  (states4 - states40      ).select(1, 3).norm()).item<double>();
-    std::cout << "\nFixing more eigenstates than phaser's definition: "
+    std::cout << "\nFixing more eigenstates than phaser definition: "
               << diff4 << '\n';
 }
 

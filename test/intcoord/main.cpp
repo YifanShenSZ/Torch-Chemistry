@@ -15,7 +15,7 @@ void q_J_K() {
     std::vector<double> coords_col = geom_col.coords();
     at::Tensor r_col = at::from_blob(coords_col.data(), coords_col.size(), top);
 
-    tchem::IC::IntCoordSet set_col("Columbus7", "whatever");
+    tchem::IC::IntCoordSet set_col("Columbus7", "intcfl");
     at::Tensor q0_col = set_col(r_col);
     std::cout << "\nColumbus7 format internal coordinate: "
               << ((q0_col - intgeom) / intgeom).norm().item<double>() << '\n';
@@ -64,7 +64,7 @@ void q_J_K() {
     std::vector<double> coords_def = geom_def.coords();
     at::Tensor r_def = at::from_blob(coords_def.data(), coords_def.size(), top);
 
-    tchem::IC::IntCoordSet set_def("whatever", "whatever");
+    tchem::IC::IntCoordSet set_def("default", "IntCoordDef");
     at::Tensor q_def, J_def;
     std::tie(q_def, J_def) = set_def.compute_IC_J(r_def);
     std::cout << "\nDefault internal coordinate and Jacobian: "
@@ -117,7 +117,7 @@ void advanced_q_J_K() {
 }
 
 void grad_hess() {
-    tchem::IC::IntCoordSet set("whatever", "whatever");
+    tchem::IC::IntCoordSet set("default", "IntCoordDef");
 
     CL::chem::xyz<double> origin("min-B1.xyz", true);
     std::vector<double> origin_coords = origin.coords();

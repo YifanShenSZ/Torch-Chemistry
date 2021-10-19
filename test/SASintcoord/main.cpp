@@ -7,7 +7,7 @@
 c10::TensorOptions top = at::TensorOptions().dtype(torch::kFloat64);
 
 void test_sasic() {
-    tchem::IC::SASICSet set("whatever", "whatever", "SAS.in");
+    tchem::IC::SASICSet set("default", "IntCoordDef", "SAS.in");
 
     std::vector<std::string> prefixes({"E", "N", "B", "I", "NB", "NI", "BI", "NBI"});
     std::vector<std::vector<at::Tensor>> SASgeoms(8);
@@ -119,7 +119,7 @@ void test_sasic() {
 }
 
 void test_Jacobian() {
-    tchem::IC::SASICSet set("whatever", "whatever", "SAS.in");
+    tchem::IC::SASICSet set("default", "IntCoordDef", "SAS.in");
 
     CL::chem::xyz<double> geom("E.xyz", true);
     std::vector<double> coords = geom.coords();
