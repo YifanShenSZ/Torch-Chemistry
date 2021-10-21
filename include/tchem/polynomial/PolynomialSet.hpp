@@ -8,10 +8,12 @@ namespace tchem { namespace polynomial {
 // polynomial set {P(x)}
 class PolynomialSet {
     private:
-        // polynomials constituting the set, requirements:
-        //     1. orders are sorted ascendingly
-        //     2. same order terms are sorted ascendingly, 
-        //        where the comparison is made from the last coordinate to the first
+        // polynomials constituting the set
+        // If only desire the basic evaluations (value, Jacobian, ...), the polynomials can be stored in any order;
+        // otherwise, the advanced functionalities (rotation, translation, ...) requires:
+        // 1. orders are sorted ascendingly
+        // 2. same order terms are sorted ascendingly, 
+        //    where the comparison is made from the last coordinate to the first
         // e.g. 2-dimensional 2nd-order: 1, x0, x1, x0 x0, x1 x0, x1 x1
         std::vector<Polynomial> polynomials_;
         // dimension of the coordinate system constituting the polynomial set
@@ -25,8 +27,6 @@ class PolynomialSet {
         // Construct `max_order_` and `orders_` based on constructed `polynomials_`
         void construct_orders_();
 
-        // Given a set of coordiantes constituting a polynomial, try to locate its index within [lower, upper]
-        void bisect_(const std::vector<size_t> coords, const size_t & lower, const size_t & upper, int64_t & index) const;
         // Given a set of coordiantes constituting a polynomial, return its index in this polynomial set
         // Return -1 if not found
         int64_t index_polynomial_(const std::vector<size_t> coords) const;
@@ -71,8 +71,7 @@ class PolynomialSet {
 
         // Consider coordinate translation y = x - a
         // so the polynomial set translates as {P(x)} = T . {P(y)}
-        // Assuming:
-        //     1. All 0th and 1st order terms are present
+        // Assuming all 0th and 1st order terms are present
         // Return translation matrix T
         at::Tensor translation(const at::Tensor & a, const PolynomialSet & y_set) const;
         // Assuming terms are the same under translation

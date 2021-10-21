@@ -18,68 +18,39 @@ void PolynomialSet::construct_orders_() {
     orders_[polynomial.order()].push_back(& polynomial);
 }
 
-// Given a set of coordiantes constituting a polynomial, try to locate its index within [lower, upper]
-void PolynomialSet::bisect_(const std::vector<size_t> coords, const size_t & lower, const size_t & upper, int64_t & index) const {
-    // Final round
-    if (upper - lower == 1) {
-        // Try lower
+// Given a set of coordiantes constituting a polynomial, return its index in this polynomial set
+// Return -1 if not found
+int64_t PolynomialSet::index_polynomial_(const std::vector<size_t> coords) const {
+    size_t order = coords.size();
+    // [) bisection search
+    size_t lower = 0;
+    for (size_t i = 0; i < order; i++) lower += orders_[i].size();
+    size_t upper = lower + orders_[order].size();
+    while (lower < upper) {
+        size_t mid = (lower + upper) / 2;
         bool match = true;
-        std::vector<size_t> ref_coords = polynomials_[lower].coords();
-        for (size_t i = 0; i < coords.size(); i++)
-        if (coords[i] != ref_coords[i]) {
-            match = false;
-            break;
-        }
-        if (match) {
-            index = lower;
-            return;
-        }
-        // Try upper
-        match = true;
-        ref_coords = polynomials_[upper].coords();
-        for (size_t i = 0; i < coords.size(); i++)
-        if (coords[i] != ref_coords[i]) {
-            match = false;
-            break;
-        }
-        if (match) {
-            index = upper;
-            return;
-        }
-        // Neither
-        index = -1;
-    }
-    // Normal bisection process
-    else {
-        // Try bisection
-        size_t bisection = (lower + upper) / 2;
-        bool match = true;
-        std::vector<size_t> ref_coords = polynomials_[bisection].coords();
+        const std::vector<size_t> & ref_coords = polynomials_[mid].coords();
         int64_t i;
         for (i = coords.size() - 1; i > -1 ; i--)
         if (coords[i] != ref_coords[i]) {
             match = false;
             break;
         }
-        if (match) {
-            index = bisection;
-            return;
-        }
-        // Next range
-        if (coords[i] > ref_coords[i]) bisect_(coords, bisection, upper, index);
-        else                           bisect_(coords, lower, bisection, index);
+        if (match) return mid;
+        // next range
+        if (coords[i] > ref_coords[i]) lower = mid + 1;
+        else                           upper = mid;
     }
-}
-// Given a set of coordiantes constituting a polynomial, return its index in this polynomial set
-// Return -1 if not found
-int64_t PolynomialSet::index_polynomial_(const std::vector<size_t> coords) const {
-    size_t order = coords.size();
-    size_t lower = 0;
-    for (size_t i = 0; i < order; i++) lower += orders_[i].size();
-    size_t upper = lower + orders_[order].size() - 1;
-    int64_t index;
-    bisect_(coords, lower, upper, index);
-    return index;
+    // bisection search is terminated by lower == upper rather than found, so try lower as the final round
+    bool match = true;
+    std::vector<size_t> ref_coords = polynomials_[lower].coords();
+    for (int64_t i = coords.size() - 1; i > -1 ; i--)
+    if (coords[i] != ref_coords[i]) {
+        match = false;
+        break;
+    }
+    if (match) return lower;
+    else       return -1;
 }
 
 PolynomialSet::PolynomialSet() {}
@@ -302,8 +273,7 @@ at::Tensor PolynomialSet::rotation(const at::Tensor & U) const {return rotation(
 
 // Consider coordinate translation y = x - a
 // so the polynomial set translates as {P(x)} = T . {P(y)}
-// Assuming:
-//     1. All 0th and 1st order terms are present
+// Assuming all 0th and 1st order terms are present
 // Return translation matrix T
 at::Tensor PolynomialSet::translation(const at::Tensor & a, const PolynomialSet & y_set) const {
     if (a.sizes().size() != 1) throw std::invalid_argument(

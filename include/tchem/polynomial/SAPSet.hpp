@@ -8,10 +8,12 @@ namespace tchem { namespace polynomial {
 // symmetry adapted polynomial set {SAP(x)}
 class SAPSet {
     private:
-        // symmetry adapted polynomials constituting the set, requirements:
-        //     1. orders are sorted ascendingly
-        //     2. same order terms are sorted ascendingly
-        //        where the comparison is made from the last coordinate to the first
+        // symmetry adapted polynomials constituting the set
+        // If only desire the basic evaluations (value, Jacobian, ...), the SAPs can be stored in any order;
+        // otherwise, the advanced functionalities (rotation, translation, ...) requires:
+        // 1. orders are sorted ascendingly
+        // 2. same order terms are sorted ascendingly
+        //    where the comparison is made from the last coordinate to the first
         // e.g. 2-irreducible 2-dimensional 2nd-order: 1, x00, x01, x00 x00, x01 x00, x01 x01, x10 x10, x11 x10, x11 x11
         std::vector<SAP> SAPs_;
         // irreducible of this symmetry adapted polynomial set
@@ -27,8 +29,6 @@ class SAPSet {
         // Construct `max_order_` and `orders_` based on constructed `polynomials_`
         void construct_orders_();
 
-        // Given a set of coordinates constituting a SAP, try to locate its index within [lower, upper)
-        void bisect_(const std::vector<std::pair<size_t, size_t>> coords, const size_t & lower, const size_t & upper, int64_t & index) const;
         // Given a set of coordiantes constituting a SAP, return its index in this SAP set
         // Return -1 if not found
         int64_t index_SAP_(const std::vector<std::pair<size_t, size_t>> coords) const;
@@ -66,8 +66,8 @@ class SAPSet {
         // Consider coordinate rotation y[irred] = U[irred]^-1 . x[irred]
         // so the SAP set rotates as {SAP(x)} = T . {SAP(y)}
         // Assuming:
-        //     1. If there are 1st order terms, all are present
-        //     2. SAP.coords are sorted
+        // 1. If there are 1st order terms, all are present
+        // 2. SAP.coords are sorted
         // Return rotation matrix T
         at::Tensor rotation(const std::vector<at::Tensor> & U, const SAPSet & y_set) const;
         // Assuming terms are the same under rotation
@@ -77,8 +77,8 @@ class SAPSet {
         // i.e. only the totally symmetric irreducible translates so that symmetry preserves
         // so the SAP set translates as {SAP(x)} = T . {SAP(y)}
         // Assuming:
-        //     1. The totally symmetric irreducible must have the 0th order term
-        //     1. If the totally symmetric irreducible has 1st order terms, all are present
+        // 1. The totally symmetric irreducible must have the 0th order term
+        // 2. If the totally symmetric irreducible has 1st order terms, all are present
         // Return translation matrix T
         at::Tensor translation(const at::Tensor & a, const SAPSet & y_set) const;
         // Assuming terms are the same under translation

@@ -48,68 +48,35 @@ void SAPSet::construct_orders_() {
     "tchem::SAPSet::construct_orders_: Only the totally symmetric irreducible can have 0th order term");
 }
 
-// Given a set of coordiantes constituting a SAP, try to locate its index within [lower, upper]
-void SAPSet::bisect_(const std::vector<std::pair<size_t, size_t>> coords, const size_t & lower, const size_t & upper, int64_t & index) const {
-    // Final round
-    if (upper - lower == 1) {
-        // Try lower
+// Given a set of coordiantes constituting a SAP, return its index in this SAP set
+// Return -1 if not found
+int64_t SAPSet::index_SAP_(const std::vector<std::pair<size_t, size_t>> coords) const {
+    size_t order = coords.size();
+    // [) bisection search
+    size_t lower = 0;
+    for (size_t i = 0; i < order; i++) lower += orders_[i].size();
+    
+    size_t upper = lower + orders_[order].size();
+    while (lower < upper) {
+        size_t mid = (lower + upper) / 2;
         bool match = true;
-        std::vector<std::pair<size_t, size_t>> ref_coords = SAPs_[lower].coords();
-        for (size_t i = 0; i < coords.size(); i++)
-        if (coords[i] != ref_coords[i]) {
-            match = false;
-            break;
-        }
-        if (match) {
-            index = lower;
-            return;
-        }
-        // Try upper
-        match = true;
-        ref_coords = SAPs_[upper].coords();
-        for (size_t i = 0; i < coords.size(); i++)
-        if (coords[i] != ref_coords[i]) {
-            match = false;
-            break;
-        }
-        if (match) {
-            index = upper;
-            return;
-        }
-        // Neither
-        index = -1;
-    }
-    // Normal bisection process
-    else {
-        // Try bisection
-        size_t bisection = (lower + upper) / 2;
-        bool match = true;
-        std::vector<std::pair<size_t, size_t>> ref_coords = SAPs_[bisection].coords();
+        const std::vector<std::pair<size_t, size_t>> & ref_coords = SAPs_[mid].coords();
         int64_t i;
         for (i = coords.size() - 1; i > -1 ; i--)
         if (coords[i] != ref_coords[i]) {
             match = false;
             break;
         }
-        if (match) {
-            index = bisection;
-            return;
-        }
-        // Next range
-        if (coords[i] > ref_coords[i]) bisect_(coords, bisection, upper, index);
-        else                           bisect_(coords, lower, bisection, index);
+        if (match) return mid;
+        // next range
+        if (coords[i] > ref_coords[i]) lower = mid + 1;
+        else                           upper = mid;
     }
-}
-// Given a set of coordiantes constituting a SAP, return its index in this SAP set
-// Return -1 if not found
-int64_t SAPSet::index_SAP_(const std::vector<std::pair<size_t, size_t>> coords) const {
-    size_t order = coords.size();
-    size_t lower = 0;
-    for (size_t i = 0; i < order; i++) lower += orders_[i].size();
-    size_t upper = lower + orders_[order].size() - 1;
-    int64_t index;
-    bisect_(coords, lower, upper, index);
-    return index;
+    
+    // size_t upper = lower + orders_[order].size() - 1;
+    // int64_t index;
+    // bisect_(coords, lower, upper, index);
+    // return index;
 }
 
 SAPSet::SAPSet() {}
@@ -299,8 +266,8 @@ CL::utility::matrix<at::Tensor> SAPSet::Jacobian2nd_(const std::vector<at::Tenso
 // Consider coordinate rotation y[irred] = U[irred]^-1 . x[irred]
 // so the SAP set rotates as {SAP(x)} = T . {SAP(y)}
 // Assuming:
-//     1. If there are 1st order terms, all are present
-//     2. SAP.coords are sorted
+// 1. If there are 1st order terms, all are present
+// 2. SAP.coords are sorted
 // Return rotation matrix T
 at::Tensor SAPSet::rotation(const std::vector<at::Tensor> & U, const SAPSet & y_set) const {
     if (dimensions_.size() != U.size()) throw std::invalid_argument(
@@ -413,8 +380,8 @@ at::Tensor SAPSet::rotation(const std::vector<at::Tensor> & U) const {return rot
 // i.e. only the totally symmetric irreducible translates so that symmetry preserves
 // so the SAP set translates as {SAP(x)} = T . {SAP(y)}
 // Assuming:
-//     1. The totally symmetric irreducible must have the 0th order term
-//     1. If the totally symmetric irreducible has 1st order terms, all are present
+// 1. The totally symmetric irreducible must have the 0th order term
+// 2. If the totally symmetric irreducible has 1st order terms, all are present
 // Return translation matrix T
 at::Tensor SAPSet::translation(const at::Tensor & a, const SAPSet & y_set) const {
     if (a.sizes().size() != 1) throw std::invalid_argument(
