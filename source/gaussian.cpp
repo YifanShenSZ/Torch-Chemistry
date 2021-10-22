@@ -96,19 +96,19 @@ at::Tensor Gaussian::integral(const polynomial::PolynomialSet & set, const polyn
         }
         else {
             for (auto & term : orders[order]) {
-                std::vector<size_t> uniques, repeats;
-                std::tie(uniques, repeats) = term->uniques_orders();
+                const auto & uniques_orders_ = term->uniques_orders();
                 bool odd = false;
-                for (size_t & repeat : repeats) if (repeat % 2 == 1) {
+                for (const auto & unique_order : uniques_orders_)
+                if (unique_order.second % 2 == 1) {
                     odd = true;
                     break;
                 }
                 if (odd) normal_integrals[start] = 0.0;
                 else {
                     normal_integrals[start] = 1.0;
-                    for (size_t i = 0; i < uniques.size(); i++)
-                    normal_integrals[start] *= CL::math::dFactorial2(repeats[i] - 1)
-                                             * at::pow(eigvals[uniques[i]], (double)repeats[i]/2);
+                    for (const auto & unique_order : uniques_orders_)
+                    normal_integrals[start] *= CL::math::dFactorial2(unique_order.second - 1)
+                                             * at::pow(eigvals[unique_order.first], (double)unique_order.second / 2.0);
                 }
                 start++;
             }

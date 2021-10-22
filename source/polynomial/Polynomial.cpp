@@ -1,34 +1,33 @@
+#include <unordered_map>
+
 #include <tchem/polynomial/Polynomial.hpp>
 
 namespace tchem { namespace polynomial {
 
 Polynomial::Polynomial() {}
-Polynomial::Polynomial(const std::vector<size_t> & _coords, const bool & sorted)
-: coords_(_coords) {
-    if (! sorted)
+Polynomial::Polynomial(const std::vector<size_t> & _coords) : coords_(_coords) {
+    std::sort(coords_.begin(), coords_.end(), std::greater<size_t>());
+    // construct the unique coordinates and their orders
+    std::unordered_map<size_t, size_t> unique2order;
+    for (const size_t & coord : coords_)
+    if (unique2order.count(coord) == 0) unique2order[coord] = 1;
+    else                                unique2order[coord]++;
+    uniques_orders_.reserve(unique2order.size());
+    for (const auto & unique_order : unique2order) uniques_orders_.push_back(unique_order);
+}
+Polynomial::Polynomial(const std::vector<std::pair<size_t, size_t>> _uniques_orders) : uniques_orders_(_uniques_orders) {
+    // construct the indices of the coordinates constituting the polynomial
+    for (const auto & unique_order : uniques_orders_)
+    for (size_t i = 0; i < unique_order.second; i++)
+    coords_.push_back(unique_order.first);
     std::sort(coords_.begin(), coords_.end(), std::greater<size_t>());
 }
 Polynomial::~Polynomial() {}
 
 const std::vector<size_t> & Polynomial::coords() const {return coords_;}
+const std::vector<std::pair<size_t, size_t>> & Polynomial::uniques_orders() const {return uniques_orders_;}
 
 size_t Polynomial::order() const {return coords_.size();}
-
-// Return the unique coordinates and their orders
-std::tuple<std::vector<size_t>, std::vector<size_t>> Polynomial::uniques_orders() const {
-    std::vector<size_t> uniques, orders;
-    size_t coord_old = -1;
-    for (const size_t & coord : coords_)
-    if (coord != coord_old) {
-        uniques.push_back(coord);
-        orders .push_back(1);
-        coord_old = coord;
-    }
-    else {
-        orders.back() += 1;
-    }
-    return std::make_tuple(uniques, orders);
-}
 
 // Return the polynomial value P(x)
 at::Tensor Polynomial::operator()(const at::Tensor & x) const {
@@ -42,32 +41,34 @@ at::Tensor Polynomial::operator()(const at::Tensor & x) const {
 at::Tensor Polynomial::gradient(const at::Tensor & x) const {
     if (x.sizes().size() != 1) throw std::invalid_argument(
     "tchem::polynomial::Polynomial::gradient: x must be a vector");
-    std::vector<size_t> uniques, orders;
-    std::tie(uniques, orders) = this->uniques_orders();
     at::Tensor grad = x.new_zeros(x.sizes());
-    for (size_t i = 0; i < uniques.size(); i++) {
-        grad[uniques[i]] = (double)orders[i] * at::pow(x[uniques[i]], (double)(orders[i] - 1));
+    size_t NUniques = uniques_orders_.size();
+    for (size_t i = 0; i < NUniques; i++) {
+        const size_t & unique = uniques_orders_[i].first ,
+                     & order  = uniques_orders_[i].second;
+        grad[unique] = (double)order * at::pow(x[unique], (double)(order - 1));
         for (size_t j = 0; j < i; j++)
-        grad[uniques[i]] = grad[uniques[i]] * at::pow(x[uniques[j]], (double)orders[j]);
-        for (size_t j = i + 1; j < uniques.size(); j++)
-        grad[uniques[i]] = grad[uniques[i]] * at::pow(x[uniques[j]], (double)orders[j]);
+        grad[unique] = grad[unique] * at::pow(x[uniques_orders_[j].first], (double)uniques_orders_[j].second);
+        for (size_t j = i + 1; j < NUniques; j++)
+        grad[unique] = grad[unique] * at::pow(x[uniques_orders_[j].first], (double)uniques_orders_[j].second);
     }
     return grad;
 }
 at::Tensor Polynomial::gradient_(const at::Tensor & x) const {
     if (x.sizes().size() != 1) throw std::invalid_argument(
     "tchem::polynomial::Polynomial::gradient_: x must be a vector");
-    std::vector<size_t> uniques, orders;
-    std::tie(uniques, orders) = this->uniques_orders();
     at::Tensor grad = x.new_zeros(x.sizes());
     const double * px = x.data_ptr<double>();
-    for (size_t i = 0; i < uniques.size(); i++) {
-        const at::Tensor & el = grad[uniques[i]];
-        el.fill_(orders[i] * pow(px[uniques[i]], orders[i] - 1));
+    size_t NUniques = uniques_orders_.size();
+    for (size_t i = 0; i < NUniques; i++) {
+        const size_t & unique = uniques_orders_[i].first ,
+                     & order  = uniques_orders_[i].second;
+        const at::Tensor & el = grad[unique];
+        el.fill_(order * pow(px[unique], order - 1));
         for (size_t j = 0; j < i; j++)
-        el.mul_(pow(px[uniques[j]], orders[j]));
-        for (size_t j = i + 1; j < uniques.size(); j++)
-        el.mul_(pow(px[uniques[j]], orders[j]));
+        el.mul_(pow(px[uniques_orders_[j].first], uniques_orders_[j].second));
+        for (size_t j = i + 1; j < NUniques; j++)
+        el.mul_(pow(px[uniques_orders_[j].first], uniques_orders_[j].second));
     }
     return grad;
 }
@@ -75,29 +76,35 @@ at::Tensor Polynomial::gradient_(const at::Tensor & x) const {
 at::Tensor Polynomial::Hessian(const at::Tensor & x) const {
     if (x.sizes().size() != 1) throw std::invalid_argument(
     "tchem::polynomial::Polynomial::Hessian: x must be a vector");
-    std::vector<size_t> uniques, orders;
-    std::tie(uniques, orders) = this->uniques_orders();
     at::Tensor hess = x.new_zeros({x.size(0), x.size(0)});
-    for (size_t i = 0; i < uniques.size(); i++) {
-        if (orders[i] < 2) hess[uniques[i]][uniques[i]] = 0.0;
+    size_t NUniques = uniques_orders_.size();
+    for (size_t i = 0; i < NUniques; i++) {
+        const size_t & unique_i = uniques_orders_[i].first ,
+                     &  order_i = uniques_orders_[i].second;
+        // diagonal
+        if (order_i < 2) hess[unique_i][unique_i] = 0.0;
         else {
-            hess[uniques[i]][uniques[i]] = (double)(orders[i] * (orders[i] - 1)) * at::pow(x[uniques[i]], (double)(orders[i] - 2));
+            hess[unique_i][unique_i] = (double)(order_i * (order_i - 1)) * at::pow(x[unique_i], (double)(order_i - 2));
             for (size_t k = 0; k < i; k++)
-            hess[uniques[i]][uniques[i]] = hess[uniques[i]][uniques[i]] * at::pow(x[uniques[k]], (double)orders[k]);
-            for (size_t k = i + 1; k < uniques.size(); k++)
-            hess[uniques[i]][uniques[i]] = hess[uniques[i]][uniques[i]] * at::pow(x[uniques[k]], (double)orders[k]);
+            hess[unique_i][unique_i] = hess[unique_i][unique_i] * at::pow(x[uniques_orders_[k].first], (double)uniques_orders_[k].second);
+            for (size_t k = i + 1; k < NUniques; k++)
+            hess[unique_i][unique_i] = hess[unique_i][unique_i] * at::pow(x[uniques_orders_[k].first], (double)uniques_orders_[k].second);
         }
-        for (size_t j = i + 1; j < uniques.size(); j++) {
-            hess[uniques[j]][uniques[i]] = (double)(orders[i] * orders[j])
-                                         * at::pow(x[uniques[i]], (double)(orders[i] - 1))
-                                         * at::pow(x[uniques[j]], (double)(orders[j] - 1));
+        // strict upper-triangle
+        for (size_t j = i + 1; j < NUniques; j++) {
+            const size_t & unique_j = uniques_orders_[j].first ,
+                         &  order_j = uniques_orders_[j].second;
+            hess[unique_i][unique_j] = (double)(order_i * order_j)
+                                   * at::pow(x[unique_i], (double)(order_i - 1))
+                                   * at::pow(x[unique_j], (double)(order_j - 1));
             for (size_t k = 0; k < i; k++)
-            hess[uniques[j]][uniques[i]] = hess[uniques[j]][uniques[i]] * at::pow(x[uniques[k]], (double)orders[k]);
+            hess[unique_i][unique_j] = hess[unique_i][unique_j] * at::pow(x[uniques_orders_[k].first], (double)uniques_orders_[k].second);
             for (size_t k = i + 1; k < j; k++)
-            hess[uniques[j]][uniques[i]] = hess[uniques[j]][uniques[i]] * at::pow(x[uniques[k]], (double)orders[k]);
-            for (size_t k = j + 1; k < uniques.size(); k++)
-            hess[uniques[j]][uniques[i]] = hess[uniques[j]][uniques[i]] * at::pow(x[uniques[k]], (double)orders[k]);
-            hess[uniques[i]][uniques[j]] = hess[uniques[j]][uniques[i]];
+            hess[unique_i][unique_j] = hess[unique_i][unique_j] * at::pow(x[uniques_orders_[k].first], (double)uniques_orders_[k].second);
+            for (size_t k = j + 1; k < NUniques; k++)
+            hess[unique_i][unique_j] = hess[unique_i][unique_j] * at::pow(x[uniques_orders_[k].first], (double)uniques_orders_[k].second);
+            // copy to strict lower-triangle
+            hess[unique_j][unique_i] = hess[unique_i][unique_j];
         }
     }
     return hess;
@@ -105,31 +112,38 @@ at::Tensor Polynomial::Hessian(const at::Tensor & x) const {
 at::Tensor Polynomial::Hessian_(const at::Tensor & x) const {
     if (x.sizes().size() != 1) throw std::invalid_argument(
     "tchem::polynomial::Polynomial::Hessian_: x must be a vector");
-    std::vector<size_t> uniques, orders;
-    std::tie(uniques, orders) = this->uniques_orders();
     at::Tensor hess = x.new_zeros({x.size(0), x.size(0)});
-    for (size_t i = 0; i < uniques.size(); i++) {
-        const at::Tensor & el = hess[uniques[i]][uniques[i]];
-        if (orders[i] < 2) el.zero_();
+    const double * px = x.data_ptr<double>();
+    size_t NUniques = uniques_orders_.size();
+    for (size_t i = 0; i < NUniques; i++) {
+        const size_t & unique_i = uniques_orders_[i].first ,
+                     &  order_i = uniques_orders_[i].second;
+        // diagonal
+        const at::Tensor & el = hess[unique_i][unique_i];
+        if (order_i < 2) el.zero_();
         else {
-            el.fill_((orders[i] * (orders[i] - 1)) * pow(x[uniques[i]].item<double>(), orders[i] - 2));
-            for (size_t j = 0; j < i; j++)
-            el.mul_(pow(x[uniques[j]].item<double>(), orders[j]));
-            for (size_t j = i + 1; j < uniques.size(); j++)
-            el.mul_(pow(x[uniques[j]].item<double>(), orders[j]));
-        }
-        for (size_t j = i + 1; j < uniques.size(); j++) {
-            const at::Tensor & el = hess[uniques[j]][uniques[i]];
-            el.fill_((orders[i] * orders[j])
-                     * pow(x[uniques[i]].item<double>(), orders[i] - 1)
-                     * pow(x[uniques[j]].item<double>(), orders[j] - 1));
+            el.fill_((order_i * (order_i - 1)) * pow(x[unique_i].item<double>(), order_i - 2));
             for (size_t k = 0; k < i; k++)
-            el.mul_(pow(x[uniques[k]].item<double>(), orders[k]));
+            el.mul_(pow(px[uniques_orders_[k].first], uniques_orders_[k].second));
+            for (size_t k = i + 1; k < NUniques; k++)
+            el.mul_(pow(px[uniques_orders_[k].first], uniques_orders_[k].second));
+        }
+        // strict upper-triangle
+        for (size_t j = i + 1; j < NUniques; j++) {
+            const size_t & unique_j = uniques_orders_[j].first ,
+                         &  order_j = uniques_orders_[j].second;
+            const at::Tensor & el = hess[unique_i][unique_j];
+            el.fill_((order_i * order_j)
+                     * pow(x[unique_i].item<double>(), order_i - 1)
+                     * pow(x[unique_j].item<double>(), order_j - 1));
+            for (size_t k = 0; k < i; k++)
+            el.mul_(pow(px[uniques_orders_[k].first], uniques_orders_[k].second));
             for (size_t k = i + 1; k < j; k++)
-            el.mul_(pow(x[uniques[k]].item<double>(), orders[k]));
-            for (size_t k = j + 1; k < uniques.size(); k++)
-            el.mul_(pow(x[uniques[k]].item<double>(), orders[k]));
-            hess[uniques[i]][uniques[j]].copy_(el);
+            el.mul_(pow(px[uniques_orders_[k].first], uniques_orders_[k].second));
+            for (size_t k = j + 1; k < NUniques; k++)
+            el.mul_(pow(px[uniques_orders_[k].first], uniques_orders_[k].second));
+            // copy to strict lower-triangle
+            hess[unique_j][unique_i].copy_(el);
         }
     }
     return hess;

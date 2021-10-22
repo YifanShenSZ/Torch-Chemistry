@@ -10,17 +10,19 @@ class Polynomial {
     private:
         // the indices of the coordinates constituting the polynomial, sorted descendingly
         std::vector<size_t> coords_;
+
+        // the unique coordinates and their orders
+        std::vector<std::pair<size_t, size_t>> uniques_orders_;
     public:
         Polynomial();
-        Polynomial(const std::vector<size_t> & _coords, const bool & sorted = false);
+        Polynomial(const std::vector<size_t> & _coords);
+        Polynomial(const std::vector<std::pair<size_t, size_t>> _uniques_orders);
         ~Polynomial();
 
         const std::vector<size_t> & coords() const;
+        const std::vector<std::pair<size_t, size_t>> & uniques_orders() const;
 
         size_t order() const;
-
-        // Return the unique coordinates and their orders
-        std::tuple<std::vector<size_t>, std::vector<size_t>> uniques_orders() const;
 
         // Return the polynomial value P(x) given x
         at::Tensor operator()(const at::Tensor & x) const;

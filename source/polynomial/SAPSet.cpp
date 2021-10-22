@@ -33,17 +33,17 @@ namespace tchem { namespace polynomial {
 // Construct `orders_` based on constructed `SAP_`
 void SAPSet::construct_orders_() {
     assert(("`SAPs_` must have been constructed", ! SAPs_.empty()));
-    // Find out the highest order among the SAPs
+    // find out the highest order among the SAPs
     max_order_ = 0;
     for (const SAP & sap : SAPs_)
     if (sap.order() > max_order_)
     max_order_ = sap.order();
-    // Construct a view to `SAPs_` grouped by order
+    // construct a view to `SAPs_` grouped by order
     orders_.clear();
     orders_.resize(max_order_ + 1);
     for (const SAP & sap : SAPs_)
     orders_[sap.order()].push_back(& sap);
-    // Sanity check
+    // sanity check
     if (irreducible_ != 0 && (! orders_[0].empty())) throw std::invalid_argument(
     "tchem::SAPSet::construct_orders_: Only the totally symmetric irreducible can have 0th order term");
 }
@@ -55,7 +55,6 @@ int64_t SAPSet::index_SAP_(const std::vector<std::pair<size_t, size_t>> coords) 
     // [) bisection search
     size_t lower = 0;
     for (size_t i = 0; i < order; i++) lower += orders_[i].size();
-    
     size_t upper = lower + orders_[order].size();
     while (lower < upper) {
         size_t mid = (lower + upper) / 2;
@@ -72,15 +71,21 @@ int64_t SAPSet::index_SAP_(const std::vector<std::pair<size_t, size_t>> coords) 
         if (coords[i] > ref_coords[i]) lower = mid + 1;
         else                           upper = mid;
     }
-    
-    // size_t upper = lower + orders_[order].size() - 1;
-    // int64_t index;
-    // bisect_(coords, lower, upper, index);
-    // return index;
+    // bisection search is terminated by lower == upper rather than found, so try lower as the final round
+    bool match = true;
+    const std::vector<std::pair<size_t, size_t>> & ref_coords = SAPs_[lower].coords();
+    for (int64_t i = coords.size() - 1; i > -1 ; i--)
+    if (coords[i] != ref_coords[i]) {
+        match = false;
+        break;
+    }
+    if (match) return lower;
+    else       return -1;
 }
 
 SAPSet::SAPSet() {}
 // `sapoly_file` contains one SAP per line, who must meet the requirements of `SAPs_`
+// At the end of each line, anything after # is considered as comment
 SAPSet::SAPSet(const std::string & sapoly_file, const size_t & _irreducible, const std::vector<size_t> & _dimensions)
 : irreducible_(_irreducible), dimensions_(_dimensions) {
     std::ifstream ifs; ifs.open(sapoly_file);
@@ -90,6 +95,13 @@ SAPSet::SAPSet(const std::string & sapoly_file, const size_t & _irreducible, con
         std::getline(ifs, line);
         if (! ifs.good()) break;
         std::vector<std::string> strs = CL::utility::split(line);
+        // trim comments
+        for (size_t i = 0; i < strs.size(); i++)
+        if (strs[i] == "#") {
+            strs.resize(i);
+            break;
+        }
+        // create SAP from strings
         SAPs_.push_back(SAP(strs));
     }
     ifs.close();
@@ -97,7 +109,7 @@ SAPSet::SAPSet(const std::string & sapoly_file, const size_t & _irreducible, con
 }
 SAPSet::~SAPSet() {}
 
-// Insert a 0th order (const) term if the set is totally symmetic and does not have const yet
+// insert a 0th order (const) term if the set is totally symmetic and does not have const yet
 void SAPSet::insert_const() {
     if (irreducible_ == 0 & orders_[0].empty()) {
         auto copy = SAPs_;
@@ -111,7 +123,7 @@ void SAPSet::insert_const() {
 
 const std::vector<SAP> & SAPSet::SAPs() const {return SAPs_;}
 
-// Read-only reference to a symmetry adapted polynomial
+// read-only reference to a symmetry adapted polynomial
 const SAP & SAPSet::operator[](const size_t & index) const {return SAPs_[index];}
 
 void SAPSet::pretty_print(std::ostream & stream) const {
@@ -321,48 +333,43 @@ at::Tensor SAPSet::rotation(const std::vector<at::Tensor> & U, const SAPSet & y_
                     T_block[i][j] = 0.0;
                     continue;
                 }
-                // Get  the unique coordinates and their number of repeats
-                // i.e. the unique coordinates and their orders
-                std::vector<std::pair<size_t, size_t>> uniques;
-                std::vector<size_t> repeats;
-                std::tie(uniques, repeats) = y_set.orders_[iorder][j]->uniques_orders();
-                // Only 1 permutation when all coordinates are the same
-                if (uniques.size() == 1) {
+                // only 1 permutation when all coordinates are the same
+                if (y_set.orders_[iorder][j]->uniques_orders().size() == 1) {
                     T_block[i][j] = U[x_coords[0].first][x_coords[0].second][y_coords[0].second];
                     for (size_t k = 1; k < iorder; k++) T_block[i][j] *= U[x_coords[k].first][x_coords[k].second][y_coords[k].second];
                 }
-                // Sum over all permutations of the unique coordinates
-                // Reference: https://www.geeksforgeeks.org/print-all-permutations-of-a-string-with-duplicates-allowed-in-input-string
+                // sum over all permutations of the unique coordinates
+                // reference: https://www.geeksforgeeks.org/print-all-permutations-of-a-string-with-duplicates-allowed-in-input-string
                 else {
-                    // The 1st permutation: all coordinates sorted ascendingly
+                    // the 1st permutation: all coordinates sorted ascendingly
                     std::sort(y_coords.begin(), y_coords.end());
-                    // The following permutations
+                    // the following permutations
                     while (true) {
-                        // Sum the current permutation
+                        // sum the current permutation
                         if (match_irred(x_coords, y_coords)) {
                             at::Tensor current = U[0].new_empty({});
                             current.copy_(U[x_coords[0].first][x_coords[0].second][y_coords[0].second]);
                             for (size_t k = 1; k < iorder; k++) current *= U[x_coords[k].first][x_coords[k].second][y_coords[k].second];
                             T_block[i][j] += current;
                         }
-                        // Find the rightmost element which is smaller than its next
-                        // Let us call it "edge element"
+                        // find the rightmost element which is smaller than its next
+                        // let us call it "edge element"
                         int64_t edge_index;
                         for (edge_index = iorder - 2; edge_index > -1; edge_index--)
                         if (y_coords[edge_index] < y_coords[edge_index + 1]) break;
-                        // No such element, all sorted descendingly, done
+                        // no such element, all sorted descendingly, done
                         if (edge_index == -1) break;
-                        // Find the ceil of "edge element" in the right of it
-                        // Ceil of an element is the smallest element greater than it
+                        // find the ceil of "edge element" in the right of it
+                        // ceil of an element is the smallest element greater than it
                         size_t ceil_index = edge_index + 1;
                         for (size_t k = edge_index + 2; k < iorder; k++)
                         if (y_coords[k] > y_coords[edge_index]
                         &&  y_coords[k] < y_coords[ceil_index]) ceil_index = k;
-                        // Swap edge and ceil
+                        // swap edge and ceil
                         auto save = y_coords[edge_index];
                         y_coords[edge_index] = y_coords[ceil_index];
                         y_coords[ceil_index] = save;
-                        // Sort the sub vector on the right of edge
+                        // sort the sub vector on the right of edge
                         std::sort(y_coords.begin() + edge_index + 1, y_coords.end());
                     }
                 }

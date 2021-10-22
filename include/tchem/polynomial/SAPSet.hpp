@@ -26,7 +26,7 @@ class SAPSet {
         // a view to `polynomials_` grouped by order
         std::vector<std::vector<const SAP *>> orders_;
 
-        // Construct `max_order_` and `orders_` based on constructed `polynomials_`
+        // construct `max_order_` and `orders_` based on constructed `polynomials_`
         void construct_orders_();
 
         // Given a set of coordiantes constituting a SAP, return its index in this SAP set
@@ -38,12 +38,12 @@ class SAPSet {
         SAPSet(const std::string & sapoly_file, const size_t & _irreducible, const std::vector<size_t> & _dimensions);
         ~SAPSet();
 
-        // Insert a 0th order (const) term if the set is totally symmetic and does not have const yet
+        // insert a 0th order (const) term if the set is totally symmetic and does not have const yet
         void insert_const();
 
         const std::vector<SAP> & SAPs() const;
 
-        // Read-only reference to a symmetry adapted polynomial
+        // read-only reference to a symmetry adapted polynomial
         const SAP & operator[](const size_t & index) const;
 
         void pretty_print(std::ostream & stream) const;

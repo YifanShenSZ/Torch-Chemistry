@@ -6,7 +6,6 @@ namespace tchem { namespace polynomial {
 
 // Construct `max_order_` and `orders_` based on constructed `polynomials_`
 void PolynomialSet::construct_orders_() {
-    assert(("`polynomials_` must have been constructed", ! polynomials_.empty()));
     // Find out the highest order among the polynomials
     max_order_ = 0;
     for (const Polynomial & polynomial : polynomials_)
@@ -79,7 +78,7 @@ PolynomialSet::PolynomialSet(const size_t & _dimension, const size_t & _order)
         // The 1st term: r0^iorder
         coords.resize(iorder);
         fill(coords.begin(), coords.end(), 0);
-        polynomials_[count] = Polynomial(coords, true);
+        polynomials_[count] = Polynomial(coords);
         count++;
         // The other terms: as a dimension-nary counter
         // with former digit >= latter digit to avoid double counting
@@ -96,7 +95,7 @@ PolynomialSet::PolynomialSet(const size_t & _dimension, const size_t & _order)
             if (coords[i] < coords[i + 1]) {
                 coords[i] = coords[i + 1];
             }
-            polynomials_[count] = Polynomial(coords, true);
+            polynomials_[count] = Polynomial(coords);
             count++;
             if (coords.back() >= dimension_ - 1) break;
         }
@@ -219,45 +218,41 @@ at::Tensor PolynomialSet::rotation(const at::Tensor & U, const PolynomialSet & y
             auto x_coords = orders_[iorder][i]->coords();
             for (size_t j = 0; j < NTerms_y; j++) {
                 auto y_coords = y_set.orders_[iorder][j]->coords();
-                // Get  the unique coordinates and their number of repeats
-                // i.e. the unique coordinates and their orders
-                std::vector<size_t> uniques, repeats;
-                std::tie(uniques, repeats) = y_set.orders_[iorder][j]->uniques_orders();
-                // Only 1 permutation when all coordinates are the same
-                if (uniques.size() == 1) {
+                // only 1 permutation when all coordinates are the same
+                if (y_set.orders_[iorder][j]->uniques_orders().size() == 1) {
                     T_block[i][j] = U[x_coords[0]][y_coords[0]];
                     for (size_t k = 1; k < iorder; k++) T_block[i][j] *= U[x_coords[k]][y_coords[k]];
                 }
-                // Sum over all permutations of the unique coordinates
-                // Reference: https://www.geeksforgeeks.org/print-all-permutations-of-a-string-with-duplicates-allowed-in-input-string
+                // sum over all permutations of the unique coordinates
+                // reference: https://www.geeksforgeeks.org/print-all-permutations-of-a-string-with-duplicates-allowed-in-input-string
                 else {
-                    // The 1st permutation: all coordinates sorted ascendingly
+                    // the 1st permutation: all coordinates sorted ascendingly
                     std::sort(y_coords.begin(), y_coords.end());
-                    // The following permutations
+                    // the following permutations
                     while (true) {
-                        // Sum the current permutation
+                        // sum the current permutation
                         at::Tensor current = U.new_empty({});
                         current.copy_(U[x_coords[0]][y_coords[0]]);
                         for (size_t k = 1; k < iorder; k++) current *= U[x_coords[k]][y_coords[k]];
                         T_block[i][j] += current;
-                        // Find the rightmost element which is smaller than its next
-                        // Let us call it "edge element"
+                        // find the rightmost element which is smaller than its next
+                        // let us call it "edge element"
                         int64_t edge_index;
                         for (edge_index = iorder - 2; edge_index > -1; edge_index--)
                         if (y_coords[edge_index] < y_coords[edge_index + 1]) break;
-                        // No such element, all sorted descendingly, done
+                        // no such element, all sorted descendingly, done
                         if (edge_index == -1) break;
-                        // Find the ceil of "edge element" in the right of it
-                        // Ceil of an element is the smallest element greater than it
+                        // find the ceil of "edge element" in the right of it
+                        // ceil of an element is the smallest element greater than it
                         size_t ceil_index = edge_index + 1;
                         for (size_t k = edge_index + 2; k < iorder; k++)
                         if (y_coords[k] > y_coords[edge_index]
                         &&  y_coords[k] < y_coords[ceil_index]) ceil_index = k;
-                        // Swap edge and ceil
+                        // swap edge and ceil
                         size_t save = y_coords[edge_index];
                         y_coords[edge_index] = y_coords[ceil_index];
                         y_coords[ceil_index] = save;
-                        // Sort the sub vector on the right of edge
+                        // sort the sub vector on the right of edge
                         std::sort(y_coords.begin() + edge_index + 1, y_coords.end());
                     }
                 }
