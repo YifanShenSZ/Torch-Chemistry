@@ -23,7 +23,7 @@ class SAP {
         // For example, the input line of a 2nd order term made up by
         // the 3rd coordinate in the 4th irreducible and
         // the 1st coordinate in the 2nd irreducible is:
-        //     2    4,3    2,1
+        //     4,3    2,1
         // The splitted input line is taken in as `strs`
         SAP(const std::vector<std::string> & strs);
         ~SAP();

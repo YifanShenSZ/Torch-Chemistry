@@ -7,13 +7,13 @@
 namespace tchem { namespace IC {
 
 // The rule of internal coordinates who are scaled by others
-// self is scaled by scaler with alpha
+// self is scaled by exp(-alpha * avg(scalers))
 struct OthScalRul {
-    size_t self, scaler;
+    size_t self;
     double alpha;
+    at::Tensor scaler;
 
     inline OthScalRul() {}
-    inline OthScalRul(const size_t & _self, const size_t & _scaler, const double & _alpha = 1.0) : self(_self), scaler(_scaler), alpha(_alpha) {}
     inline ~OthScalRul() {}
 };
 

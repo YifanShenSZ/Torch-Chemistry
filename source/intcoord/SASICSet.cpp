@@ -14,6 +14,7 @@ SASICSet::SASICSet() {}
 // symmetry adaptation and scale definition file
 SASICSet::SASICSet(const std::string & format, const std::string & IC_file, const std::string & SAS_file)
 : tchem::IC::IntCoordSet(format, IC_file) {
+    int64_t intdim = this->IntCoordSet::size();
     c10::TensorOptions top = at::TensorOptions().dtype(torch::kFloat64);
     std::ifstream ifs; ifs.open(SAS_file);
     if (! ifs.good()) throw CL::utility::file_error(SAS_file);
@@ -30,21 +31,16 @@ SASICSet::SASICSet(const std::string & format, const std::string & IC_file, cons
             std::getline(ifs, line);
             std::vector<std::string> strs = CL::utility::split(line);
             if (! std::regex_match(strs[0], std::regex("\\d+"))) break;
-            // self & scaler are specified, alpha is not
-            if (strs.size() == 2) {
-                size_t self   = std::stoul(strs[0]) - 1,
-                       scaler = std::stoul(strs[1]) - 1;
-                other_scaling_.push_back(OthScalRul(self, scaler));
-            }
-            // self & scaler & alpha are specified
-            else if (strs.size() == 3) {
-                size_t self   = std::stoul(strs[0]) - 1,
-                       scaler = std::stoul(strs[1]) - 1;
-                double alpha  = std::stod (strs[2]);
-                other_scaling_.push_back(OthScalRul(self, scaler, alpha));
-            }
             // wrong input format
-            else throw CL::utility::file_error(SAS_file);
+            if (strs.size() < 3) throw std::invalid_argument(
+            "tchem::IC::SASICSet::SASICSet: wrong input format in " + SAS_file);
+            other_scaling_.push_back(OthScalRul());
+            OthScalRul & osr = other_scaling_.back();
+            osr.self   = std::stoul(strs[0]) - 1;
+            osr.alpha  = std::stod (strs[1]);
+            osr.scaler = at::zeros(intdim, top);
+            for (size_t i = 2; i < strs.size(); i++) osr.scaler[std::stoul(strs[i]) - 1] = 1.0;
+            osr.scaler /= (double)(strs.size() - 2);
         }
         // internal coordinates who are scaled by themselves
         std::vector<std::pair<size_t, double>> self_vector;
@@ -65,7 +61,6 @@ SASICSet::SASICSet(const std::string & format, const std::string & IC_file, cons
             }
             else throw CL::utility::file_error(SAS_file);
         }
-        int64_t intdim = this->intcoords().size();
         self_alpha_    = at::zeros(intdim, top);
         self_scaling_  = at::zeros({intdim, intdim}, top);
         self_complete_ = at::eye(intdim, top);
@@ -129,7 +124,7 @@ std::vector<at::Tensor> SASICSet::operator()(const at::Tensor & q) {
     DIC[i] = DIC[i] / origin_[i];
     // Scale
     at::Tensor SDIC = DIC.clone();
-    for (const OthScalRul & osr : other_scaling_) SDIC[osr.self] = DIC[osr.self] * at::exp(-osr.alpha * DIC[osr.scaler]);
+    for (const OthScalRul & osr : other_scaling_) SDIC[osr.self] = DIC[osr.self] * at::exp(-osr.alpha * osr.scaler.dot(DIC));
     SDIC = 1.0 - at::exp(-self_alpha_ * self_scaling_.mv(SDIC))
          + self_complete_.mv(SDIC);
     // Symmetrize

@@ -37,14 +37,14 @@ SAP::SAP(const std::vector<std::pair<size_t, size_t>> & _coords) : coords_(_coor
 // For example, the input line of a 2nd order term made up by
 // the 3rd coordinate in the 4th irreducible and
 // the 1st coordinate in the 2nd irreducible is:
-//     2    4,3    2,1
+//     4,3    2,1
 // The splitted input line is taken in as `strs`
 SAP::SAP(const std::vector<std::string> & strs) {
     // construct the irreducibles and the indices of the coordinates constituting the polynomial
-    size_t order = std::stoul(strs[0]);
+    size_t order = strs.size();
     coords_.resize(order);
     for (size_t i = 0; i < order; i++) {
-        std::vector<std::string> irred_coord = CL::utility::split(strs[i + 1], ',');
+        std::vector<std::string> irred_coord = CL::utility::split(strs[i], ',');
         coords_[i].first  = std::stoul(irred_coord[0]) - 1;
         coords_[i].second = std::stoul(irred_coord[1]) - 1;
     }
