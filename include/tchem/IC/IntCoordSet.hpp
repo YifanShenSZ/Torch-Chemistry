@@ -1,7 +1,7 @@
 #ifndef tchem_IC_IntCoordSet_hpp
 #define tchem_IC_IntCoordSet_hpp
 
-#include <tchem/intcoord/IntCoord.hpp>
+#include <tchem/IC/IntCoord.hpp>
 
 namespace tchem { namespace IC {
 

@@ -1,6 +1,6 @@
 #include <CppLibrary/utility.hpp>
 
-#include <tchem/intcoord/InvDisp.hpp>
+#include <tchem/IC/InvDisp.hpp>
 
 namespace tchem { namespace IC {
 

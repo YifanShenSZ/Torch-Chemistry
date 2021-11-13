@@ -1,6 +1,6 @@
 #include <CppLibrary/linalg.hpp>
 
-#include <tchem/intcoord/IntCoord.hpp>
+#include <tchem/IC/IntCoord.hpp>
 
 namespace tchem { namespace IC {
 

@@ -22,11 +22,9 @@ add_library(tchem STATIC
     source/FORTRAN/My_dsygv.f90
     source/utility.cpp
     source/linalg.cpp
-    source/intcoord/InvDisp.cpp
-    source/intcoord/IntCoord.cpp
-    source/intcoord/IntCoordSet.cpp
-    source/intcoord/SASIC.cpp
-    source/intcoord/SASICSet.cpp
+    source/IC/InvDisp.cpp
+    source/IC/IntCoord.cpp
+    source/IC/IntCoordSet.cpp
     source/chem/chemistry.cpp
     source/chem/phaser.cpp
     source/chem/normal_mode.cpp

@@ -2,7 +2,7 @@
 
 #include <CppLibrary/utility.hpp>
 
-#include <tchem/intcoord/IntCoordSet.hpp>
+#include <tchem/IC/IntCoordSet.hpp>
 
 namespace tchem { namespace IC {
 

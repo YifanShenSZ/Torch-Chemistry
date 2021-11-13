@@ -23,23 +23,8 @@ Warning:
     * J of out of plane is singular at +-pi/2,
       so please use sinoop for large amplitude
 */
-#include <tchem/intcoord/InvDisp.hpp>
-#include <tchem/intcoord/IntCoord.hpp>
-#include <tchem/intcoord/IntCoordSet.hpp>
-
-/*
-The procedure to get symmetry adapted and scaled internal coordinate (SASIC) is:
-    1. Get internal coordinate (IC), which is taken care of by module `intcoord`
-    2. Nondimensionalize the IC to get dimensionless internal coordinate (DIC):
-       for length, DIC = (IC - origin) / origin
-       for angle , DIC =  IC - origin
-    3. Scale the DIC to get scaled dimensionless internal coordinate (SDIC):
-       if no scaler       : SDIC = DIC
-       elif scaler is self: SDIC = 1 - exp(-alpha * DIC)
-       else               : SDIC = DIC * exp(-alpha * scaler DIC)
-    4. Symmetry adapted linear combinate the SDIC to get SASIC
-*/
-#include <tchem/intcoord/SASIC.hpp>
-#include <tchem/intcoord/SASICSet.hpp>
+#include <tchem/IC/InvDisp.hpp>
+#include <tchem/IC/IntCoord.hpp>
+#include <tchem/IC/IntCoordSet.hpp>
 
 #endif
