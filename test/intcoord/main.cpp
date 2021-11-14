@@ -106,7 +106,8 @@ void advanced_q_J_K() {
               << (at::cos(q[6]) - q[8 ]).item<double>()
                + (at::cos(q[9]) - q[11]).item<double>() << ' '
               << (at::sin(q[12]) - q[13]).item<double>()
-               + (at::sin(q[14]) - q[15]).item<double>() << '\n';
+               + (at::sin(q[14]) - q[15]).item<double>() << ' '
+              << q[16].item<double>() - 1.0 << '\n';
     std::cout << "\nBackward propagation vs analytical Jacobian: "
               << (J - J_back).norm().item<double>() << '\n';
     std::cout << "\nAdvanced internal coordinates calculated with Jacobians: "

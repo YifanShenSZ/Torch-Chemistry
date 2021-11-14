@@ -53,7 +53,10 @@ void InvDisp::print(std::ofstream & ofs, const std::string & format) const {
 at::Tensor InvDisp::operator()(const at::Tensor & r) const {
     if (r.sizes().size() != 1) throw std::invalid_argument(
     "tchem::IC::InvDisp::operator(): r must be a vector");
-    if (type_ == "stretching") {
+    if (type_ == "dummy") {
+        return r.new_full({}, 1.0);
+    }
+    else if (type_ == "stretching") {
         at::Tensor r12 = r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3)
                        - r.slice(0, 3 * atoms_[0], 3 * atoms_[0] + 3);
         return r12.norm();
@@ -168,7 +171,10 @@ at::Tensor InvDisp::operator()(const at::Tensor & r) const {
 std::tuple<at::Tensor, at::Tensor> InvDisp::compute_IC_J(const at::Tensor & r) const {
     if (r.sizes().size() != 1) throw std::invalid_argument(
     "tchem::IC::InvDisp::compute_IC_J: r must be a vector");
-    if (type_ == "stretching") {
+    if (type_ == "dummy") {
+        return std::make_tuple(r.new_full({}, 1.0), r.new_zeros(r.sizes()));
+    }
+    else if (type_ == "stretching") {
         // Prepare
         at::Tensor runit12 = r.slice(0, 3 * atoms_[1], 3 * atoms_[1] + 3)
                            - r.slice(0, 3 * atoms_[0], 3 * atoms_[0] + 3);
@@ -413,7 +419,10 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor> InvDisp::compute_IC_J_K(const at:
         rs[i].set_requires_grad(true);
     }
     std::vector<at::Tensor> Js(atoms_.size());
-    if (type_ == "stretching") {
+    if (type_ == "dummy") {
+        q = r.new_full({}, 1.0);
+    }
+    else if (type_ == "stretching") {
         // Prepare
         at::Tensor runit12 = rs[1] - rs[0];
         at::Tensor r12 = runit12.norm();

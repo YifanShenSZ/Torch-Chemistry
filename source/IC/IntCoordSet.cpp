@@ -72,7 +72,10 @@ IntCoordSet::IntCoordSet(const std::string & format, const std::string & file) {
             double coeff = std::stod(strs.front()); strs.pop_front();
             std::string type = strs.front(); strs.pop_front();
             std::vector<size_t> atom;
-            if (type == "stretching") {
+            if (type == "dummy") {
+                atom.clear();
+            }
+            else if (type == "stretching") {
                 atom.resize(2);
                 atom[0] = std::stoul(strs.front()) - 1; strs.pop_front();
                 atom[1] = std::stoul(strs.front()) - 1; strs.pop_front();

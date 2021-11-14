@@ -9,6 +9,7 @@ namespace tchem { namespace IC {
 class InvDisp {
     private:
         // Available types:
+        // dummy     : 1, just a constant
         // stretching: bond length atom1_atom2
         // bending   : bond angle atom1_atom2_atom3, range [0,pi]
         //             singular derivative at 0 and pi
