@@ -633,8 +633,8 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor> InvDisp::compute_IC_J_K(const at:
     q.detach_();
     // J
     at::Tensor J = r.new_zeros(r.size(0));
-    for (size_t i = 0; i < atoms_.size(); i++)
-    J.slice(0, 3 * atoms_[i], 3 * atoms_[i] + 3).copy_(Js[i]);
+    for (size_t i = 0; i < atoms_.size(); i++) J.slice(0, 3 * atoms_[i], 3 * atoms_[i] + 3).copy_(Js[i]);
+    J.detach_(); // Why would this .copy_ changes J.requires_grad() to Js[i].requires_grad()?
     // K
     CL::utility::matrix<at::Tensor> Ks(atoms_.size());
     for (size_t i = 0; i < atoms_.size(); i++)
