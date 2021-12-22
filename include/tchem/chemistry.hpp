@@ -4,6 +4,7 @@
 #include <torch/torch.h>
 
 #include <tchem/chem/phaser.hpp>
+#include <tchem/chem/orderer.hpp>
 #include <tchem/chem/normal_mode.hpp>
 
 namespace tchem { namespace chem {

@@ -27,6 +27,7 @@ add_library(tchem STATIC
     source/IC/IntCoordSet.cpp
     source/chem/chemistry.cpp
     source/chem/phaser.cpp
+    source/chem/orderer.cpp
     source/chem/normal_mode.cpp
     source/polynomial/Polynomial.cpp
     source/polynomial/PolynomialSet.cpp
