@@ -24,6 +24,10 @@ class Orderer {
         Orderer(const size_t & _NStates);
         ~Orderer();
 
+        // alter the ordering of eigenvalues `eigvals` to the `ipermutation`-th possible permutation
+        at::Tensor alter_eigvals(const at::Tensor & eigvals, const size_t & ipermutation) const;
+        void alter_eigvals_(at::Tensor & eigvals, const size_t & ipermutation) const;
+
         // alter the ordering of eigenstates `U` to the `ipermutation`-th possible permutation
         at::Tensor alter_states(const at::Tensor & U, const size_t & ipermutation) const;
         void alter_states_(at::Tensor & U, const size_t & ipermutation) const;

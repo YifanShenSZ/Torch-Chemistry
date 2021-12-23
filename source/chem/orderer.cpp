@@ -16,6 +16,31 @@ Orderer::Orderer(const size_t & _NStates) : NStates_(_NStates) {
 }
 Orderer::~Orderer() {}
 
+// alter the ordering of eigenvalues `eigvals` to the `ipermutation`-th possible permutation
+at::Tensor Orderer::alter_eigvals(const at::Tensor & eigvals, const size_t & ipermutation) const {
+    if (eigvals.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::Orderer::alter_eigvals: eigvals must be a vector");
+    if (eigvals.size(0) != NStates_) throw std::invalid_argument(
+    "tchem::Orderer::alter_eigvals: The number of eigenvalues must be the number of electronic states");
+    if (ipermutation >= permutations_.size()) return eigvals;
+
+    const auto & permutation = permutations_[ipermutation];
+    at::Tensor result = eigvals.new_empty(eigvals.sizes());
+    for (size_t i = 0; i < NStates_; i++) result[i] = eigvals[permutation[i]];
+    return result;
+}
+void Orderer::alter_eigvals_(at::Tensor & eigvals, const size_t & ipermutation) const {
+    if (eigvals.sizes().size() != 1) throw std::invalid_argument(
+    "tchem::Orderer::alter_eigvals_: eigvals must be a vector");
+    if (eigvals.size(0) != NStates_) throw std::invalid_argument(
+    "tchem::Orderer::alter_eigvals_: The number of eigenvalues must be the number of electronic states");
+    if (ipermutation >= permutations_.size()) return;
+
+    const auto & permutation = permutations_[ipermutation];
+    at::Tensor eigvalssave = eigvals.clone();
+    for (size_t i = 0; i < NStates_; i++) eigvals[i].copy_(eigvalssave[permutation[i]]);
+}
+
 // alter the ordering of eigenstates `U` to the `ipermutation`-th possible permutation,
 at::Tensor Orderer::alter_states(const at::Tensor & U, const size_t & ipermutation) const {
     if (U.sizes().size() != 2) throw std::invalid_argument(
