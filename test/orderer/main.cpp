@@ -41,6 +41,12 @@ void fix_ob() {
     at::Tensor dH_ca = orderer.fix_ob(dH_c, dH_a);
     at::Tensor dH_ca_ = dH_c.clone();
     orderer.fix_ob_(dH_ca_, dH_a);
+    for (size_t i = 0    ; i < Hd.size(0); i++)
+    for (size_t j = i + 1; j < Hd.size(1); j++) {
+        dH_ca [j][i].zero_();
+        dH_ca_[j][i].zero_();
+        dH_a  [j][i].zero_();
+    }
     std::cout << "\nFixing ordering of an observable: "
               << (dH_ca - dH_ca_).norm().item<double>() << ' '
               << (dH_ca - dH_a  ).norm().item<double>() << '\n';

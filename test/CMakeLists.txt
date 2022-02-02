@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_BUILD_TYPE Release)
 
 # Torch-Chemistry
-set(CMAKE_PREFIX_PATH ~/Library/Torch-Chemistry)
+set(CMAKE_PREFIX_PATH ../..)
 find_package(tchem REQUIRED)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${tchem_CXX_FLAGS}")
 
