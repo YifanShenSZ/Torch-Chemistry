@@ -4,15 +4,15 @@ namespace tchem { namespace chem {
 
 Orderer::Orderer() {}
 Orderer::Orderer(const size_t & _NStates) : NStates_(_NStates) {
+    // construct necessary phasers
+    phasers_.resize(_NStates + 1);
+    for (size_t i = 0; i < phasers_.size(); i++) phasers_[i] = std::make_shared<tchem::chem::Phaser>(i);
     // there must be at least 2 states to have 'ordering'
     if (_NStates < 2) return;
     // generate possible permutations
     std::vector<size_t> base(_NStates);
     std::iota(base.begin(), base.end(), 0);
     while (std::next_permutation(base.begin(), base.end())) permutations_.push_back(base);
-    // construct necessary phasers
-    phasers_.resize(_NStates + 1);
-    for (size_t i = 0; i < phasers_.size(); i++) phasers_[i] = std::make_shared<tchem::chem::Phaser>(i);
 }
 Orderer::~Orderer() {}
 
