@@ -72,8 +72,8 @@ void q_J_K() {
               << (J1_col - J_def).norm().item<double>() << '\n';
 }
 
-void advanced_q_J_K() {
-    CL::chem::xyz<double> geom("slow-1.5.xyz", true);
+std::tuple<double, double, double, double> advanced_q_J_K(const std::string & geom_file) {
+    CL::chem::xyz<double> geom(geom_file, true);
     std::vector<double> coords = geom.coords();
     at::Tensor r = at::from_blob(coords.data(), coords.size(), top);
     tchem::IC::IntCoordSet set("whatever", "advanced_IntCoordDef");
@@ -85,25 +85,6 @@ void advanced_q_J_K() {
 
     at::Tensor qK, JK, K;
     std::tie(qK, JK, K) = set.compute_IC_J_K(r);
-
-    std::cout << "\nAdvanced internal coordinates: "
-              << q[0].item<double>() - 1.0 << ' '
-              << (at::cos(q[1]) - q[2]).item<double>()
-               + (at::cos(q[3]) - q[4]).item<double>()
-               + (at::cos(q[5]) - q[6]).item<double>() << ' '
-              << (at::sin(q[7 ]) - q[8 ]).item<double>()
-               + (at::sin(q[10]) - q[11]).item<double>() << ' '
-              << (at::cos(q[7 ]) - q[9 ]).item<double>()
-               + (at::cos(q[10]) - q[12]).item<double>() << ' '
-              << (at::sin(q[13]) - q[14]).item<double>()
-               + (at::sin(q[15]) - q[16]).item<double>() << ' '
-              << (at::sin(q[17]) - q[18]).item<double>()
-               + (at::cos(q[17]) - q[19]).item<double>() << '\n';
-    std::cout << "\nAdvanced internal coordinates calculated with Jacobians: "
-              << (q - qJ).norm().item<double>() << ' '
-              << (q - qK).norm().item<double>() << '\n';
-    std::cout << "\nJacobian calculated with 2nd order Jacobian: "
-              << (J - JK).norm().item<double>() << '\n';
 
     at::Tensor J_f = J.new_empty(J.sizes()),
                K_f = K.new_empty(K.sizes());
@@ -122,9 +103,23 @@ void advanced_q_J_K() {
         J_f.select(1, i) = (qp - qm) / 2e-3;
         K_f.select(2, i) = (Jp - Jm) / 2e-3;
     }
-    std::cout << "\nAnalytical Jacobian vs finite difference: "
-              << (J - J_f).norm().item<double>() << ' '
-              << (K - K_f).norm().item<double>() << '\n';
+
+    double qerror = q[0].item<double>() - 1.0
+                  + (at::cos(q[1]) - q[2]).item<double>()
+                  + (at::cos(q[3]) - q[4]).item<double>()
+                  + (at::cos(q[5]) - q[6]).item<double>()
+                  + (at::sin(q[7 ]) - q[8 ]).item<double>()
+                  + (at::sin(q[10]) - q[11]).item<double>()
+                  + (at::cos(q[7 ]) - q[9 ]).item<double>()
+                  + (at::cos(q[10]) - q[12]).item<double>()
+                  + (at::sin(q[13]) - q[14]).item<double>()
+                  + (at::sin(q[15]) - q[16]).item<double>()
+                  + (at::sin(q[17]) - q[18]).item<double>()
+                  + (at::cos(q[17]) - q[19]).item<double>(),
+           Jerror = (J - J_f).norm().item<double>() + (K - K_f).norm().item<double>(),
+           qdiff = (q - qJ).norm().item<double>() + (q - qK).norm().item<double>(),
+           Jdiff = (J - JK).norm().item<double>();
+    return std::make_tuple(qerror, Jerror, qdiff, Jdiff);
 }
 
 void grad_hess() {
@@ -162,6 +157,21 @@ int main() {
     std::cout << "This is a test program on Torch-Chemistry module 'intcoord'\n"
               << "Correct routines should print close to 0\n";
     q_J_K();
-    advanced_q_J_K();
+
+    double qerror1, Jerror1, qdiff1, Jdiff1;
+    std::tie(qerror1, Jerror1, qdiff1, Jdiff1) = advanced_q_J_K("slow-1.5.xyz");
+    double qerror2, Jerror2, qdiff2, Jdiff2;
+    std::tie(qerror2, Jerror2, qdiff2, Jdiff2) = advanced_q_J_K("min-B1.xyz");
+    double qerror3, Jerror3, qdiff3, Jdiff3;
+    std::tie(qerror3, Jerror3, qdiff3, Jdiff3) = advanced_q_J_K("B1rot-2.2.xyz");
+    std::cout << "\nAdvanced internal coordinates: "
+              << qerror1 << ' ' << qerror2 << ' ' << qerror3 << '\n';
+    std::cout << "\nAnalytical Jacobian vs finite difference: "
+              << Jerror1 << ' ' << Jerror2 << ' ' << Jerror3 << '\n'; 
+    std::cout << "\nAdvanced internal coordinates calculated with Jacobians: "
+              << qdiff1 << ' ' << qdiff2 << ' ' << qdiff3 << '\n';
+    std::cout << "\nJacobian calculated with 2nd order Jacobian: "
+              << Jdiff1 << ' ' << Jdiff2 << ' ' << Jdiff3 << '\n';
+
     grad_hess();
 }
