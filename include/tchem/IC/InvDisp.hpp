@@ -9,34 +9,40 @@ namespace tchem { namespace IC {
 class InvDisp {
     private:
         // Available types:
-        // dummy     : 1, just a constant
-        // stretching: bond length atom1_atom2
-        // bending   : bond angle atom1_atom2_atom3, range [0,pi]
-        //             singular derivative at 0 and pi
-        // cosbending: cos(bending), avoids derivative singularity
-        // torsion   : dihedral angle atom1_atom2_atom3_atom4, range [min, min + 2pi]
-        //             specifically, angle between plane 123 and plane 234
-        //             dihedral angle has same sign to n_123 x n_234 . r_23
-        //             where n_abc (the normal vector of plane abc) is the unit vector along r_ab x r_bc
-        //             double-valued at min and min + 2pi
-        // sintorsion: sin(torsion), avoids double value
-        // costorsion: cos(torsion), avoids double value
-        // OutOfPlane: out of plane angle atom1_atom2_atom3_atom4, range [-pi/2, pi/2]
-        //             specifically, bond 12 out of plane 234
-        //             singular derivative at +-pi/2
-        // sinoop    : sin(out of plane), avoids derivative singularity
+        // dummy      : 1, just a constant
+        // stretching : bond length atom1_atom2
+        // bending    : bond angle atom1_atom2_atom3, range [0,pi]
+        //              singular derivative at 0 and pi
+        // cosbending : cos(bending), avoiding derivative singularity
+        // torsion    : dihedral angle atom1_atom2_atom3_atom4, range [min, min + 2pi]
+        //              concretely, angle between plane 123 and plane 234
+        //              dihedral angle has same sign to n_123 x n_234 . r_23
+        //              where n_abc (the normal vector of plane abc) is the unit vector along r_ab x r_bc
+        //              double-valued at min and min + 2pi
+        // sintorsion : sin(torsion), avoiding double value
+        // costorsion : cos(torsion), avoiding double value
+        // torsion2   : dihedral angle atom1_atom2_atom3_atom4_atom5, range [min, min + 2pi]
+        //              concretely, angle between plane 123 and (pseudo) plane 2345
+        //              where n_2345 is the unit vector along r_23 x r_45
+        //              dihedral angle has same sign to n_123 x n_2345 . r_23
+        //              double-valued at min and min + 2pi
+        // sintorsion2: sin(torsion2), avoiding double value
+        // costorsion2: cos(torsion2), avoiding double value
+        // OutOfPlane : out of plane angle atom1_atom2_atom3_atom4, range [-pi/2, pi/2]
+        //              concretely, bond 12 out of plane 234
+        //              singular derivative at +-pi/2
+        // sinoop     : sin(out of plane), avoiding derivative singularity
         std::string type_;
         // involved atoms
         std::vector<size_t> atoms_;
-        // for torsion only, deafult = -pi
+        // for torsion and torsion2 only, deafult = -pi
         // if (the dihedral angle < min)       angle += 2pi
         // if (the dihedral angle > min + 2pi) angle -= 2pi
         // The dihedral angle is double-valued at min and min + 2pi
         double min_ = -M_PI;
     public:
         InvDisp();
-        InvDisp(const std::string & _type, const std::vector<size_t> & _atoms);
-        InvDisp(const std::string & _type, const std::vector<size_t> & _atoms, const double & _min);
+        InvDisp(const std::string & _type, const std::vector<size_t> & _atoms, const double & _min = -M_PI);
         ~InvDisp();
 
         const std::string & type() const;
@@ -45,11 +51,11 @@ class InvDisp {
 
         void print(std::ofstream & ofs, const std::string & format) const;
 
-        // Return the displacement given r
+        // return the displacement given r
         at::Tensor operator()(const at::Tensor & r) const;
-        // Return the displacement and its gradient over r given r
+        // return the displacement and its gradient over r given r
         std::tuple<at::Tensor, at::Tensor> compute_IC_J(const at::Tensor & r) const;
-        // Return the displacement and its 1st and 2nd order gradient over r given r
+        // return the displacement and its 1st and 2nd order gradient over r given r
         std::tuple<at::Tensor, at::Tensor, at::Tensor> compute_IC_J_K(const at::Tensor & r) const;
 };
 

@@ -3,13 +3,13 @@ Converting Cartesian coordinate to internal coordinate
 
 An interal coordinate is a linear combination of several translationally and rotationally invariant displacements, but only displacements under same unit can be combined, i.e. you must treat lengthes and angles separately, unless appropriate metric tensor is applied
 
-The Jacobian of internal coordinate over Cartesian coordinate can be calculated analytically instead of through backward propagation. In fact, analytical Jacobian is always recommended because:
-* A analytical calculation is more efficient and stable than backward propagation
+The Jacobian of internal coordinate over Cartesian coordinate can be calculated analytically instead of through backward propagation, which is recommended because:
+* An analytical calculation is more efficient and stable than backward propagation
 * In few cases (e.g. acos a number > 1, possible when an angle = 0 or pi and numerical fluctutation arises) the internal coordinate cannot be backward propagated
 
 ~~Although in principle the 2nd order Jacobian also has analytical form, since a backward propagation from the Jacobian is always feasible, I'm too lazy to implement it~~ :sleeping:
 
-Available internal coordinates are:
+Available internal coordinates are (see `include/tchem/IC/InvDisp.hpp` for details):
 * bond length
 * bond angle (and its cos)
 * dihedral angle (and its sin and cos)

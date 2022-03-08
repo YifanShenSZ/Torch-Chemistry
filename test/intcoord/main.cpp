@@ -80,41 +80,51 @@ void advanced_q_J_K() {
 
     at::Tensor q = set(r);
 
-    r.set_requires_grad(true);
     at::Tensor qJ, J;
     std::tie(qJ, J) = set.compute_IC_J(r);
-    at::Tensor J_back = J.new_empty(J.sizes());
-    for (size_t i = 0; i < qJ.size(0); i++) {
-        if (r.grad().defined()) {
-            r.grad().detach_();
-            r.grad().zero_();
-        }
-        qJ[i].backward({}, true);
-        J_back[i].copy_(r.grad());
-    }
-    r.set_requires_grad(false);
 
     at::Tensor qK, JK, K;
     std::tie(qK, JK, K) = set.compute_IC_J_K(r);
 
     std::cout << "\nAdvanced internal coordinates: "
-              << (at::cos(q[0]) - q[1]).item<double>()
-               + (at::cos(q[2]) - q[3]).item<double>()
-               + (at::cos(q[4]) - q[5]).item<double>() << ' '
-              << (at::sin(q[6]) - q[7 ]).item<double>()
-               + (at::sin(q[9]) - q[10]).item<double>() << ' '
-              << (at::cos(q[6]) - q[8 ]).item<double>()
-               + (at::cos(q[9]) - q[11]).item<double>() << ' '
-              << (at::sin(q[12]) - q[13]).item<double>()
-               + (at::sin(q[14]) - q[15]).item<double>() << ' '
-              << q[16].item<double>() - 1.0 << '\n';
-    std::cout << "\nBackward propagation vs analytical Jacobian: "
-              << (J - J_back).norm().item<double>() << '\n';
+              << q[0].item<double>() - 1.0 << ' '
+              << (at::cos(q[1]) - q[2]).item<double>()
+               + (at::cos(q[3]) - q[4]).item<double>()
+               + (at::cos(q[5]) - q[6]).item<double>() << ' '
+              << (at::sin(q[7 ]) - q[8 ]).item<double>()
+               + (at::sin(q[10]) - q[11]).item<double>() << ' '
+              << (at::cos(q[7 ]) - q[9 ]).item<double>()
+               + (at::cos(q[10]) - q[12]).item<double>() << ' '
+              << (at::sin(q[13]) - q[14]).item<double>()
+               + (at::sin(q[15]) - q[16]).item<double>() << ' '
+              << (at::sin(q[17]) - q[18]).item<double>()
+               + (at::cos(q[17]) - q[19]).item<double>() << '\n';
     std::cout << "\nAdvanced internal coordinates calculated with Jacobians: "
               << (q - qJ).norm().item<double>() << ' '
               << (q - qK).norm().item<double>() << '\n';
     std::cout << "\nJacobian calculated with 2nd order Jacobian: "
               << (J - JK).norm().item<double>() << '\n';
+
+    at::Tensor J_f = J.new_empty(J.sizes()),
+               K_f = K.new_empty(K.sizes());
+    for (size_t i = 0; i < r.size(0); i++) {
+        // +1e-3
+        at::Tensor rp = r.clone();
+        rp[i] += 1e-3;
+        at::Tensor qp, Jp;
+        std::tie(qp, Jp) = set.compute_IC_J(rp);
+        // -1e-3
+        at::Tensor rm = r.clone();
+        rm[i] -= 1e-3;
+        at::Tensor qm, Jm;
+        std::tie(qm, Jm) = set.compute_IC_J(rm);
+        // finite difference
+        J_f.select(1, i) = (qp - qm) / 2e-3;
+        K_f.select(2, i) = (Jp - Jm) / 2e-3;
+    }
+    std::cout << "\nAnalytical Jacobian vs finite difference: "
+              << (J - J_f).norm().item<double>() << ' '
+              << (K - K_f).norm().item<double>() << '\n';
 }
 
 void grad_hess() {

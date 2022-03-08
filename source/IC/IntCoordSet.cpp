@@ -86,7 +86,22 @@ IntCoordSet::IntCoordSet(const std::string & format, const std::string & file) {
                 atom[1] = std::stoul(strs.front()) - 1; strs.pop_front();
                 atom[2] = std::stoul(strs.front()) - 1; strs.pop_front();
             }
-            else if (type == "torsion" || type == "sintorsion" || type == "costorsion" || type == "OutOfPlane" || type == "sinoop") {
+            else if (type == "torsion" || type == "sintorsion" || type == "costorsion") {
+                atom.resize(4);
+                atom[0] = std::stoul(strs.front()) - 1; strs.pop_front();
+                atom[1] = std::stoul(strs.front()) - 1; strs.pop_front();
+                atom[2] = std::stoul(strs.front()) - 1; strs.pop_front();
+                atom[3] = std::stoul(strs.front()) - 1; strs.pop_front();
+            }
+            else if (type == "torsion2" || type == "sintorsion2" || type == "costorsion2") {
+                atom.resize(5);
+                atom[0] = std::stoul(strs.front()) - 1; strs.pop_front();
+                atom[1] = std::stoul(strs.front()) - 1; strs.pop_front();
+                atom[2] = std::stoul(strs.front()) - 1; strs.pop_front();
+                atom[3] = std::stoul(strs.front()) - 1; strs.pop_front();
+                atom[4] = std::stoul(strs.front()) - 1; strs.pop_front();
+            }
+            else if (type == "OutOfPlane" || type == "sinoop") {
                 atom.resize(4);
                 atom[0] = std::stoul(strs.front()) - 1; strs.pop_front();
                 atom[1] = std::stoul(strs.front()) - 1; strs.pop_front();
@@ -100,7 +115,7 @@ IntCoordSet::IntCoordSet(const std::string & format, const std::string & file) {
         }
         ifs.close();
     }
-    // Normalize linear combination coefficient
+    // normalize linear combination coefficient
     for (IntCoord & intcoord : intcoords_) intcoord.normalize();
 }
 IntCoordSet::~IntCoordSet() {}
