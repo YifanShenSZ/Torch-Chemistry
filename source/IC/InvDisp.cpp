@@ -15,25 +15,25 @@ const double & InvDisp::min() const {return min_;}
 void InvDisp::print(std::ofstream & ofs, const std::string & format) const {
     if (format == "Columbus7") {
         if (type_ == "stretching") {
-            ofs << "    STRE"
+            ofs << "STRE"
                 << std::setw(9) << atoms_[0] + 1 << '.'
                 << std::setw(9) << atoms_[1] + 1 << '.';
         }
         else if (type_ == "bending") {
-            ofs << "    BEND"
+            ofs << "BEND"
                 << std::setw(10) << atoms_[0] + 1 << '.'
                 << std::setw( 9) << atoms_[2] + 1 << '.'
                 << std::setw( 9) << atoms_[1] + 1 << '.';
         }
         else if (type_ == "torsion") {
-            ofs << "    TORS"
+            ofs << "TORS"
             << std::setw(10) << atoms_[0] + 1 << '.'
             << std::setw( 9) << atoms_[1] + 1 << '.'
             << std::setw( 9) << atoms_[2] + 1 << '.'
             << std::setw( 9) << atoms_[3] + 1 << '.';
         }
         else if (type_ == "OutOfPlane") {
-            ofs << "    OUT "
+            ofs << "OUT "
                 << std::setw(10) << atoms_[0] + 1 << '.'
                 << std::setw( 9) << atoms_[2] + 1 << '.'
                 << std::setw( 9) << atoms_[3] + 1 << '.'

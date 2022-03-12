@@ -34,19 +34,19 @@ IntCoordSet::IntCoordSet(const std::string & format, const std::string & file) {
                         std::stoul(line.substr(45, 9)) - 1,
                         std::stoul(line.substr(35, 9)) - 1};
             }
-            else if (line.substr(20,3) == "OUT") {
-                type = "OutOfPlane";
-                atom = {std::stoul(line.substr(28, 6)) - 1,
-                        std::stoul(line.substr(55, 9)) - 1,
-                        std::stoul(line.substr(35, 9)) - 1,
-                        std::stoul(line.substr(45, 9)) - 1};
-            }
             else if (line.substr(20,4) == "TORS") {
                 type = "torsion";
                 atom = {std::stoul(line.substr(28, 6)) - 1,
                         std::stoul(line.substr(35, 9)) - 1,
                         std::stoul(line.substr(45, 9)) - 1,
                         std::stoul(line.substr(55, 9)) - 1};
+            }
+            else if (line.substr(20,3) == "OUT") {
+                type = "OutOfPlane";
+                atom = {std::stoul(line.substr(28, 6)) - 1,
+                        std::stoul(line.substr(55, 9)) - 1,
+                        std::stoul(line.substr(35, 9)) - 1,
+                        std::stoul(line.substr(45, 9)) - 1};
             }
             else break;
             intcoords_.back().append(coeff, InvDisp(type, atom));

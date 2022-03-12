@@ -32,10 +32,10 @@ void IntCoord::normalize() {
 
 void IntCoord::print(std::ofstream & ofs, const std::string & format) const {
     if (format == "Columbus7") {
-        ofs << "K   " << std::setw(12) << coeff_invdisps_[0].first;
+        ofs << "K         " << std::setw(9) << std::setprecision(6) << coeff_invdisps_[0].first << ' ';
         coeff_invdisps_[0].second.print(ofs, format);
         for (size_t i = 1; i < coeff_invdisps_.size(); i++) {
-            ofs << "    " << std::setw(12) << coeff_invdisps_[i].first;
+            ofs << "          " << std::setw(9) << std::setprecision(6)<< coeff_invdisps_[i].first << ' ';
             coeff_invdisps_[i].second.print(ofs, format);
         }
     }
