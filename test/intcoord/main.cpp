@@ -20,21 +20,8 @@ void q_J_K() {
     std::cout << "\nColumbus7 format internal coordinate: "
               << ((q0_col - intgeom) / intgeom).norm().item<double>() << '\n';
 
-    r_col.set_requires_grad(true);
     at::Tensor q1_col, J1_col;
     std::tie(q1_col, J1_col) = set_col.compute_IC_J(r_col);
-    at::Tensor J_col_back = J1_col.new_empty(J1_col.sizes());
-    for (size_t i = 0; i < q1_col.size(0); i++) {
-        if (r_col.grad().defined()) {
-            r_col.grad().detach_();
-            r_col.grad().zero_();
-        }
-        q1_col[i].backward({}, true);
-        J_col_back[i].copy_(r_col.grad());
-    }
-    r_col.set_requires_grad(false);
-    std::cout << "\nBackward propagation vs analytical Jacobian: "
-              << (J1_col - J_col_back).norm().item<double>() << '\n';
 
     at::Tensor q2_col, J2_col, K2_col;
     std::tie(q2_col, J2_col, K2_col) = set_col.compute_IC_J_K(r_col);
@@ -44,32 +31,38 @@ void q_J_K() {
     std::cout << "\nJacobian calculated with 2nd order Jacobian: "
               << (J1_col - J2_col).norm().item<double>() << '\n';
 
-    const double dr = 1e-5;
-    std::vector<at::Tensor> plus(r_col.size(0)), minus(r_col.size(0));
+    at::Tensor J_f = J2_col.new_empty(J2_col.sizes()),
+               K_f = K2_col.new_empty(K2_col.sizes());
     for (size_t i = 0; i < r_col.size(0); i++) {
-        at::Tensor q;
-        plus[i] = r_col.clone();
-        plus[i][i] += dr;
-        std::tie(q, plus[i]) = set_col.compute_IC_J(plus[i]);
-        minus[i] = r_col.clone();
-        minus[i][i] -= dr;
-        std::tie(q, minus[i]) = set_col.compute_IC_J(minus[i]);
+        // +1e-5
+        at::Tensor rp = r_col.clone();
+        rp[i] += 1e-5;
+        at::Tensor qp, Jp;
+        std::tie(qp, Jp) = set_col.compute_IC_J(rp);
+        // -1e-5
+        at::Tensor rm = r_col.clone();
+        rm[i] -= 1e-5;
+        at::Tensor qm, Jm;
+        std::tie(qm, Jm) = set_col.compute_IC_J(rm);
+        // finite difference
+        J_f.select(1, i) = (qp - qm) / 2e-5;
+        K_f.select(2, i) = (Jp - Jm) / 2e-5;
     }
-    at::Tensor K_numerical = K2_col.new_empty(K2_col.sizes());
-    for (size_t i = 0; i < r_col.size(0); i++) K_numerical.select(1, i).copy_((plus[i] - minus[i]) / 2.0 / dr);
-    std::cout << "\nFinite difference vs analytical 2nd order Jacobian: "
-              << (K2_col - K_numerical).abs_().max().item<double>() << '\n';
+    std::cout << "\nFinite difference vs analytical Jacobian: "
+              << (J2_col - J_f).abs_().max().item<double>() << ' '
+              << (K2_col - K_f).abs_().max().item<double>() << '\n';
 
     CL::chem::xyz<double> geom_def("slow-1.5.xyz", true);
     std::vector<double> coords_def = geom_def.coords();
     at::Tensor r_def = at::from_blob(coords_def.data(), coords_def.size(), top);
 
     tchem::IC::IntCoordSet set_def("default", "IntCoordDef");
-    at::Tensor q_def, J_def;
-    std::tie(q_def, J_def) = set_def.compute_IC_J(r_def);
+    at::Tensor q_def, J_def, K_def;
+    std::tie(q_def, J_def, K_def) = set_def.compute_IC_J_K(r_def);
     std::cout << "\nDefault internal coordinate and Jacobian: "
-              << (q1_col - q_def).norm().item<double>() << ' '
-              << (J1_col - J_def).norm().item<double>() << '\n';
+              << (q2_col - q_def).norm().item<double>() << ' '
+              << (J2_col - J_def).norm().item<double>() << ' '
+              << (K2_col - K_def).norm().item<double>() << '\n';
 }
 
 std::tuple<double, double, double, double> advanced_q_J_K(const std::string & geom_file) {
@@ -115,7 +108,9 @@ std::tuple<double, double, double, double> advanced_q_J_K(const std::string & ge
                   + (at::sin(q[13]) - q[14]).item<double>()
                   + (at::sin(q[15]) - q[16]).item<double>()
                   + (at::sin(q[17]) - q[18]).item<double>()
-                  + (at::cos(q[17]) - q[19]).item<double>(),
+                  + (at::cos(q[17]) - q[19]).item<double>()
+                  + (at::sin(q[1]) * q[19] - q[20]).item<double>()
+                  + (at::sin(q[1]) * q[18] - q[21]).item<double>(),
            Jerror = (J - J_f).norm().item<double>() + (K - K_f).norm().item<double>(),
            qdiff = (q - qJ).norm().item<double>() + (q - qK).norm().item<double>(),
            Jdiff = (J - JK).norm().item<double>();

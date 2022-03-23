@@ -1,0 +1,22 @@
+This is a test program on Torch-Chemistry module 'intcoord'
+Correct routines should print close to 0
+
+Columbus7 format internal coordinate: 0.000496243
+
+Internal coordinates calculated with Jacobians: 2.52432e-14 2.52432e-14
+
+Jacobian calculated with 2nd order Jacobian: 0
+
+Finite difference vs analytical Jacobian: 3.03796e-09 5.25949e-11
+
+Default internal coordinate and Jacobian: 5.05147e-06 3.88728e-06 8.38486e-06
+
+Advanced internal coordinates: -2.498e-16 2.33487e-16 3.82857e-16
+
+Analytical Jacobian vs finite difference: 3.29218e-06 3.45585e-05 7.00052e-06
+
+Advanced internal coordinates calculated with Jacobians: 1.63169e-15 4.21468e-08 6.28037e-16
+
+Jacobian calculated with 2nd order Jacobian: 0 0 0
+
+Gradient and Hessian transformations: 2.89357e-14 2.29676e-13 9.97328e-15 3.51729e-13

@@ -13,6 +13,7 @@ Available internal coordinates are (see `include/tchem/IC/InvDisp.hpp` for detai
 * bond length
 * bond angle (and its cos)
 * dihedral angle (and its sin and cos)
+* pseudo dihedral angle (and its sin, cos, px, py)
 * out of plane angle (and its sin)
 
 ## Why internal coordinate?

@@ -93,7 +93,7 @@ IntCoordSet::IntCoordSet(const std::string & format, const std::string & file) {
                 atom[2] = std::stoul(strs.front()) - 1; strs.pop_front();
                 atom[3] = std::stoul(strs.front()) - 1; strs.pop_front();
             }
-            else if (type == "torsion2" || type == "sintorsion2" || type == "costorsion2") {
+            else if (type == "torsion2" || type == "sintorsion2" || type == "costorsion2" || type == "pxtorsion2" || type == "pytorsion2") {
                 atom.resize(5);
                 atom[0] = std::stoul(strs.front()) - 1; strs.pop_front();
                 atom[1] = std::stoul(strs.front()) - 1; strs.pop_front();
