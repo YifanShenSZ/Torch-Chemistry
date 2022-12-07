@@ -5,7 +5,6 @@ polynomial SApolynomial gaussian; do
     echo "Entre "$directory
     # build
     cd $directory/build
-    rm test.exe
     cmake --build .
     cd ..
     # run
